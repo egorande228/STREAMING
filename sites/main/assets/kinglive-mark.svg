@@ -1,0 +1,63 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="goldEdge" x1="86" y1="50" x2="436" y2="462" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF3A8"/>
+      <stop offset="0.28" stop-color="#FFDF55"/>
+      <stop offset="0.62" stop-color="#FFCC00"/>
+      <stop offset="1" stop-color="#C98D00"/>
+    </linearGradient>
+    <linearGradient id="goldFill" x1="136" y1="88" x2="356" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFECA1"/>
+      <stop offset="0.48" stop-color="#FFD31A"/>
+      <stop offset="1" stop-color="#D69A00"/>
+    </linearGradient>
+    <linearGradient id="darkSplit" x1="98" y1="76" x2="414" y2="446" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0D110E"/>
+      <stop offset="0.47" stop-color="#101512"/>
+      <stop offset="0.53" stop-color="#060907"/>
+      <stop offset="1" stop-color="#0A0D0B"/>
+    </linearGradient>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="7.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g filter="url(#softGlow)">
+    <path
+      d="M256 36L438 102V250C438 365 372 452 256 506C140 452 74 365 74 250V102L256 36Z"
+      fill="url(#goldEdge)"
+    />
+  </g>
+  <path
+    d="M256 50L424 112V247C424 354 364 436 256 488C148 436 88 354 88 247V112L256 50Z"
+    fill="url(#darkSplit)"
+  />
+  <path
+    d="M256 64L410 122V243C410 344 354 421 256 470C158 421 102 344 102 243V122L256 64Z"
+    stroke="#FFEAA0"
+    stroke-opacity=".35"
+    stroke-width="2"
+  />
+
+  <g>
+    <path d="M150 125H210V393H150V125Z" fill="url(#goldFill)"/>
+    <path d="M210 229L304 125H382L271 256L382 393H304L210 284V229Z" fill="url(#goldFill)"/>
+    <path d="M150 125H210V393H150V125Z" stroke="#FFD951" stroke-width="2"/>
+    <path d="M210 229L304 125H382L271 256L382 393H304L210 284V229Z" stroke="#FFD951" stroke-width="2"/>
+  </g>
+
+  <g>
+    <path d="M286 256L333 221L380 256L333 291L286 256Z" fill="#F0B800" opacity=".38"/>
+    <path
+      d="M286 256L333 221L380 256L333 291L286 256Z"
+      stroke="url(#goldFill)"
+      stroke-width="8"
+      stroke-linejoin="round"
+    />
+    <path d="M329 235L357 256L329 277V235Z" fill="#FFECA3"/>
+  </g>
+</svg>

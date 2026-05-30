@@ -83,7 +83,12 @@ async function discoverMirrorViaDns(): Promise<string | null> {
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const origins =
     typeof window !== 'undefined'
-      ? [window.location.origin, ...getStoredMirrors(), ...FALLBACK_MIRRORS]
+      ? [
+          process.env.NEXT_PUBLIC_BACKEND_URL,
+          window.location.origin,
+          ...getStoredMirrors(),
+          ...FALLBACK_MIRRORS,
+        ].filter((origin): origin is string => Boolean(origin))
       : [SERVER_BACKEND_URL];
 
   const seen = new Set<string>();

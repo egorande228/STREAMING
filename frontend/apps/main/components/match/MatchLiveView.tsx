@@ -70,9 +70,10 @@ export default function MatchLiveView({ match, locale, lang, region }: Props) {
   const awayFlag = match.away_team?.flag_url ?? '🏳';
   const isLive   = status === 'live' || status === 'half_time';
   const streamQuery = new URLSearchParams();
+  streamQuery.set('id', String(match.id));
   if (lang) streamQuery.set('lang', lang);
   if (region) streamQuery.set('region', region);
-  const streamHref = `${streamBase}/${locale}/stream/${match.id}${streamQuery.toString() ? `?${streamQuery}` : ''}`;
+  const streamHref = `${streamBase}/${locale}/embed?${streamQuery}`;
 
   return (
     <div className="space-y-6">

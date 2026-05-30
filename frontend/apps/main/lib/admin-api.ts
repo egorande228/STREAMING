@@ -1,4 +1,5 @@
-const BASE = typeof window !== 'undefined' ? window.location.origin : '';
+const defaultBase = typeof window !== 'undefined' ? window.location.origin : '';
+const BASE = String(process.env.NEXT_PUBLIC_ADMIN_API_BASE || defaultBase).replace(/\/$/, '');
 const TOKEN_KEY = 'wc26_admin_token';
 
 export interface AdminTeamLite {

@@ -25,9 +25,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const navItems = [
-    { href: '/admin/matches', label: tAdmin('nav.matches') },
     { href: '/admin/streams', label: tAdmin('nav.streams') },
-    { href: '/admin/mirrors', label: tAdmin('nav.mirrors') },
   ];
 
   return (

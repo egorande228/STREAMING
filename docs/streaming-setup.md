@@ -84,14 +84,33 @@ http://ВАШ_IP:8080/live/wc26/index.m3u8
 
 ---
 
-## Шаг 3: Добавить поток в БД сайта
+## Шаг 3: Добавить поток в JSON сайта
 
-```sql
-INSERT INTO streams (match_id, url, language_code, label, quality, priority) VALUES
-  (1, 'https://ВАШ_ДОМЕН/live/wc26/index.m3u8', 'ru', 'RU', 'auto', 10);
+Откройте `sites/main/stream.json` и укажите матч, на котором должна появиться кнопка:
+
+```json
+{
+  "match_id": 1379275,
+  "is_active": true
+}
 ```
 
-Плеер на сайте автоматически подхватит поток.
+Затем откройте `sites/player/streams.json` и добавьте ссылку по тому же `match_id` из API-Football:
+
+```json
+{
+  "1540843": {
+    "url": "https://ВАШ_ДОМЕН/live/wc26/index.m3u8",
+    "source_type": "hls",
+    "label": "RU",
+    "language_code": "ru",
+    "region": "global",
+    "is_active": true
+  }
+}
+```
+
+После деплоя `sites/main` покажет кнопку перехода в плеер только для этого матча, а `sites/player` проиграет поток из своего JSON. Внешний футбольный API не решает, где есть стрим.
 
 ---
 

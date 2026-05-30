@@ -13,4 +13,5 @@ loadtest-chat:
 	k6 run -e TARGET=$(TARGET) -e VUS=$(VUS) -e DURATION=$(DURATION) -e MATCH_ID=$(MATCH_ID) scripts/loadtest/k6-chat.js
 
 loadtest-mixed:
-	k6 run -e TARGET=$(TARGET) -e VUS=$(VUS) -e DURATION=$(DURATION) -e MATCH_ID=$(MATCH_ID) -e STREAM_KEY=$(STREAM_KEY) scripts/loadtest/k6-mixed.js
+	k6 run -e TARGET=$(TARGET) -e VUS=$(VUS
+	) -e DURATION=$(DURATION) -e MATCH_ID=$(MATCH_ID) -e STREAM_KEY=$(STREAM_KEY) scripts/loadtest/k6-mixed.js

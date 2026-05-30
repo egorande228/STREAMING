@@ -1,0 +1,536 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
+import vm from 'node:vm';
+
+const appSource = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
+
+test('renders same-day matches beyond the first six API results', async () => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const adSlots = [];
+  const today = new Date().toISOString().slice(0, 10);
+  const fillerMatches = Array.from({ length: 6 }, (_, index) => ({
+    id: index + 1,
+    scheduled_at: `${today}T12:0${index}:00+00:00`,
+    status: 'scheduled',
+    stage: 'Fixture',
+    home_team: { name_en: `Home ${index + 1}` },
+    away_team: { name_en: `Away ${index + 1}` },
+  }));
+  const featuredMatch = {
+    id: 1540843,
+    scheduled_at: `${today}T19:00:00+00:00`,
+    status: 'scheduled',
+    stage: 'Semi-finals',
+    home_team: { name_en: 'Arsenal', flag_url: 'https://logo.test/ars.png' },
+    away_team: { name_en: 'Atletico Madrid', flag_url: 'https://logo.test/atm.png' },
+  };
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: '',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll(selector) {
+        if (selector === '[data-ad-slot]') return adSlots;
+        return [];
+      },
+    },
+    fetch(url) {
+      if (String(url).endsWith('/stream.json') || String(url).endsWith('stream.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      }
+      const matches = String(url).includes(`date=${today}`) ? [...fillerMatches, featuredMatch] : [];
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ matches }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /Arsenal vs Atletico Madrid/);
+});
+
+test('renders finished match score in the match list', async () => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const today = new Date().toISOString().slice(0, 10);
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: '',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch(url) {
+      if (String(url).endsWith('/stream.json') || String(url).endsWith('stream.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            matches: [
+              {
+                id: 42,
+                scheduled_at: `${today}T19:00:00+00:00`,
+                status: 'finished',
+                home_score: 2,
+                away_score: 1,
+                stage: 'Final',
+                home_team: { name_en: 'Chelsea' },
+                away_team: { name_en: 'Tottenham' },
+              },
+            ],
+          }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /match-score/);
+  assert.match(gridHtml, /2 : 1/);
+});
+
+test('renders football news from the backend news endpoint', async () => {
+  let newsHtml = '';
+  const newsGrid = {
+    get innerHTML() {
+      return newsHtml;
+    },
+    set innerHTML(value) {
+      newsHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        playerBase: 'https://player.kinglive.test',
+        newsApiUrl: 'https://kinglive-football-api.test/api/news?limit=1',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        if (id === 'news-grid') return newsGrid;
+        return null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch(url) {
+      assert.equal(String(url), 'https://kinglive-football-api.test/api/news?limit=1&lang=en');
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            news: [
+              {
+                title: 'BBC football headline',
+                summary: 'BBC football summary',
+                url: 'https://www.bbc.com/sport/football/articles/test',
+                published_at: 'Thu, 14 May 2026 09:33:49 GMT',
+                image_url: 'https://ichef.bbci.co.uk/test.jpg',
+                source: 'BBC Sport',
+              },
+            ],
+          }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(newsHtml, /BBC football headline/);
+  assert.match(newsHtml, /BBC football summary/);
+  assert.match(
+    newsHtml,
+    /news\.html\?url=https%3A%2F%2Fwww\.bbc\.com%2Fsport%2Ffootball%2Farticles%2Ftest/,
+  );
+});
+
+test('news carousel buttons move the horizontal news rail', async () => {
+  const listeners = new Map();
+  const newsGrid = {
+    clientWidth: 900,
+    scrollWidth: 1600,
+    scrollLeft: 0,
+    innerHTML: '',
+    addEventListener() {},
+    scrollTo(options) {
+      this.scrollLeft = options.left;
+    },
+  };
+  const nextButton = {
+    dataset: { newsScroll: '1' },
+    addEventListener(type, handler) {
+      listeners.set('next', handler);
+    },
+    setAttribute() {},
+  };
+  const prevButton = {
+    dataset: { newsScroll: '-1' },
+    addEventListener(type, handler) {
+      listeners.set('prev', handler);
+    },
+    setAttribute() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: '',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+      requestAnimationFrame: (handler) => handler(),
+    },
+    document: {
+      documentElement: { dir: 'ltr' },
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        if (id === 'news-grid') return newsGrid;
+        return null;
+      },
+      querySelector(selector) {
+        if (selector === '[data-news-scroll="-1"]') return prevButton;
+        if (selector === '[data-news-scroll="1"]') return nextButton;
+        return null;
+      },
+      querySelectorAll(selector) {
+        if (selector === '[data-news-scroll]') return [prevButton, nextButton];
+        return [];
+      },
+    },
+    fetch() {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ news: [] }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  listeners.get('next')();
+  assert.equal(newsGrid.scrollLeft, 700);
+  listeners.get('prev')();
+  assert.equal(newsGrid.scrollLeft, 0);
+});
+
+test('opens match details with stats and only shows player button when stream exists', async () => {
+  let gridHtml = '';
+  let modalHtml = '';
+  const bodyChildren = [];
+  const listeners = new Map();
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener(type, handler) {
+      listeners.set(type, handler);
+    },
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    get innerHTML() {
+      return modalHtml;
+    },
+    set innerHTML(value) {
+      modalHtml = value;
+    },
+    addEventListener(type, handler) {
+      listeners.set(`modal:${type}`, handler);
+    },
+  };
+  const today = new Date().toISOString().slice(0, 10);
+  const requests = [];
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild(element) {
+          bodyChildren.push(element);
+        },
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener(type, handler) {
+        listeners.set(`document:${type}`, handler);
+      },
+      getElementById(id) {
+        if (id === 'match-grid') return matchGrid;
+        return null;
+      },
+      querySelectorAll(selector) {
+        if (selector === '[data-ad-slot]') return [];
+        return [];
+      },
+    },
+    fetch(url) {
+      requests.push(String(url));
+      if (String(url).endsWith('/stream.json') || String(url).endsWith('stream.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ match_id: 1540843, is_active: true }),
+        });
+      }
+      if (String(url).includes('/stats')) {
+        if (String(url).includes('/1540844/')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ teams: [] }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              teams: [
+                { team: { name: 'Arsenal' }, stats: { possession: '61%', shots_on_goal: 5 } },
+                { team: { name: 'Atletico Madrid' }, stats: { possession: '39%', shots_on_goal: 3 } },
+              ],
+            }),
+        });
+      }
+      if (String(url).includes('/prematch')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              label: 'Head-to-head last 2 matches',
+              sample_size: 2,
+              home: { wins: 1, goals: 3 },
+              away: { wins: 0, goals: 1 },
+              draws: 1,
+            }),
+        });
+      }
+
+      const matches = String(url).includes(`date=${today}`)
+        ? [
+            {
+              id: 1540843,
+              scheduled_at: `${today}T19:00:00+00:00`,
+              status: 'live',
+              stage: 'Semi-finals',
+              home_team: { name_en: 'Arsenal', flag_url: 'https://logo.test/ars.png' },
+              away_team: { name_en: 'Atletico Madrid', flag_url: 'https://logo.test/atm.png' },
+              streams: [{ url: 'https://stream.test/live.m3u8', is_active: true }],
+            },
+            {
+              id: 1540844,
+              scheduled_at: `${today}T21:00:00+00:00`,
+              status: 'scheduled',
+              stage: 'Semi-finals',
+              home_team: { id: 1, name_en: 'Brazil' },
+              away_team: { id: 2, name_en: 'Japan' },
+              streams: [],
+            },
+          ]
+        : [];
+
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ matches }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /Open player/);
+  assert.match(gridHtml, /match=1540843/);
+  assert.doesNotMatch(gridHtml, /match=1540844/);
+  assert.doesNotMatch(gridHtml, /No stream yet/);
+  assert.equal(bodyChildren.length, 1);
+
+  listeners.get('click')({
+    target: {
+      closest(selector) {
+        return selector === '[data-match-id]' ? { dataset: { matchId: '1540843' } } : null;
+      },
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /Arsenal vs Atletico Madrid/);
+  assert.equal(modalRoot.hidden, false);
+  assert.match(modalHtml, /Match details/);
+  assert.match(modalHtml, /Possession 61% - 39%/);
+  assert.match(modalHtml, /Open player/);
+  assert.match(modalHtml, /match=1540843/);
+  assert.match(modalHtml, /https:\/\/logo\.test\/ars\.png/);
+  assert.equal(requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/stats'), true);
+
+  listeners.get('click')({
+    target: {
+      closest(selector) {
+        return selector === '[data-match-id]' ? { dataset: { matchId: '1540844' } } : null;
+      },
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(modalHtml, /Match details/);
+  assert.match(modalHtml, /Head-to-head last 2 matches/);
+  assert.match(modalHtml, /Wins 1 - 0/);
+  assert.match(modalHtml, /Draws 1/);
+  assert.doesNotMatch(modalHtml, /Watch stream/);
+  assert.doesNotMatch(modalHtml, /No stream yet/);
+
+  listeners.get('modal:click')({
+    target: {
+      closest(selector) {
+        return selector === '[data-modal-close]' ? {} : null;
+      },
+    },
+  });
+  assert.equal(modalRoot.hidden, true);
+});

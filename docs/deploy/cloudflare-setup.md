@@ -1,5 +1,10 @@
 # Cloudflare Setup
 
+This project can run in two modes:
+
+- **Cloudflare-only**: static Pages sites plus a Worker API proxy. Use this when you only have a Cloudflare domain and no VPS.
+- **VPS origin**: Docker, nginx, backend, PostgreSQL and Cloudflare in front. Use this only when a VPS is available.
+
 ## 1. Domain Registration
 
 Buy 3–5 domains across **different registrars** (resilience against registrar-level takedowns):
@@ -22,6 +27,23 @@ Enable **Privacy WHOIS** on every domain.
 4. Wait for propagation (usually <15 min). Cloudflare will email when active.
 
 ## 3. DNS Records
+
+### Cloudflare-only
+
+Use Cloudflare Pages custom domains for:
+
+| Host | Target |
+|------|--------|
+| `@` or `www` | `sites/main` Pages project |
+| `player` | `sites/player` Pages project |
+
+Add a Worker route for the football API proxy:
+
+```text
+kinglive.example.com/api/*
+```
+
+### VPS origin
 
 For **each** zone, create:
 
@@ -111,7 +133,56 @@ Requires **Pro** ($20/mo) or **Load Balancing** add-on (~$5/mo extra).
 
 If you are not using the Load Balancer, instead point each domain's A record to the secondary VPS manually when the primary goes down.
 
-## 9. Cloudflare Workers (stream proxy)
+## 9. Cloudflare Workers
+
+### Football API proxy (Cloudflare-only)
+
+The Worker in `workers/football-api` proxies match and score requests to API-FOOTBALL without exposing the API key in browser code.
+
+Free-plan fit:
+
+- Workers Free includes 100,000 requests/day, 10 ms CPU/request, 128 MB memory and 50 external subrequests/request.
+- This Worker uses one external API request only on a cache miss.
+- Cache TTLs are 30 s for live data, 60 s for a match detail, and 600 s for schedules.
+
+Deploy:
+
+```bash
+cd workers/football-api
+npx wrangler secret put API_FOOTBALL_KEY
+npx wrangler deploy
+```
+
+Do not put the API key into `sites/main/config.js`, browser code, or git. For local Worker testing, create `workers/football-api/.dev.vars` from `.dev.vars.example`.
+
+Route it in Cloudflare:
+
+```text
+kinglive.example.com/api/*
+```
+
+Supported endpoints:
+
+```text
+/api/matches?status=live
+/api/matches?status=half_time
+/api/matches?status=scheduled
+/api/matches?date=2026-06-11
+/api/matches/123456
+```
+
+When this Worker is on the same domain as the main Pages site, keep `sites/main/config.js` as:
+
+```js
+window.KINGLIVE_MAIN_CONFIG = {
+  apiBase: '',
+  playerBase: 'https://player.kinglive.example.com',
+  defaultLocale: 'en',
+  adSlots: {},
+};
+```
+
+### Stream proxy
 
 Optional: hides the upstream m3u8 source from viewers.
 
@@ -123,6 +194,61 @@ npx wrangler deploy
 ```
 
 This deploys the worker in `workers/stream-proxy/worker.js` which proxies `/proxy?url=<hmac-signed-m3u8-url>`.
+
+## 9a. Cloudflare Pages (separate static sites)
+
+For a simpler split deployment, two standalone static sites are available:
+
+| Site | Folder | Purpose |
+|------|--------|---------|
+| Main | `sites/main` | Public homepage, live/upcoming match entry points, iframe code copy |
+| Player | `sites/player` | Standalone HLS/iframe player that can also be embedded elsewhere |
+
+Deploy each folder as its own Cloudflare Pages project:
+
+```bash
+npx wrangler pages deploy sites/main --project-name stream-main-site
+npx wrangler pages deploy sites/player --project-name stream-player-site
+```
+
+Or use the dashboard:
+
+- Framework preset: **None**
+- Build command: empty
+- Build output directory: `/`
+- Root directory: `sites/main` or `sites/player`
+
+Before deploying, edit:
+
+- `sites/main/config.js`: set `apiBase` and `playerBase`
+- `sites/player/config.js`: set `apiBase`
+- optional banner HTML in `adSlots` for each site
+
+Player page banner placeholders:
+
+- `playerTop`: `728x90`, above the video.
+- `playerBottom`: `728x90`, below the video.
+- `playerRail`: `300x250`, right rail on desktop.
+
+The player supports three URL shapes:
+
+```text
+https://player.example.com/?match=1&lang=en&region=global
+https://player.example.com/?src=https%3A%2F%2Fexample.com%2Flive.m3u8&type=hls
+https://player.example.com/?src=https%3A%2F%2Frestream.example.com%2Fembed&type=iframe
+```
+
+To embed the standalone player:
+
+```html
+<iframe
+  src="https://player.example.com/?match=1"
+  width="960"
+  height="540"
+  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+  allowfullscreen
+></iframe>
+```
 
 ## 10. Origin IP Firewall
 

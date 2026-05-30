@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>KingLive logo previews</title>
+<style>
+  body{margin:0;background:#050505;color:#f8f4ea;font-family:Arial,sans-serif;padding:32px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;}
+  .card{border:1px solid rgba(255,204,0,.35);background:#0b0b08;border-radius:8px;padding:18px;}
+  .stage{height:220px;display:grid;place-items:center;background:linear-gradient(135deg,#020202,#171406);border:1px solid rgba(255,204,0,.2);overflow:hidden;}
+  .stage.light{background:#ffcc00;}
+  img{width:100%;height:100%;object-fit:contain;display:block;}
+  h2{font-size:14px;margin:0 0 12px;color:#ffcc00;text-transform:uppercase;letter-spacing:1px;}
+</style>
+</head>
+<body>
+<div class="grid">
+  <section class="card"><h2>Gold on black</h2><div class="stage"><img src="./king-live-logo-gold.svg"></div></section>
+  <section class="card"><h2>Soft white on black</h2><div class="stage"><img src="./king-live-logo-soft-white.svg"></div></section>
+  <section class="card"><h2>Deep black on gold</h2><div class="stage light"><img src="./king-live-logo-deep-black.svg"></div></section>
+  <section class="card"><h2>Badge version</h2><div class="stage"><img src="./king-live-logo-black-on-gold.svg"></div></section>
+</div>
+</body>
+</html>

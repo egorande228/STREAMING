@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
       const data = await adminApi.login(username, password);
       if (data.token) {
         localStorage.setItem('wc26_admin_token', data.token);
-        router.push('/admin/matches');
+        router.push('/admin/streams');
       } else {
         setError(data.error ?? t('invalidCredentials'));
       }

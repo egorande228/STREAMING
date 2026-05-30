@@ -8,6 +8,7 @@ interface Props {
   streams: Stream[];
   preferredLang?: string;
   preferredRegion?: string;
+  compact?: boolean;
 }
 
 function resolveClientStreamUrl(rawUrl: string): string {
@@ -26,7 +27,7 @@ function resolveClientStreamUrl(rawUrl: string): string {
   }
 }
 
-export default function VideoPlayer({ streams, preferredLang = 'en', preferredRegion = 'global' }: Props) {
+export default function VideoPlayer({ streams, preferredLang = 'en', preferredRegion = 'global', compact = false }: Props) {
   const tPlayer = useTranslations('player');
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<import('hls.js').default | null>(null);
@@ -143,13 +144,13 @@ export default function VideoPlayer({ streams, preferredLang = 'en', preferredRe
   }
 
   return (
-    <div className="w-full">
+    <div className={compact ? 'h-full w-full bg-black' : 'w-full'}>
       <div
-        className="relative aspect-video overflow-hidden group rounded-[24px]"
+        className={compact ? 'relative h-full w-full overflow-hidden bg-black' : 'relative aspect-video overflow-hidden group rounded-[24px]'}
         style={{
           background: '#000',
-          border: '1px solid var(--outline-subtle)',
-          boxShadow: '0 28px 60px rgba(0,0,0,0.36)',
+          border: compact ? '0' : '1px solid var(--outline-subtle)',
+          boxShadow: compact ? 'none' : '0 28px 60px rgba(0,0,0,0.36)',
         }}
       >
         {activeSourceType === 'iframe' ? (
@@ -165,7 +166,7 @@ export default function VideoPlayer({ streams, preferredLang = 'en', preferredRe
         ) : (
           <video
             ref={videoRef}
-            className="w-full h-full"
+            className="h-full w-full"
             controls
             playsInline
           />
@@ -173,7 +174,7 @@ export default function VideoPlayer({ streams, preferredLang = 'en', preferredRe
       </div>
 
       {/* Controls */}
-      <div className="mt-3 flex flex-wrap gap-2 items-center">
+      {!compact && <div className="mt-3 flex flex-wrap gap-2 items-center">
         {/* Language selector */}
         {uniqueLangs.length > 1 && (
           <div className="flex items-center gap-1 rounded-xl px-2.5 py-1.5" style={{ background: 'var(--bg-card)', border: '1px solid var(--outline-subtle)' }}>
@@ -230,7 +231,7 @@ export default function VideoPlayer({ streams, preferredLang = 'en', preferredRe
         <span className="ml-auto text-xs truncate max-w-xs" style={{ color: 'var(--primary)' }}>
           {activeStream.label || `${activeStream.language_code.toUpperCase()} · ${activeStream.quality}`}
         </span>
-      </div>
+      </div>}
     </div>
   );
 }

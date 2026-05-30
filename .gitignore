@@ -12,6 +12,8 @@ docker/.env
 .swarm/
 .mcp.json
 graphify-out/
+.codex/
+.superpowers/
 
 # OS
 .DS_Store
@@ -45,6 +47,8 @@ dist/
 .next/
 out/
 docker/nginx/certs/
+.publish/
+.wrangler/
 
 # Logs
 *.log

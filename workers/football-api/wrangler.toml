@@ -1,0 +1,14 @@
+name = "kinglive-football-api"
+main = "worker.js"
+compatibility_date = "2026-05-05"
+
+[observability]
+enabled = true
+
+[vars]
+ADMIN_REQUIRE_ACCESS = "false"
+ADMIN_ACCESS_EMAILS = "lolikusikus228@outlook.com"
+
+[[kv_namespaces]]
+binding = "STREAM_CONFIG_KV"
+id = "af13886bad8443fa8017057aeaf63406"

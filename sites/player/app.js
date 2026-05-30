@@ -449,12 +449,7 @@
     stage.appendChild(shield);
     const adCover = document.createElement('div');
     adCover.className = 'iframe-ad-cover';
-    adCover.innerHTML = `
-      <p class="iframe-ad-cover-kicker">KingLive</p>
-      <strong>Join our match channel</strong>
-      <span>Live links and updates</span>
-      <a href="https://t.me/worldcuppart" target="_blank" rel="noopener">Open Telegram</a>
-    `;
+    adCover.setAttribute('aria-hidden', 'true');
     stage.appendChild(adCover);
     attachTelegramPopupToStage();
   }

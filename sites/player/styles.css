@@ -210,10 +210,10 @@ body {
 .iframe-ad-cover {
   position: absolute;
   right: 0;
-  top: 0;
+  top: 76px;
   z-index: 5;
-  width: min(520px, 44%);
-  height: 58%;
+  width: min(720px, 58%);
+  height: calc(68% - 76px);
   background: transparent;
   pointer-events: auto;
 }
@@ -576,9 +576,9 @@ select:focus-visible,
 
   .iframe-ad-cover {
     right: 0;
-    top: 0;
-    width: 46%;
-    height: 48%;
+    top: 64px;
+    width: 65%;
+    height: calc(62% - 64px);
   }
 
   .controls {

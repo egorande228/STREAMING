@@ -37,7 +37,6 @@ window.KINGLIVE_PLAYER_CONFIG = {
   chatPromo: {
     intervalMs: 5 * 60 * 1000,
     messages: [
-      'Join our Telegram: https://t.me/worldcuppart',
       'Live stream updates: https://t.me/wolrdcuplive',
     ],
   },
@@ -49,7 +48,7 @@ window.KINGLIVE_PLAYER_CONFIG = {
     title: 'World Cup Telegram',
     message: 'Join our Telegram channels for match updates and live stream alerts.',
     buttonLabel: 'Open Telegram',
-    urls: ['https://t.me/worldcuppart', 'https://t.me/wolrdcuplive'],
+    urls: ['https://t.me/wolrdcuplive'],
     delayMs: 0,
   },
   adSlots: {

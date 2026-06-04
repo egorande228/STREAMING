@@ -40,6 +40,13 @@ window.KINGLIVE_PLAYER_CONFIG = {
       'Live stream updates: https://t.me/wolrdcuplive',
     ],
   },
+  chatPinned: {
+    enabled: true,
+    title: 'Pinned offer',
+    message: 'Get match updates and stream alerts in our Telegram channel.',
+    ctaLabel: 'Open Telegram',
+    url: 'https://t.me/wolrdcuplive',
+  },
   streamConfigUrl: './streams.json',
   defaultLang: 'en',
   defaultRegion: 'global',

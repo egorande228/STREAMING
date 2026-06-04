@@ -24,8 +24,10 @@
   const chatAuthor = document.getElementById('chat-author');
   const chatMessage = document.getElementById('chat-message');
   const chatStatus = document.getElementById('chat-status');
+  const chatPinned = document.getElementById('chat-pinned');
   const adSlots = config.adSlots || {};
   const tgPopupConfig = config.tgPopup || {};
+  const chatPinnedConfig = config.chatPinned || {};
   let matchStreams = config.matchStreams || {};
   let tgPopupDismissed = false;
   let chatMatchId = '';
@@ -173,6 +175,7 @@
       } catch {}
     }
     renderChatMessages();
+    renderChatPinned();
     setChatStatus(t('connecting'));
     void loadChatMessages();
     stopChatPolling();
@@ -199,6 +202,29 @@
     if (!chatPromoTimer) return;
     clearInterval(chatPromoTimer);
     chatPromoTimer = null;
+  }
+
+  function renderChatPinned() {
+    if (!chatPinned) return;
+    const enabled = chatPinnedConfig.enabled !== false;
+    const title = String(chatPinnedConfig.title || '').trim();
+    const message = String(chatPinnedConfig.message || '').trim();
+    const ctaLabel = String(chatPinnedConfig.ctaLabel || '').trim();
+    const url = String(chatPinnedConfig.url || '').trim();
+    if (!enabled || (!title && !message)) {
+      chatPinned.hidden = true;
+      chatPinned.innerHTML = '';
+      return;
+    }
+
+    chatPinned.hidden = false;
+    chatPinned.innerHTML = `
+      <div class="chat-pinned-copy">
+        ${title ? `<strong>${escapeHtml(title)}</strong>` : ''}
+        ${message ? `<span>${escapeHtml(message)}</span>` : ''}
+      </div>
+      ${url && ctaLabel ? `<a href="${escapeHtml(url)}" target="_blank" rel="nofollow sponsored noopener">${escapeHtml(ctaLabel)}</a>` : ''}
+    `;
   }
 
   function addChatPromoMessage() {

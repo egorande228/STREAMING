@@ -76,6 +76,23 @@
       localeCode: 'AR',
       localeFlag: '🇸🇦',
     },
+    mn: {
+      brandTitle: 'Мэдээ',
+      navHome: 'Нүүр',
+      navSchedule: 'Хуваарь',
+      navNews: 'Мэдээ',
+      loadingNews: 'Мэдээ ачаалж байна',
+      kicker: 'Хөлбөмбөгийн хэмнэл',
+      notFoundTitle: 'Мэдээ олдсонгүй',
+      notFoundLead: 'Энэ мэдээ RSS feed-ээс шилжсэн эсвэл хугацаа нь дууссан байж магадгүй.',
+      backToNews: 'Мэдээ рүү буцах',
+      fallbackSource: 'Хөлбөмбөгийн мэдээ',
+      fallbackTitle: 'Хөлбөмбөгийн мэдээ',
+      fallbackMetaSource: 'Хөлбөмбөг',
+      noText: 'Мэдээний текст одоогоор боломжгүй байна.',
+      localeCode: 'MN',
+      localeFlag: '🇲🇳',
+    },
   };
   const uiLocale = resolveLocale();
 
@@ -143,19 +160,20 @@
 
   function resolveLocale() {
     const fromQuery = params.get('lang');
-    if (fromQuery === 'en' || fromQuery === 'ar' || fromQuery === 'es' || fromQuery === 'fr') return fromQuery;
+    if (fromQuery === 'en' || fromQuery === 'ar' || fromQuery === 'es' || fromQuery === 'fr' || fromQuery === 'mn') return fromQuery;
     try {
       const stored = window.localStorage?.getItem('kinglive_locale');
-      if (stored === 'en' || stored === 'ar' || stored === 'es' || stored === 'fr') return stored;
+      if (stored === 'en' || stored === 'ar' || stored === 'es' || stored === 'fr' || stored === 'mn') return stored;
     } catch {}
     const defaultLocale = String(config.defaultLocale || 'en').toLowerCase();
-    if (defaultLocale === 'en' || defaultLocale === 'ar' || defaultLocale === 'es' || defaultLocale === 'fr') {
+    if (defaultLocale === 'en' || defaultLocale === 'ar' || defaultLocale === 'es' || defaultLocale === 'fr' || defaultLocale === 'mn') {
       return defaultLocale;
     }
     const language = String((window.navigator && window.navigator.language) || '').toLowerCase();
     if (language.startsWith('fr')) return 'fr';
     if (language.startsWith('es')) return 'es';
     if (language.startsWith('ar')) return 'ar';
+    if (language.startsWith('mn')) return 'mn';
     return 'en';
   }
 
@@ -166,6 +184,7 @@
       { code: 'es', flag: '🇪🇸', label: 'Español' },
       { code: 'fr', flag: '🇫🇷', label: 'Français' },
       { code: 'ar', flag: '🇸🇦', label: 'العربية' },
+      { code: 'mn', flag: '🇲🇳', label: 'Монгол' },
     ];
     const container = localeButton.parentElement;
     const picker = document.createElement('div');
@@ -317,6 +336,7 @@
   }
 
   function installCyrillicGuard() {
+    if (uiLocale === 'mn') return;
     sanitizeCyrillic();
     if (typeof MutationObserver !== 'function') return;
     let scheduled = false;
@@ -354,6 +374,7 @@
         es: 'es-ES',
         fr: 'fr-FR',
         ar: 'ar-SA',
+        mn: 'mn-MN',
       };
       return new Intl.DateTimeFormat(dateLocales[uiLocale] || 'en-GB', {
         month: 'short',
@@ -405,7 +426,7 @@
     const title = cleanText(item.title, t('fallbackTitle'));
     document.title = `${title} | KingLive`;
     article.innerHTML = `
-      <a class="story-back" href="./#news-title">← Back to news</a>
+      <a class="story-back" href="./#news-title">← ${escapeHtml(t('backToNews'))}</a>
       <p class="section-kicker">${escapeHtml(cleanText(item.source, t('fallbackSource')))}</p>
       <h1>${escapeHtml(title)}</h1>
       <div class="news-meta story-meta">

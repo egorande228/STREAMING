@@ -61,6 +61,7 @@
       stage: 'Stage',
       updatedAt: 'Updated',
       watchStream: 'Open player',
+      sponsored: 'Sponsored',
       status_live: 'live',
       status_half_time: 'half time',
       status_scheduled: 'scheduled',
@@ -246,6 +247,66 @@
       localeCode: 'AR',
       localeFlag: '🇸🇦',
     },
+    mn: {
+      brandTitle: 'Тоглолтын төв',
+      navHome: 'Нүүр',
+      navSchedule: 'Хуваарь',
+      navGroups: 'Мэдээ',
+      heroKicker: 'Алдрын зам',
+      heroLine1: 'Бүх',
+      heroHighlight: 'World Cup 26',
+      heroLine2: 'тоглолтын өдрийг дага',
+      heroText: 'KingLive нь хуваарь, шууд үзэх холбоос, оноо болон тоглолтын дэлгэрэнгүйг нэг тодорхой төвд нэгтгэнэ.',
+      heroActionMain: 'Тоглолтын төв',
+      heroActionGroups: 'Мэдээ',
+      tournamentTitle: 'KingLive World Cup 26',
+      tournamentDates: '2026 оны 6 сарын 11 - 7 сарын 19',
+      scheduleTitlePrefix: 'Удахгүй болох',
+      scheduleTitleAccent: 'тоглолтууд',
+      newsKicker: 'Хөлбөмбөгийн хэмнэл',
+      newsTitlePrefix: 'Сүүлийн',
+      newsTitleAccent: 'мэдээ',
+      followBandKicker: 'Хууль эрх зүйн мэдэгдэл',
+      followBandTitle: 'Бие даасан мэдээллийн сайт',
+      followBandDisclaimer: 'KingLive нь бие даан ажилладаг бөгөөд Melbet-тэй холбоогүй, дэмжигдээгүй, тэдгээрийн ажиллуулдаг сайт биш. Энэ сайтад харагдах аливаа барааны тэмдэг, брэндийн нэр, лого, сурталчилгаа болон гуравдагч талын материал нь тухайн эзэмшигчдийн өмч хэвээр байна.',
+      carouselPrev: 'Өмнөх мэдээ',
+      carouselNext: 'Дараагийн мэдээ',
+      carouselControls: 'Мэдээний каруселийн удирдлага',
+      loadingMatches: 'Тоглолтуудыг ачаалж байна',
+      loadingNews: 'Хөлбөмбөгийн мэдээ ачаалж байна',
+      matchesUnavailable: 'Тоглолтуудыг ачаалж чадсангүй. Backend API ажиллаж байгаа эсэхийг шалгана уу.',
+      newsUnavailable: 'Хөлбөмбөгийн мэдээ одоогоор боломжгүй байна.',
+      statsAfterKickoff: 'Статистик тоглолт эхэлсний дараа гарна.',
+      statsUnavailable: 'Статистик API-аас одоогоор боломжгүй байна.',
+      possession: 'Бөмбөг эзэмшилт',
+      shotsOnGoal: 'Хаалга руу цохилт',
+      shots: 'Цохилт',
+      corners: 'Булангийн цохилт',
+      wins: 'Ялалт',
+      draws: 'Тэнцээ',
+      goals: 'Гоол',
+      worldCup: 'World Cup 26',
+      football: 'Хөлбөмбөг',
+      footballNews: 'Хөлбөмбөгийн мэдээ',
+      matchDetails: 'Тоглолтын дэлгэрэнгүй',
+      closeMatchDetails: 'Тоглолтын дэлгэрэнгүйг хаах',
+      refreshNow: 'Шинэчлэх',
+      refreshDetails: 'Дэлгэрэнгүйг шинэчлэх',
+      kickoff: 'Эхлэх цаг',
+      venue: 'Цэнгэлдэх',
+      city: 'Хот',
+      stage: 'Шат',
+      updatedAt: 'Шинэчлэгдсэн',
+      watchStream: 'Тоглуулагч нээх',
+      sponsored: 'Ивээн тэтгэсэн',
+      status_live: 'шууд',
+      status_half_time: 'завсарлага',
+      status_scheduled: 'товлогдсон',
+      status_finished: 'дууссан',
+      status_postponed: 'хойшлогдсон',
+      localeCode: 'MN',
+      localeFlag: '🇲🇳',
+    },
   };
   const uiLocale = resolveLocale();
   const grid = document.getElementById('match-grid');
@@ -356,19 +417,20 @@
 
   function resolveLocale() {
     const fromQuery = new URLSearchParams(window.location.search).get('lang');
-    if (fromQuery === 'en' || fromQuery === 'ar' || fromQuery === 'es' || fromQuery === 'fr') return fromQuery;
+    if (fromQuery === 'en' || fromQuery === 'ar' || fromQuery === 'es' || fromQuery === 'fr' || fromQuery === 'mn') return fromQuery;
     try {
       const stored = window.localStorage?.getItem('kinglive_locale');
-      if (stored === 'en' || stored === 'ar' || stored === 'es' || stored === 'fr') return stored;
+      if (stored === 'en' || stored === 'ar' || stored === 'es' || stored === 'fr' || stored === 'mn') return stored;
     } catch {}
     const normalizedDefault = String(defaultLocale || 'en').toLowerCase();
-    if (normalizedDefault === 'en' || normalizedDefault === 'ar' || normalizedDefault === 'es' || normalizedDefault === 'fr') {
+    if (normalizedDefault === 'en' || normalizedDefault === 'ar' || normalizedDefault === 'es' || normalizedDefault === 'fr' || normalizedDefault === 'mn') {
       return normalizedDefault;
     }
     const language = String((window.navigator && window.navigator.language) || '').toLowerCase();
     if (language.startsWith('fr')) return 'fr';
     if (language.startsWith('es')) return 'es';
     if (language.startsWith('ar')) return 'ar';
+    if (language.startsWith('mn')) return 'mn';
     return 'en';
   }
 
@@ -389,6 +451,7 @@
       { code: 'es', flag: '🇪🇸', label: 'Español' },
       { code: 'fr', flag: '🇫🇷', label: 'Français' },
       { code: 'ar', flag: '🇸🇦', label: 'العربية' },
+      { code: 'mn', flag: '🇲🇳', label: 'Монгол' },
     ];
     const container = localeButton.parentElement;
     const picker = document.createElement('div');
@@ -630,6 +693,7 @@
   }
 
   function installCyrillicGuard() {
+    if (uiLocale === 'mn') return;
     sanitizeCyrillic();
     if (typeof MutationObserver !== 'function') return;
     let scheduled = false;
@@ -694,6 +758,7 @@
         es: 'es-ES',
         fr: 'fr-FR',
         ar: 'ar-SA',
+        mn: 'mn-MN',
       };
       return new Intl.DateTimeFormat(dateLocales[uiLocale] || 'en-GB', {
         month: 'short',
@@ -876,11 +941,11 @@
 
   function renderNewsSponsorCard() {
     return sponsorLink(`
-      <article class="news-card sponsor-news-card" aria-label="Sponsored">
+      <article class="news-card sponsor-news-card" aria-label="${escapeHtml(t('sponsored'))}">
         <picture>
           <source media="(max-width: 760px)" srcset="../banners/news_card_280x180_mockup_original.png" />
           <source media="(max-width: 1100px)" srcset="../banners/news_card_320x200_mockup_original.png" />
-          <img src="../banners/news_card_360x220_mockup_original.png" width="358" height="213" alt="Sponsored" loading="lazy" />
+          <img src="../banners/news_card_360x220_mockup_original.png" width="358" height="213" alt="${escapeHtml(t('sponsored'))}" loading="lazy" />
         </picture>
       </article>
     `, 'sponsor-link');
@@ -971,9 +1036,9 @@
 
   function renderMatchSponsorCard() {
     return sponsorLink(`
-      <aside class="match-sponsor sponsor-slot" aria-label="Sponsored">
+      <aside class="match-sponsor sponsor-slot" aria-label="${escapeHtml(t('sponsored'))}">
         <picture>
-          <img src="../banners/melbet_banner_1870x245_safe_player.png" width="1870" height="245" alt="Sponsored" loading="lazy" />
+          <img src="../banners/melbet_banner_1870x245_safe_player.png" width="1870" height="245" alt="${escapeHtml(t('sponsored'))}" loading="lazy" />
         </picture>
       </aside>
     `, 'sponsor-link match-sponsor-link');
@@ -1071,10 +1136,10 @@
           </div>
         </div>
         ${sponsorLink(`
-        <aside class="detail-sponsor sponsor-slot" aria-label="Sponsored">
+        <aside class="detail-sponsor sponsor-slot" aria-label="${escapeHtml(t('sponsored'))}">
           <picture>
             <source media="(max-width: 760px)" srcset="../banners/popup_300x80_mockup_original.png" />
-            <img src="../banners/popup_320x80_mockup_original.png" width="335" height="46" alt="Sponsored" loading="lazy" />
+            <img src="../banners/popup_320x80_mockup_original.png" width="335" height="46" alt="${escapeHtml(t('sponsored'))}" loading="lazy" />
           </picture>
         </aside>
         `, 'sponsor-link')}

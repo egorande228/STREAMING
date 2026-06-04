@@ -105,6 +105,17 @@ async function runPlayer({ href, config = {}, fetchImpl }) {
   };
 }
 
+async function runPlayerWithProductionConfig({ href, config = {}, fetchImpl }) {
+  return runPlayer({
+    href,
+    config: {
+      defaultLang: 'mn',
+      ...config,
+    },
+    fetchImpl,
+  });
+}
+
 test('does not play stream URLs supplied by viewer query params', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?src=https%3A%2F%2Funtrusted.test%2Flive.m3u8&type=hls',
@@ -182,7 +193,7 @@ test('plays a match stream configured in streams.json', async () => {
 });
 
 test('auto-plays the only active stream when no match query is present', async () => {
-  const result = await runPlayer({
+  const result = await runPlayerWithProductionConfig({
     href: 'https://player.test/',
     fetchImpl: (url) => {
       if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
@@ -197,7 +208,7 @@ test('auto-plays the only active stream when no match query is present', async (
             }),
         });
       }
-      assert.equal(String(url), '/api/matches/1379275?lang=en&region=global');
+      assert.equal(String(url), '/api/matches/1379275?lang=mn&region=global');
       return Promise.resolve({
         ok: true,
         json: () =>
@@ -259,14 +270,14 @@ test('renders no public message when a match has no active stream yet', async ()
 });
 
 test('rotates Telegram popup channels when tgPopup config is enabled', async () => {
-  const result = await runPlayer({
+  const result = await runPlayerWithProductionConfig({
     href: 'https://player.test/?match=1540843',
     config: {
       tgPopup: {
         enabled: true,
         title: 'World Cup Telegram',
-        message: 'Join our Telegram channels.',
-        buttonLabel: 'Open Telegram',
+        message: 'Тоглолтын шинэчлэлт болон шууд дамжуулалтын мэдэгдэл авахын тулд Telegram сувгуудад нэгдээрэй.',
+        buttonLabel: 'Telegram нээх',
         urls: ['https://t.me/worldcuppart', 'https://t.me/wolrdcuplive'],
         delayMs: 0,
       },
@@ -285,6 +296,7 @@ test('rotates Telegram popup channels when tgPopup config is enabled', async () 
 
   assert.equal(result.tgPopup.hidden, false);
   assert.match(result.tgPopup.innerHTML, /World Cup Telegram/);
+  assert.match(result.tgPopup.innerHTML, /Telegram нээх/);
   assert.match(result.tgPopup.innerHTML, /https:\/\/t\.me\/worldcuppart/);
   assert.doesNotMatch(result.tgPopup.innerHTML, /kinglive_test/);
 });

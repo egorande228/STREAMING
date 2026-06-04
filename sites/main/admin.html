@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="mn">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>KingLive Admin</title>
+    <title>KingLive админ</title>
     <link rel="stylesheet" href="./styles.css" />
     <script src="./config.js"></script>
     <script defer src="./admin.js"></script>
@@ -25,89 +25,89 @@
   <body>
     <header class="topbar">
       <div class="frame topbar-inner">
-        <a class="brand" href="./" aria-label="KingLive home">
-          <span class="brand-copy"><span class="brand-kicker">KingLive Admin</span></span>
+        <a class="brand" href="./" aria-label="KingLive нүүр">
+          <span class="brand-copy"><span class="brand-kicker">KingLive админ</span></span>
         </a>
       </div>
     </header>
 
     <main class="admin-shell">
       <section class="admin-card" id="login-card">
-        <h1 style="margin-top:0">Admin Login</h1>
+        <h1 style="margin-top:0">Админ нэвтрэх</h1>
         <div class="admin-grid">
           <label>
-            <div>Username</div>
+            <div>Хэрэглэгчийн нэр</div>
             <input id="login-username" class="admin-input" value="kinglive-admin" />
           </label>
           <label>
-            <div>Password</div>
+            <div>Нууц үг</div>
             <input id="login-password" class="admin-input" type="password" />
           </label>
         </div>
         <div style="margin-top:12px; display:flex; gap:10px; align-items:center;">
-          <button id="login-button" class="button primary" type="button">Sign in</button>
-          <button id="logout-button" class="button secondary" type="button">Logout</button>
+          <button id="login-button" class="button primary" type="button">Нэвтрэх</button>
+          <button id="logout-button" class="button secondary" type="button">Гарах</button>
           <span id="auth-status" class="mono"></span>
         </div>
       </section>
 
       <section class="admin-card">
-        <h2 style="margin-top:0">Stream Form</h2>
+        <h2 style="margin-top:0">Дамжуулалтын маягт</h2>
         <form id="stream-form" class="admin-grid">
           <input id="stream-id" type="hidden" />
           <label>
-            <div>Match ID</div>
+            <div>Тоглолтын ID</div>
             <input id="match-id" class="admin-input" type="number" min="1" required />
           </label>
           <label>
-            <div>Label</div>
-            <input id="stream-label" class="admin-input" placeholder="Live stream" />
+            <div>Шошго</div>
+            <input id="stream-label" class="admin-input" placeholder="Шууд дамжуулалт" />
           </label>
           <label class="full">
-            <div>URL (HLS or embed)</div>
+            <div>URL (HLS эсвэл embed)</div>
             <input id="stream-url" class="admin-input" placeholder="https://..." required />
           </label>
           <label>
-            <div>Source</div>
+            <div>Эх сурвалж</div>
             <select id="source-type" class="admin-select">
               <option value="iframe">iframe</option>
               <option value="hls">hls</option>
             </select>
           </label>
           <label>
-            <div>Quality</div>
+            <div>Чанар</div>
             <input id="quality" class="admin-input" value="720p" />
           </label>
           <label>
-            <div>Language</div>
-            <input id="lang" class="admin-input" value="en" />
+            <div>Хэл</div>
+            <input id="lang" class="admin-input" value="mn" />
           </label>
           <label>
-            <div>Region</div>
+            <div>Бүс</div>
             <input id="region" class="admin-input" value="global" />
           </label>
           <label>
-            <div>Priority</div>
+            <div>Эрэмбэ</div>
             <input id="priority" class="admin-input" type="number" value="100" />
           </label>
           <label>
-            <div>Active</div>
+            <div>Идэвхтэй</div>
             <select id="is-active" class="admin-select">
               <option value="true">true</option>
               <option value="false">false</option>
             </select>
           </label>
           <label>
-            <div>Starts at (UTC)</div>
+            <div>Эхлэх цаг (UTC)</div>
             <input id="starts-at" class="admin-input" type="datetime-local" />
           </label>
           <label>
-            <div>Ends at (UTC)</div>
+            <div>Дуусах цаг (UTC)</div>
             <input id="ends-at" class="admin-input" type="datetime-local" />
           </label>
           <div class="full" style="display:flex; gap:10px; margin-top:6px;">
-            <button class="button primary" type="submit">Save stream</button>
-            <button class="button secondary" type="button" id="reset-form">Reset</button>
+            <button class="button primary" type="submit">Дамжуулалт хадгалах</button>
+            <button class="button secondary" type="button" id="reset-form">Цэвэрлэх</button>
           </div>
         </form>
         <p id="save-msg" class="admin-msg"></p>
@@ -116,18 +116,18 @@
 
       <section class="admin-card">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-          <h2 style="margin:0">Streams</h2>
-          <button id="reload-streams" class="button secondary" type="button">Reload</button>
+          <h2 style="margin:0">Дамжуулалтууд</h2>
+          <button id="reload-streams" class="button secondary" type="button">Дахин ачаалах</button>
         </div>
         <div style="overflow:auto; margin-top:10px;">
           <table class="admin-table">
             <thead>
               <tr>
-                <th>ID</th><th>Match</th><th>Type</th><th>Label</th><th>URL</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
+                <th>ID</th><th>Тоглолт</th><th>Төрөл</th><th>Шошго</th><th>URL</th><th>Эрэмбэ</th><th>Идэвхтэй</th><th>Цонх</th><th>Одоо шууд</th><th>Үйлдэл</th>
               </tr>
             </thead>
             <tbody id="streams-body">
-              <tr><td colspan="10">No data</td></tr>
+              <tr><td colspan="10">Өгөгдөл алга</td></tr>
             </tbody>
           </table>
         </div>

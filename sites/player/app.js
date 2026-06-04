@@ -39,15 +39,103 @@
     'player-bottom': 'playerBottom',
     'player-rail': 'playerRail',
   };
+  const i18n = {
+    en: {
+      nowPlaying: 'Now playing',
+      source: 'Source',
+      copyIframe: 'Copy iframe',
+      copied: 'Copied',
+      copyPrompt: 'Copy iframe code',
+      stream: 'Stream',
+      configuredStream: 'Configured stream',
+      connecting: 'Connecting',
+      live: 'Live',
+      offline: 'Offline',
+      sending: 'Sending',
+      error: 'Error',
+      wait: 'Wait',
+      chatUnavailable: 'Chat is unavailable right now.',
+      noMessages: 'No messages yet. Start the match chat.',
+      guest: 'Guest',
+      close: 'Close',
+      community: 'Community',
+      tgTitle: 'Telegram',
+      tgMessage: 'Join our Telegram updates.',
+      tgButton: 'Open Telegram',
+      chatRoom: 'Live room',
+      chatTitle: 'Match chat',
+      nick: 'Nick',
+      message: 'Message',
+      writeMessage: 'Write a message',
+      send: 'Send',
+    },
+    mn: {
+      nowPlaying: 'Одоо тоглуулж байна',
+      source: 'Эх сурвалж',
+      copyIframe: 'iframe хуулах',
+      copied: 'Хуулагдлаа',
+      copyPrompt: 'iframe код хуулах',
+      stream: 'Шууд дамжуулалт',
+      configuredStream: 'Тохируулсан дамжуулалт',
+      connecting: 'Холбогдож байна',
+      live: 'Шууд',
+      offline: 'Офлайн',
+      sending: 'Илгээж байна',
+      error: 'Алдаа',
+      wait: 'Хүлээнэ үү',
+      chatUnavailable: 'Чат одоогоор боломжгүй байна.',
+      noMessages: 'Одоогоор зурвас алга. Тоглолтын чатыг эхлүүлээрэй.',
+      guest: 'Зочин',
+      close: 'Хаах',
+      community: 'Нийгэмлэг',
+      tgTitle: 'Telegram',
+      tgMessage: 'Telegram шинэчлэлтэд нэгдээрэй.',
+      tgButton: 'Telegram нээх',
+      chatRoom: 'Шууд өрөө',
+      chatTitle: 'Тоглолтын чат',
+      nick: 'Нэр',
+      message: 'Зурвас',
+      writeMessage: 'Зурвас бичих',
+      send: 'Илгээх',
+    },
+  };
   let currentStreams = [];
   let hls;
 
   const preferredLang = params.get('lang') || config.defaultLang || 'en';
+  const uiLang = i18n[preferredLang] ? preferredLang : 'en';
   const preferredRegion = params.get('region') || config.defaultRegion || 'global';
   const isAdmin = params.get('admin') === '1';
   const chatClientId = getChatClientId();
 
   copyEmbed.hidden = !isAdmin;
+
+  function t(key) {
+    return i18n[uiLang]?.[key] ?? i18n.en[key] ?? key;
+  }
+
+  function localizeStaticControls() {
+    if (document.documentElement) {
+      document.documentElement.lang = uiLang;
+      document.documentElement.dir = 'ltr';
+    }
+    const setText = (id, value) => {
+      const node = document.getElementById(id);
+      if (node) node.textContent = value;
+    };
+    setText('now-playing-label', t('nowPlaying'));
+    setText('source-label', t('source'));
+    setText('chat-room-label', t('chatRoom'));
+    setText('chat-title', t('chatTitle'));
+    setText('chat-author-label', t('nick'));
+    setText('chat-message-label', t('message'));
+    setText('chat-submit', t('send'));
+    if (copyEmbed) copyEmbed.textContent = t('copyIframe');
+    if (titleEl && titleEl.textContent === 'Stream') titleEl.textContent = t('stream');
+    if (chatAuthor) chatAuthor.placeholder = t('guest');
+    if (chatMessage) chatMessage.placeholder = t('writeMessage');
+    if (chatPanel) chatPanel.setAttribute('aria-label', t('chatTitle'));
+  }
 
   function escapeHtml(value) {
     return String(value)
@@ -85,7 +173,7 @@
       } catch {}
     }
     renderChatMessages();
-    setChatStatus('Connecting');
+    setChatStatus(t('connecting'));
     void loadChatMessages();
     stopChatPolling();
     chatTimer = setInterval(() => {
@@ -140,10 +228,10 @@
       const payload = await response.json();
       const incoming = Array.isArray(payload.messages) ? payload.messages : [];
       mergeChatMessages(incoming);
-      setChatStatus('Live');
+      setChatStatus(t('live'));
     } catch {
-      setChatStatus('Offline');
-      if (!chatMessagesState.length) renderChatError('Chat is unavailable right now.');
+      setChatStatus(t('offline'));
+      if (!chatMessagesState.length) renderChatError(t('chatUnavailable'));
     }
   }
 
@@ -167,7 +255,7 @@
   function renderChatMessages() {
     if (!chatMessages) return;
     if (!chatMessagesState.length) {
-      chatMessages.innerHTML = '<p class="chat-empty">No messages yet. Start the match chat.</p>';
+      chatMessages.innerHTML = `<p class="chat-empty">${escapeHtml(t('noMessages'))}</p>`;
       return;
     }
     chatMessages.innerHTML = chatMessagesState
@@ -176,7 +264,7 @@
         return `
           <article class="chat-message">
             <div class="chat-message-head">
-              <span class="chat-author">${escapeHtml(message.author || 'Guest')}</span>
+              <span class="chat-author">${escapeHtml(message.author || t('guest'))}</span>
               <time>${escapeHtml(time)}</time>
             </div>
             <div class="chat-text">${escapeHtml(message.message || '')}</div>
@@ -206,14 +294,14 @@
     if (!chatMatchId || !chatApiBase || !chatMessage) return;
     const message = chatMessage.value.trim();
     if (!message) return;
-    const author = (chatAuthor?.value || '').trim() || 'Guest';
+    const author = (chatAuthor?.value || '').trim() || t('guest');
     try {
       if (chatAuthor) window.localStorage?.setItem('kinglive_chat_author', author);
     } catch {}
 
     const submit = chatForm?.querySelector?.('[type="submit"]');
     if (submit) submit.disabled = true;
-    setChatStatus('Sending');
+    setChatStatus(t('sending'));
     try {
       const response = await fetch(`${chatApiBase}/${encodeURIComponent(chatMatchId)}`, {
         method: 'POST',
@@ -226,15 +314,15 @@
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        if (response.status === 429) setChatStatus(`Wait ${payload.retry_after || 5}s`);
-        else setChatStatus('Error');
+        if (response.status === 429) setChatStatus(`${t('wait')} ${payload.retry_after || 5}s`);
+        else setChatStatus(t('error'));
         return;
       }
       chatMessage.value = '';
       mergeChatMessages(payload.message ? [payload.message] : []);
-      setChatStatus('Live');
+      setChatStatus(t('live'));
     } catch {
-      setChatStatus('Offline');
+      setChatStatus(t('offline'));
     } finally {
       if (submit) submit.disabled = false;
     }
@@ -271,15 +359,15 @@
       return;
     }
 
-    const title = tgPopupConfig.title || 'Telegram';
-    const message = tgPopupConfig.message || 'Join our Telegram updates.';
-    const buttonLabel = tgPopupConfig.buttonLabel || 'Open Telegram';
+    const title = tgPopupConfig.title || t('tgTitle');
+    const message = tgPopupConfig.message || t('tgMessage');
+    const buttonLabel = tgPopupConfig.buttonLabel || t('tgButton');
     const delayMs = Math.max(0, Number(tgPopupConfig.delayMs) || 0);
 
     tgPopup.innerHTML = `
       <section class="tg-popup-card" role="dialog" aria-label="${escapeHtml(title)}">
-        <button class="tg-popup-close" type="button" data-tg-close aria-label="Close">×</button>
-        <p class="tg-popup-kicker">Community</p>
+        <button class="tg-popup-close" type="button" data-tg-close aria-label="${escapeHtml(t('close'))}">×</button>
+        <p class="tg-popup-kicker">${escapeHtml(t('community'))}</p>
         <h2>${escapeHtml(title)}</h2>
         <p>${escapeHtml(message)}</p>
         <a class="button tg-popup-button" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(buttonLabel)}</a>
@@ -326,7 +414,7 @@
   }
 
   function streamLabel(stream, index) {
-    return stream.label || `${stream.language_code || 'stream'} ${stream.quality || index + 1}`;
+    return stream.label || `${stream.language_code || t('stream')} ${stream.quality || index + 1}`;
   }
 
   function configuredStreamsForMatch(matchId) {
@@ -341,7 +429,7 @@
             id: `config-${matchId}-${index}`,
             url: stream,
             source_type: inferType(stream),
-            label: 'Configured stream',
+            label: t('configuredStream'),
             language_code: preferredLang,
             region: preferredRegion,
             priority: 100 - index,
@@ -354,7 +442,7 @@
           id: stream.id || `config-${matchId}-${index}`,
           url: stream.url,
           source_type: stream.source_type || stream.sourceType || inferType(stream.url),
-          label: stream.label || 'Configured stream',
+          label: stream.label || t('configuredStream'),
           language_code: stream.language_code || stream.languageCode || preferredLang,
           region: stream.region || preferredRegion,
           priority: typeof stream.priority === 'number' ? stream.priority : 100 - index,
@@ -437,7 +525,7 @@
     stage.innerHTML = '';
     const iframe = document.createElement('iframe');
     iframe.src = stream.url;
-    iframe.title = stream.title || stream.label || 'Stream player';
+    iframe.title = stream.title || stream.label || t('stream');
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
     iframe.allowFullscreen = true;
     iframe.referrerPolicy = stream.referrer_policy || stream.referrerPolicy || 'strict-origin';
@@ -496,7 +584,7 @@
   function playStream(index) {
     const stream = currentStreams[index];
     if (!stream) return;
-    titleEl.textContent = stream.title || stream.label || params.get('title') || 'Stream';
+    titleEl.textContent = stream.title || stream.label || params.get('title') || t('stream');
     if (stream.source_type === 'iframe') renderIframe(stream);
     else renderHls(stream);
   }
@@ -512,7 +600,7 @@
       .map((stream, index) => `<option value="${index}">${streamLabel(stream, index)}</option>`)
       .join('');
     sourceSelect.hidden = currentStreams.length < 2;
-    titleEl.textContent = title || params.get('title') || 'Stream';
+    titleEl.textContent = title || params.get('title') || t('stream');
     controls.hidden = false;
     playStream(0);
   }
@@ -549,12 +637,12 @@
       const code = `<iframe src="${window.location.href}" width="960" height="540" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
       try {
         await navigator.clipboard.writeText(code);
-        copyEmbed.textContent = 'Copied';
+        copyEmbed.textContent = t('copied');
         setTimeout(() => {
-          copyEmbed.textContent = 'Copy iframe';
+          copyEmbed.textContent = t('copyIframe');
         }, 1600);
       } catch {
-        window.prompt('Copy iframe code', code);
+        window.prompt(t('copyPrompt'), code);
       }
     });
   }
@@ -565,6 +653,7 @@
   });
 
   (async function boot() {
+    localizeStaticControls();
     renderTelegramPopup();
     try {
       matchStreams = await loadStreamConfig();

@@ -16,8 +16,8 @@ function safeBannerFile(file) {
   return encodeURIComponent(baseName);
 }
 
-const banner = (file, width, height, label = 'Сурталчилгаа', href = bannerClickUrl) => {
-  const safeLabel = escapeHtmlAttr(label || 'Сурталчилгаа');
+const banner = (file, width, height, label = 'Advertisement', href = bannerClickUrl) => {
+  const safeLabel = escapeHtmlAttr(label || 'Advertisement');
   const safeFile = safeBannerFile(file);
   const safeHref = escapeHtmlAttr(href || '#');
   const safeWidth = Number(width) > 0 ? Number(width) : 300;
@@ -37,23 +37,23 @@ window.KINGLIVE_PLAYER_CONFIG = {
   chatPromo: {
     intervalMs: 5 * 60 * 1000,
     messages: [
-      'Шууд дамжуулалтын шинэчлэлт: https://t.me/wolrdcuplive',
+      'Live stream updates: https://t.me/wolrdcuplive',
     ],
   },
   streamConfigUrl: './streams.json',
-  defaultLang: 'mn',
+  defaultLang: 'en',
   defaultRegion: 'global',
   tgPopup: {
     enabled: true,
     title: 'World Cup Telegram',
-    message: 'Тоглолтын шинэчлэлт болон шууд дамжуулалтын мэдэгдэл авахын тулд Telegram сувгуудад нэгдээрэй.',
-    buttonLabel: 'Telegram нээх',
+    message: 'Join our Telegram channels for match updates and live stream alerts.',
+    buttonLabel: 'Open Telegram',
     urls: ['https://t.me/wolrdcuplive'],
     delayMs: 0,
   },
   adSlots: {
-    playerTop: banner('melbet_top_banner_1554x192.png', 1554, 192, 'Melbet спортын бонус'),
-    playerBottom: banner('melbet_bottom_banner_1554x192.png', 1554, 192, 'Melbet спортын бонус'),
-    playerRail: banner('melbet_right_banner.png', 717, 2194, 'Melbet шууд хөлбөмбөгийн дамжуулалт'),
+    playerTop: banner('melbet_top_banner_1554x192.png', 1554, 192, 'Melbet sports bonus'),
+    playerBottom: banner('melbet_bottom_banner_1554x192.png', 1554, 192, 'Melbet sports bonus'),
+    playerRail: banner('melbet_right_banner.png', 717, 2194, 'Melbet live football streams'),
   },
 };

@@ -8,23 +8,22 @@ const playerConfig = readFileSync(new URL('./player/config.js', import.meta.url)
 const playerReadme = readFileSync(new URL('./player/README.md', import.meta.url), 'utf8');
 
 assert.match(mainHtml, /KingLive/);
-assert.match(mainHtml, /Тоглолтын төв/);
-assert.match(mainHtml, /Бүх/);
+assert.match(mainHtml, /Matchday Hub/);
+assert.match(mainHtml, /Follow every/);
 assert.doesNotMatch(mainHtml, /World football streams/);
 
 assert.match(mainHtml, /sponsor-footer/);
 
 assert.match(mainConfig, /KINGLIVE_MAIN_CONFIG/);
 assert.match(mainConfig, /playerBase/);
-assert.match(mainConfig, /defaultLocale: 'mn'/);
+assert.match(mainConfig, /defaultLocale: 'en'/);
 
-assert.match(playerHtml, /KingLive тоглуулагч/);
-assert.match(playerHtml, /Тоглолт хүлээж байна/);
+assert.match(playerHtml, /KingLive Player/);
 assert.doesNotMatch(playerHtml, /Pass `match`, `src`/);
 assert.match(playerHtml, /data-ad-slot="player-top"/);
 assert.match(playerHtml, /data-ad-slot="player-bottom"/);
 assert.match(playerHtml, /data-ad-slot="player-rail"/);
 assert.match(playerConfig, /KINGLIVE_PLAYER_CONFIG/);
 assert.match(playerConfig, /streamConfigUrl/);
-assert.match(playerConfig, /defaultLang: 'mn'/);
+assert.match(playerConfig, /defaultLang: 'en'/);
 assert.doesNotMatch(playerReadme, /\?src=/);

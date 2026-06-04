@@ -25,7 +25,7 @@
   }
 
   function setAuthLabel() {
-    authStatus.textContent = token() ? 'Нэвтэрсэн' : 'Нэвтрээгүй';
+    authStatus.textContent = token() ? 'Authenticated' : 'Not authenticated';
   }
 
   async function adminFetch(path, init = {}) {
@@ -65,17 +65,17 @@
   function logout() {
     setToken('');
     setAuthLabel();
-    streamsBody.innerHTML = '<tr><td colspan="10">Гарлаа</td></tr>';
+    streamsBody.innerHTML = '<tr><td colspan="10">Logged out</td></tr>';
   }
 
   function streamFromForm() {
     return {
       match_id: Number($('match-id').value),
-      label: $('stream-label').value.trim() || 'Шууд дамжуулалт',
+      label: $('stream-label').value.trim() || 'Live stream',
       url: $('stream-url').value.trim(),
       source_type: $('source-type').value,
       quality: $('quality').value.trim() || '720p',
-      language_code: $('lang').value.trim() || 'mn',
+      language_code: $('lang').value.trim() || 'en',
       region: $('region').value.trim() || 'global',
       priority: Number($('priority').value || 100),
       commentary_type: 'full',
@@ -92,7 +92,7 @@
     $('stream-url').value = stream.url || '';
     $('source-type').value = stream.source_type || 'iframe';
     $('quality').value = stream.quality || '720p';
-    $('lang').value = stream.language_code || 'mn';
+    $('lang').value = stream.language_code || 'en';
     $('region').value = stream.region || 'global';
     $('priority').value = String(stream.priority ?? 100);
     $('is-active').value = stream.is_active === false ? 'false' : 'true';
@@ -104,7 +104,7 @@
     $('stream-form').reset();
     $('stream-id').value = '';
     $('quality').value = '720p';
-    $('lang').value = 'mn';
+    $('lang').value = 'en';
     $('region').value = 'global';
     $('priority').value = '100';
     $('is-active').value = 'true';
@@ -123,7 +123,7 @@
       } else {
         await adminFetch('/api/admin/streams', { method: 'POST', body: JSON.stringify(streamFromForm()) });
       }
-      saveMsg.textContent = 'Хадгалагдлаа';
+      saveMsg.textContent = 'Saved';
       resetForm();
       await loadStreams();
     } catch (error) {
@@ -132,12 +132,12 @@
   }
 
   async function deleteStream(id) {
-    if (!window.confirm(`Дамжуулалт #${id}-г устгах уу?`)) return;
+    if (!window.confirm(`Delete stream #${id}?`)) return;
     saveMsg.textContent = '';
     saveErr.textContent = '';
     try {
       await adminFetch(`/api/admin/streams/${id}`, { method: 'DELETE' });
-      saveMsg.textContent = 'Устгагдлаа';
+      saveMsg.textContent = 'Deleted';
       await loadStreams();
     } catch (error) {
       saveErr.textContent = String(error.message || error);
@@ -146,14 +146,14 @@
 
   async function loadStreams() {
     if (!token()) {
-      streamsBody.innerHTML = '<tr><td colspan="10">Эхлээд нэвтэрнэ үү</td></tr>';
+      streamsBody.innerHTML = '<tr><td colspan="10">Login first</td></tr>';
       return;
     }
     try {
       const payload = await adminFetch('/api/admin/streams');
       const streams = Array.isArray(payload.streams) ? payload.streams : [];
       if (!streams.length) {
-        streamsBody.innerHTML = '<tr><td colspan="10">Дамжуулалт алга</td></tr>';
+        streamsBody.innerHTML = '<tr><td colspan="10">No streams</td></tr>';
         return;
       }
       streamsBody.innerHTML = streams
@@ -172,8 +172,8 @@
               <td>${stream.is_live_now ? 'true' : 'false'}</td>
               <td>
                 <div class="admin-actions">
-                  <button class="button secondary" type="button" data-edit="${escapeHtml(stream.id)}">Засах</button>
-                  <button class="button secondary" type="button" data-del="${escapeHtml(stream.id)}">Устгах</button>
+                  <button class="button secondary" type="button" data-edit="${escapeHtml(stream.id)}">Edit</button>
+                  <button class="button secondary" type="button" data-del="${escapeHtml(stream.id)}">Delete</button>
                 </div>
               </td>
             </tr>

@@ -9,6 +9,6 @@ window.KINGLIVE_MAIN_CONFIG = {
   streamConfigUrl: './stream.json',
   newsApiUrl: `${unifiedApiBase}/api/news?limit=6&v=20260518-main-unified`,
   sponsorUrl: 'https://refpa3665.com/L?tag=d_5517121m_66329c_worldcuplive',
-  defaultLocale: 'mn',
+  defaultLocale: 'en',
   adSlots: {},
 };

@@ -1,6 +1,6 @@
 import { cp, mkdir, rm } from 'node:fs/promises';
 
-const files = ['index.html', 'news.html', 'admin.html', 'app.js', 'news.js', 'admin.js', 'styles.css', 'config.js', '_headers', '_redirects', 'assets'];
+const files = ['index.html', 'news.html', 'admin.html', 'app.js', 'news.js', 'admin.js', 'url-propagation.js', 'styles.css', 'config.js', '_headers', '_redirects', 'assets'];
 
 await rm(new URL('./dist/', import.meta.url), { recursive: true, force: true });
 await mkdir(new URL('./dist/', import.meta.url), { recursive: true });

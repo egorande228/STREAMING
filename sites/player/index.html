@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="./styles.css" />
     <script src="./config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js"></script>
+    <script defer src="./url-propagation.js"></script>
     <script defer src="./app.js"></script>
   </head>
   <body>
@@ -55,6 +56,7 @@
                 </div>
                 <span class="chat-status" id="chat-status">Connecting</span>
               </header>
+              <div class="chat-pinned" id="chat-pinned" hidden></div>
               <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
               <form class="chat-form" id="chat-form">
                 <label>

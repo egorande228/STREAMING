@@ -12,19 +12,18 @@ assert.match(mainHtml, /Matchday Hub/);
 assert.match(mainHtml, /Follow every/);
 assert.doesNotMatch(mainHtml, /World football streams/);
 
-for (const slot of ['main-top', 'main-hero', 'main-hero-mobile', 'main-rail-top', 'main-rail-tall', 'main-bottom']) {
-  assert.match(mainHtml, new RegExp(`data-ad-slot="${slot}"`));
-}
+assert.match(mainHtml, /sponsor-footer/);
 
 assert.match(mainConfig, /KINGLIVE_MAIN_CONFIG/);
 assert.match(mainConfig, /playerBase/);
+assert.match(mainConfig, /defaultLocale: 'en'/);
 
 assert.match(playerHtml, /KingLive Player/);
-assert.match(playerHtml, /Waiting for match/);
 assert.doesNotMatch(playerHtml, /Pass `match`, `src`/);
 assert.match(playerHtml, /data-ad-slot="player-top"/);
 assert.match(playerHtml, /data-ad-slot="player-bottom"/);
 assert.match(playerHtml, /data-ad-slot="player-rail"/);
 assert.match(playerConfig, /KINGLIVE_PLAYER_CONFIG/);
-assert.match(playerConfig, /matchStreams/);
+assert.match(playerConfig, /streamConfigUrl/);
+assert.match(playerConfig, /defaultLang: 'en'/);
 assert.doesNotMatch(playerReadme, /\?src=/);

@@ -306,7 +306,7 @@ select {
 
 .chat-panel {
   display: grid;
-  grid-template-rows: auto minmax(260px, 1fr) auto;
+  grid-template-rows: auto auto minmax(260px, 1fr) auto;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -344,6 +344,53 @@ select {
   font-size: 10px;
   font-weight: 950;
   padding: 6px 8px;
+  text-transform: uppercase;
+}
+
+.chat-pinned {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(246, 196, 0, 0.24);
+  background: rgba(246, 196, 0, 0.09);
+  padding: 10px 14px;
+}
+
+.chat-pinned[hidden] {
+  display: none;
+}
+
+.chat-pinned-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.chat-pinned-copy strong {
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.chat-pinned-copy span {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.chat-pinned a {
+  flex: 0 0 auto;
+  border: 1px solid rgba(246, 196, 0, 0.42);
+  border-radius: 999px;
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 950;
+  padding: 7px 9px;
+  text-decoration: none;
   text-transform: uppercase;
 }
 

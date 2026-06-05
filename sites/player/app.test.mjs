@@ -20,6 +20,40 @@ async function runPlayer({ href, config = {}, fetchImpl }) {
     textContent: 'Copy iframe',
     addEventListener() {},
   };
+  let chatPinnedHtml = '';
+  const chatPinned = {
+    hidden: true,
+    get innerHTML() {
+      return chatPinnedHtml;
+    },
+    set innerHTML(value) {
+      chatPinnedHtml = value;
+    },
+  };
+  const chatPanel = {
+    hidden: true,
+    setAttribute() {},
+  };
+  const chatMessages = {
+    innerHTML: '',
+    scrollHeight: 0,
+    scrollTop: 0,
+  };
+  const chatForm = {
+    addEventListener() {},
+    querySelector() {
+      return null;
+    },
+  };
+  const chatAuthor = {
+    value: '',
+  };
+  const chatMessage = {
+    value: '',
+  };
+  const chatStatus = {
+    textContent: '',
+  };
   const localStorageStore = new Map();
   const tgPopup = {
     hidden: true,
@@ -75,6 +109,13 @@ async function runPlayer({ href, config = {}, fetchImpl }) {
         if (id === 'source-select') return sourceSelect;
         if (id === 'copy-embed') return copyEmbed;
         if (id === 'tg-popup') return tgPopup;
+        if (id === 'chat-pinned') return chatPinned;
+        if (id === 'chat-panel') return chatPanel;
+        if (id === 'chat-messages') return chatMessages;
+        if (id === 'chat-form') return chatForm;
+        if (id === 'chat-author') return chatAuthor;
+        if (id === 'chat-message') return chatMessage;
+        if (id === 'chat-status') return chatStatus;
         return null;
       },
       querySelectorAll() {
@@ -98,6 +139,7 @@ async function runPlayer({ href, config = {}, fetchImpl }) {
     appended,
     controls,
     copyEmbed,
+    chatPinned,
     sourceSelect,
     stageHtml,
     tgPopup,
@@ -287,4 +329,49 @@ test('rotates Telegram popup channels when tgPopup config is enabled', async () 
   assert.match(result.tgPopup.innerHTML, /World Cup Telegram/);
   assert.match(result.tgPopup.innerHTML, /https:\/\/t\.me\/worldcuppart/);
   assert.doesNotMatch(result.tgPopup.innerHTML, /kinglive_test/);
+});
+
+test('renders configured pinned chat message above match chat', async () => {
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    config: {
+      chatApiBase: 'https://chat.test/api/chat',
+      chatPinned: {
+        enabled: true,
+        title: 'Pinned offer',
+        message: 'Join the match bonus before kickoff.',
+        ctaLabel: 'Open bonus',
+        url: 'https://offer.test/bonus',
+      },
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      }
+      if (String(url).startsWith('https://chat.test/api/chat/1540843')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ messages: [] }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Arsenal' },
+            away_team: { name_en: 'Atletico Madrid' },
+            streams: [],
+          }),
+      });
+    },
+  });
+
+  assert.equal(result.chatPinned.hidden, false);
+  assert.match(result.chatPinned.innerHTML, /Pinned offer/);
+  assert.match(result.chatPinned.innerHTML, /Join the match bonus before kickoff\./);
+  assert.match(result.chatPinned.innerHTML, /href="https:\/\/offer\.test\/bonus"/);
+  assert.match(result.chatPinned.innerHTML, /Open bonus/);
 });

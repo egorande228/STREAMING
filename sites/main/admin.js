@@ -65,7 +65,7 @@
   function logout() {
     setToken('');
     setAuthLabel();
-    streamsBody.innerHTML = '<tr><td colspan="8">Logged out</td></tr>';
+    streamsBody.innerHTML = '<tr><td colspan="10">Logged out</td></tr>';
   }
 
   function streamFromForm() {

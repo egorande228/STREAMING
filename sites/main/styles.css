@@ -1131,6 +1131,131 @@ html[dir="rtl"] .locale-menu {
   padding: 24px;
 }
 
+.detail-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(244, 239, 226, 0.035);
+  padding: 14px;
+}
+
+.detail-panel h4 {
+  margin: 0;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.detail-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.event-list,
+.stat-list,
+.fact-list {
+  display: grid;
+  gap: 8px;
+}
+
+.event-row,
+.stat-row,
+.fact-row {
+  border: 1px solid rgba(244, 239, 226, 0.08);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.event-row {
+  display: grid;
+  grid-template-columns: 42px 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+}
+
+.event-minute,
+.event-icon {
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.event-icon {
+  display: grid;
+  min-width: 28px;
+  min-height: 28px;
+  place-items: center;
+  border: 1px solid var(--gold-line);
+  border-radius: 50%;
+  background: rgba(245, 196, 0, 0.1);
+  font-size: 11px;
+}
+
+.event-body {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.event-body strong,
+.fact-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-body em,
+.fact-row span {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 54px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  text-align: center;
+}
+
+.stat-row strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.stat-row span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.fact-row {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+}
+
 .detail-close {
   position: absolute;
   top: 16px;

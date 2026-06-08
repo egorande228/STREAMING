@@ -93,6 +93,97 @@ test('renders same-day matches beyond the first six API results', async () => {
   assert.match(gridHtml, /Arsenal vs Atletico Madrid/);
 });
 
+test('falls back to upcoming schedule when today has no matches', async () => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = new Date(`${today}T00:00:00Z`);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const tomorrowText = tomorrow.toISOString().slice(0, 10);
+  const requests = [];
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll(selector) {
+        return selector === '[data-ad-slot]' ? [] : [];
+      },
+    },
+    fetch(url) {
+      const request = String(url);
+      requests.push(request);
+      if (request.endsWith('/stream.json') || request.endsWith('stream.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      }
+      const matches = request.includes(`date=${tomorrowText}`)
+        ? [
+            {
+              id: 19609127,
+              scheduled_at: `${tomorrowText}T19:00:00+00:00`,
+              status: 'scheduled',
+              stage: 'Group Stage',
+              league: { name: 'World Cup' },
+              home_team: { name_en: 'Mexico' },
+              away_team: { name_en: 'South Africa' },
+            },
+          ]
+        : [];
+
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ matches }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /Mexico vs South Africa/);
+  assert.equal(requests.some((url) => url.includes(`/api/matches?date=${today}`)), true);
+  assert.equal(requests.some((url) => url.includes(`/api/matches?date=${tomorrowText}`)), true);
+});
+
 test('renders finished match score in the match list', async () => {
   let gridHtml = '';
   const matchGrid = {
@@ -431,6 +522,32 @@ test('opens match details with stats and only shows player button when stream ex
           ok: true,
           json: () =>
             Promise.resolve({
+              events: [
+                {
+                  id: 10,
+                  minute: 23,
+                  type: 'goal',
+                  team: 'home',
+                  player_name: 'Saka',
+                  detail: 'Assist: Odegaard',
+                },
+                {
+                  id: 11,
+                  minute: 40,
+                  extra_minute: 2,
+                  type: 'yellow_card',
+                  team: 'away',
+                  player_name: 'Koke',
+                  detail: '',
+                },
+              ],
+              facts: [
+                { id: 1, title: 'Match fact', text: 'Arsenal scored first' },
+              ],
+              team_stats: [
+                { team: { name: 'Arsenal' }, stats: { possession: 61, shots_on_goal: 5, total_shots: 11, corners: 6 } },
+                { team: { name: 'Atletico Madrid' }, stats: { possession: 39, shots_on_goal: 3, total_shots: 7, corners: 2 } },
+              ],
               teams: [
                 { team: { name: 'Arsenal' }, stats: { possession: '61%', shots_on_goal: 5 } },
                 { team: { name: 'Atletico Madrid' }, stats: { possession: '39%', shots_on_goal: 3 } },
@@ -504,6 +621,14 @@ test('opens match details with stats and only shows player button when stream ex
   assert.equal(modalRoot.hidden, false);
   assert.match(modalHtml, /Match details/);
   assert.match(modalHtml, /Possession 61% - 39%/);
+  assert.match(modalHtml, /Match events/);
+  assert.match(modalHtml, /23&#039;/);
+  assert.match(modalHtml, /Saka/);
+  assert.match(modalHtml, /40\+2&#039;/);
+  assert.match(modalHtml, /Team statistics/);
+  assert.match(modalHtml, /Shots on goal 5 - 3/);
+  assert.match(modalHtml, /Match facts/);
+  assert.match(modalHtml, /Arsenal scored first/);
   assert.match(modalHtml, /Open player/);
   assert.match(modalHtml, /match=1540843/);
   assert.match(modalHtml, /https:\/\/logo\.test\/ars\.png/);

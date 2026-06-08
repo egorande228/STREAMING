@@ -1,7 +1,8 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
-  const apiVersion = 'top-leagues-v4-manual-match-removed';
+  const apiVersion = 'sportmonks-upcoming-v1';
+  const scheduleLookaheadDays = 14;
   const playerBase = String(config.playerBase || '../player').replace(/\/$/, '');
   const streamConfigUrl = config.streamConfigUrl || './stream.json';
   const activeStreamsApiUrl = config.activeStreamsApiUrl || `${apiBase}/api/streams/active`;
@@ -41,10 +42,17 @@
       newsUnavailable: 'Football news is not available right now.',
       statsAfterKickoff: 'Statistics will appear after kickoff.',
       statsUnavailable: 'Statistics are not available from the API yet.',
+      matchEvents: 'Match events',
+      teamStatistics: 'Team statistics',
+      matchFacts: 'Match facts',
+      noMatchEvents: 'Events will appear during the match.',
       possession: 'Possession',
       shotsOnGoal: 'Shots on goal',
       shots: 'Shots',
       corners: 'Corners',
+      fouls: 'Fouls',
+      yellowCards: 'Yellow cards',
+      redCards: 'Red cards',
       wins: 'Wins',
       draws: 'Draws',
       goals: 'Goals',
@@ -61,6 +69,7 @@
       stage: 'Stage',
       updatedAt: 'Updated',
       watchStream: 'Open player',
+      sponsored: 'Sponsored',
       status_live: 'live',
       status_half_time: 'half time',
       status_scheduled: 'scheduled',
@@ -100,10 +109,17 @@
       newsUnavailable: 'Las noticias de fútbol no están disponibles ahora.',
       statsAfterKickoff: 'Las estadísticas aparecerán tras el inicio del partido.',
       statsUnavailable: 'Las estadísticas aún no están disponibles en la API.',
+      matchEvents: 'Eventos del partido',
+      teamStatistics: 'Estadísticas del equipo',
+      matchFacts: 'Datos del partido',
+      noMatchEvents: 'Los eventos aparecerán durante el partido.',
       possession: 'Posesión',
       shotsOnGoal: 'Tiros a puerta',
       shots: 'Tiros',
       corners: 'Córners',
+      fouls: 'Faltas',
+      yellowCards: 'Tarjetas amarillas',
+      redCards: 'Tarjetas rojas',
       wins: 'Victorias',
       draws: 'Empates',
       goals: 'Goles',
@@ -159,10 +175,17 @@
       newsUnavailable: 'Les actualités football ne sont pas disponibles pour le moment.',
       statsAfterKickoff: 'Les statistiques apparaîtront après le coup d’envoi.',
       statsUnavailable: 'Les statistiques ne sont pas encore disponibles depuis l’API.',
+      matchEvents: 'Événements du match',
+      teamStatistics: 'Statistiques d’équipe',
+      matchFacts: 'Faits du match',
+      noMatchEvents: 'Les événements apparaîtront pendant le match.',
       possession: 'Possession',
       shotsOnGoal: 'Tirs cadrés',
       shots: 'Tirs',
       corners: 'Corners',
+      fouls: 'Fautes',
+      yellowCards: 'Cartons jaunes',
+      redCards: 'Cartons rouges',
       wins: 'Victoires',
       draws: 'Nuls',
       goals: 'Buts',
@@ -218,10 +241,17 @@
       newsUnavailable: 'أخبار كرة القدم غير متاحة الآن.',
       statsAfterKickoff: 'ستظهر الإحصاءات بعد بداية المباراة.',
       statsUnavailable: 'الإحصاءات غير متاحة حالياً من الـ API.',
+      matchEvents: 'أحداث المباراة',
+      teamStatistics: 'إحصاءات الفريقين',
+      matchFacts: 'حقائق المباراة',
+      noMatchEvents: 'ستظهر الأحداث أثناء المباراة.',
       possession: 'الاستحواذ',
       shotsOnGoal: 'تسديدات على المرمى',
       shots: 'التسديدات',
       corners: 'الركنيات',
+      fouls: 'الأخطاء',
+      yellowCards: 'بطاقات صفراء',
+      redCards: 'بطاقات حمراء',
       wins: 'الانتصارات',
       draws: 'التعادلات',
       goals: 'الأهداف',
@@ -245,6 +275,73 @@
       status_postponed: 'مؤجلة',
       localeCode: 'AR',
       localeFlag: '🇸🇦',
+    },
+    mn: {
+      brandTitle: 'Тоглолтын төв',
+      navHome: 'Нүүр',
+      navSchedule: 'Хуваарь',
+      navGroups: 'Мэдээ',
+      heroKicker: 'Алдрын зам',
+      heroLine1: 'Бүх',
+      heroHighlight: 'World Cup 26',
+      heroLine2: 'тоглолтын өдрийг дага',
+      heroText: 'KingLive нь хуваарь, шууд үзэх холбоос, оноо болон тоглолтын дэлгэрэнгүйг нэг тодорхой төвд нэгтгэнэ.',
+      heroActionMain: 'Тоглолтын төв',
+      heroActionGroups: 'Мэдээ',
+      tournamentTitle: 'KingLive World Cup 26',
+      tournamentDates: '2026 оны 6 сарын 11 - 7 сарын 19',
+      scheduleTitlePrefix: 'Удахгүй болох',
+      scheduleTitleAccent: 'тоглолтууд',
+      newsKicker: 'Хөлбөмбөгийн хэмнэл',
+      newsTitlePrefix: 'Сүүлийн',
+      newsTitleAccent: 'мэдээ',
+      followBandKicker: 'Хууль эрх зүйн мэдэгдэл',
+      followBandTitle: 'Бие даасан мэдээллийн сайт',
+      followBandDisclaimer: 'KingLive нь бие даан ажилладаг бөгөөд Melbet-тэй холбоогүй, дэмжигдээгүй, тэдгээрийн ажиллуулдаг сайт биш. Энэ сайтад харагдах аливаа барааны тэмдэг, брэндийн нэр, лого, сурталчилгаа болон гуравдагч талын материал нь тухайн эзэмшигчдийн өмч хэвээр байна.',
+      carouselPrev: 'Өмнөх мэдээ',
+      carouselNext: 'Дараагийн мэдээ',
+      carouselControls: 'Мэдээний каруселийн удирдлага',
+      loadingMatches: 'Тоглолтуудыг ачаалж байна',
+      loadingNews: 'Хөлбөмбөгийн мэдээ ачаалж байна',
+      matchesUnavailable: 'Тоглолтуудыг ачаалж чадсангүй. Backend API ажиллаж байгаа эсэхийг шалгана уу.',
+      newsUnavailable: 'Хөлбөмбөгийн мэдээ одоогоор боломжгүй байна.',
+      statsAfterKickoff: 'Статистик тоглолт эхэлсний дараа гарна.',
+      statsUnavailable: 'Статистик API-аас одоогоор боломжгүй байна.',
+      matchEvents: 'Тоглолтын үйл явдал',
+      teamStatistics: 'Багийн статистик',
+      matchFacts: 'Тоглолтын факт',
+      noMatchEvents: 'Үйл явдал тоглолтын үеэр гарна.',
+      possession: 'Бөмбөг эзэмшилт',
+      shotsOnGoal: 'Хаалга руу цохилт',
+      shots: 'Цохилт',
+      corners: 'Булангийн цохилт',
+      fouls: 'Алдаа',
+      yellowCards: 'Шар карт',
+      redCards: 'Улаан карт',
+      wins: 'Ялалт',
+      draws: 'Тэнцээ',
+      goals: 'Гоол',
+      worldCup: 'World Cup 26',
+      football: 'Хөлбөмбөг',
+      footballNews: 'Хөлбөмбөгийн мэдээ',
+      matchDetails: 'Тоглолтын дэлгэрэнгүй',
+      closeMatchDetails: 'Тоглолтын дэлгэрэнгүйг хаах',
+      refreshNow: 'Шинэчлэх',
+      refreshDetails: 'Дэлгэрэнгүйг шинэчлэх',
+      kickoff: 'Эхлэх цаг',
+      venue: 'Цэнгэлдэх',
+      city: 'Хот',
+      stage: 'Шат',
+      updatedAt: 'Шинэчлэгдсэн',
+      watchStream: 'Тоглуулагч нээх',
+      sponsored: 'Ивээн тэтгэсэн',
+      status_live: 'шууд',
+      status_half_time: 'завсарлага',
+      status_scheduled: 'товлогдсон',
+      status_finished: 'дууссан',
+      status_postponed: 'хойшлогдсон',
+      localeCode: 'MN',
+      localeFlag: '🇲🇳',
     },
   };
   const uiLocale = resolveLocale();
@@ -343,6 +440,50 @@
     return data;
   }
 
+  function addUtcDays(date, days) {
+    const next = new Date(`${date}T00:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + days);
+    return next.toISOString().slice(0, 10);
+  }
+
+  function matchCacheMaxAge(matches) {
+    const live = Array.isArray(matches) && matches.some((item) => item?.status === 'live' || item?.status === 'half_time');
+    return live ? 45_000 : 24 * 60 * 60 * 1000;
+  }
+
+  async function fetchMatchesForDate(date, options = {}) {
+    const scope = `matches:${date}:${apiVersion}`;
+    const cachedEntry = readDailyCacheEntry(scope);
+    const cachedMatches = Array.isArray(cachedEntry?.data?.matches) ? cachedEntry.data.matches : [];
+    const url = `${apiBase}/api/matches?date=${date}&v=${apiVersion}`;
+    const data = await fetchJsonDaily(scope, url, {
+      force: options.force,
+      maxAgeMs: matchCacheMaxAge(cachedMatches),
+    });
+    return {
+      matches: Array.isArray(data.matches) ? data.matches : [],
+      cachedMatches,
+    };
+  }
+
+  async function fetchScheduleMatches(today, options = {}) {
+    const todayResult = await fetchMatchesForDate(today, options);
+    if (todayResult.matches.length) return todayResult;
+
+    const upcomingDates = Array.from({ length: scheduleLookaheadDays }, (_, index) => addUtcDays(today, index + 1));
+    const upcomingResults = await Promise.all(upcomingDates.map((date) => fetchMatchesForDate(date, options)));
+    const upcomingMatches = upcomingResults.flatMap((result) => result.matches);
+    const cachedMatches = [
+      ...todayResult.cachedMatches,
+      ...upcomingResults.flatMap((result) => result.cachedMatches),
+    ];
+
+    return {
+      matches: upcomingMatches.sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || ''))),
+      cachedMatches,
+    };
+  }
+
   function localizedNewsUrl() {
     try {
       const url = new URL(String(newsApiUrl), window.location.href);
@@ -356,19 +497,20 @@
 
   function resolveLocale() {
     const fromQuery = new URLSearchParams(window.location.search).get('lang');
-    if (fromQuery === 'en' || fromQuery === 'ar' || fromQuery === 'es' || fromQuery === 'fr') return fromQuery;
+    if (fromQuery === 'en' || fromQuery === 'ar' || fromQuery === 'es' || fromQuery === 'fr' || fromQuery === 'mn') return fromQuery;
     try {
       const stored = window.localStorage?.getItem('kinglive_locale');
-      if (stored === 'en' || stored === 'ar' || stored === 'es' || stored === 'fr') return stored;
+      if (stored === 'en' || stored === 'ar' || stored === 'es' || stored === 'fr' || stored === 'mn') return stored;
     } catch {}
     const normalizedDefault = String(defaultLocale || 'en').toLowerCase();
-    if (normalizedDefault === 'en' || normalizedDefault === 'ar' || normalizedDefault === 'es' || normalizedDefault === 'fr') {
+    if (normalizedDefault === 'en' || normalizedDefault === 'ar' || normalizedDefault === 'es' || normalizedDefault === 'fr' || normalizedDefault === 'mn') {
       return normalizedDefault;
     }
     const language = String((window.navigator && window.navigator.language) || '').toLowerCase();
     if (language.startsWith('fr')) return 'fr';
     if (language.startsWith('es')) return 'es';
     if (language.startsWith('ar')) return 'ar';
+    if (language.startsWith('mn')) return 'mn';
     return 'en';
   }
 
@@ -389,6 +531,7 @@
       { code: 'es', flag: '🇪🇸', label: 'Español' },
       { code: 'fr', flag: '🇫🇷', label: 'Français' },
       { code: 'ar', flag: '🇸🇦', label: 'العربية' },
+      { code: 'mn', flag: '🇲🇳', label: 'Монгол' },
     ];
     const container = localeButton.parentElement;
     const picker = document.createElement('div');
@@ -630,6 +773,7 @@
   }
 
   function installCyrillicGuard() {
+    if (uiLocale === 'mn') return;
     sanitizeCyrillic();
     if (typeof MutationObserver !== 'function') return;
     let scheduled = false;
@@ -694,6 +838,7 @@
         es: 'es-ES',
         fr: 'fr-FR',
         ar: 'ar-SA',
+        mn: 'mn-MN',
       };
       return new Intl.DateTimeFormat(dateLocales[uiLocale] || 'en-GB', {
         month: 'short',
@@ -773,13 +918,13 @@
   }
 
   function renderStatsText(stats) {
-    const teams = Array.isArray(stats?.teams) ? stats.teams : [];
+    const teams = Array.isArray(stats?.team_stats) ? stats.team_stats : (Array.isArray(stats?.teams) ? stats.teams : []);
     if (teams.length < 2) return '';
     const home = teams[0]?.stats || {};
     const away = teams[1]?.stats || {};
     const parts = [];
 
-    if (home.possession && away.possession) parts.push(`${t('possession')} ${home.possession} - ${away.possession}`);
+    if (home.possession && away.possession) parts.push(`${t('possession')} ${displayStatValue('possession', home.possession)} - ${displayStatValue('possession', away.possession)}`);
     if (home.shots_on_goal != null && away.shots_on_goal != null) {
       parts.push(`${t('shotsOnGoal')} ${home.shots_on_goal} - ${away.shots_on_goal}`);
     }
@@ -787,6 +932,126 @@
     if (home.corners != null && away.corners != null) parts.push(`${t('corners')} ${home.corners} - ${away.corners}`);
 
     return parts.join(' | ');
+  }
+
+  function statValue(value) {
+    if (value == null || value === '') return null;
+    return String(value);
+  }
+
+  function displayStatValue(key, value) {
+    const normalized = statValue(value);
+    if (normalized == null) return null;
+    if (key === 'possession' && !normalized.includes('%')) return `${normalized}%`;
+    return normalized;
+  }
+
+  function eventIcon(type) {
+    const normalized = String(type || '').toLowerCase();
+    if (normalized === 'goal' || normalized === 'own_goal') return '⚽';
+    if (normalized === 'yellow_card') return 'YC';
+    if (normalized === 'red_card') return 'RC';
+    if (normalized === 'substitution') return '↔';
+    return '•';
+  }
+
+  function eventMinute(event) {
+    const minute = Number(event?.minute) || 0;
+    const extra = Number(event?.extra_minute);
+    return Number.isFinite(extra) && extra > 0 ? `${minute}+${extra}'` : `${minute}'`;
+  }
+
+  function renderMatchEvents(stats) {
+    const events = Array.isArray(stats?.events) ? stats.events : [];
+    if (!events.length) {
+      return `
+        <section class="detail-panel">
+          <h4>${escapeHtml(t('matchEvents'))}</h4>
+          <p class="detail-empty">${escapeHtml(t('noMatchEvents'))}</p>
+        </section>
+      `;
+    }
+
+    return `
+      <section class="detail-panel">
+        <h4>${escapeHtml(t('matchEvents'))}</h4>
+        <div class="event-list">
+          ${events.map((event) => `
+            <div class="event-row ${escapeHtml(String(event.team || ''))}">
+              <span class="event-minute">${escapeHtml(eventMinute(event))}</span>
+              <span class="event-icon">${escapeHtml(eventIcon(event.type))}</span>
+              <span class="event-body">
+                <strong>${escapeHtml(cleanText(event.player_name, t('football')))}</strong>
+                ${event.detail ? `<em>${escapeHtml(cleanText(event.detail, ''))}</em>` : ''}
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderTeamStats(stats) {
+    const teams = Array.isArray(stats?.team_stats) ? stats.team_stats : (Array.isArray(stats?.teams) ? stats.teams : []);
+    if (teams.length < 2) return '';
+    const home = teams[0]?.stats || {};
+    const away = teams[1]?.stats || {};
+    const rows = [
+      ['possession', t('possession')],
+      ['shots_on_goal', t('shotsOnGoal')],
+      ['total_shots', t('shots')],
+      ['corners', t('corners')],
+      ['fouls', t('fouls')],
+      ['yellow_cards', t('yellowCards')],
+      ['red_cards', t('redCards')],
+    ]
+      .map(([key, label]) => {
+        const homeValue = displayStatValue(key, home[key]);
+        const awayValue = displayStatValue(key, away[key]);
+        if (homeValue == null && awayValue == null) return '';
+        return `
+          <div class="stat-row">
+            <strong>${escapeHtml(homeValue ?? '0')}</strong>
+            <span>${escapeHtml(label)} ${escapeHtml(homeValue ?? '0')} - ${escapeHtml(awayValue ?? '0')}</span>
+            <strong>${escapeHtml(awayValue ?? '0')}</strong>
+          </div>
+        `;
+      })
+      .filter(Boolean)
+      .join('');
+    if (!rows) return '';
+    return `
+      <section class="detail-panel">
+        <h4>${escapeHtml(t('teamStatistics'))}</h4>
+        <div class="stat-list">${rows}</div>
+      </section>
+    `;
+  }
+
+  function renderMatchFacts(stats) {
+    const facts = Array.isArray(stats?.facts) ? stats.facts : [];
+    if (!facts.length) return '';
+    return `
+      <section class="detail-panel">
+        <h4>${escapeHtml(t('matchFacts'))}</h4>
+        <div class="fact-list">
+          ${facts.map((fact) => `
+            <article class="fact-row">
+              <strong>${escapeHtml(cleanText(fact.title, t('matchFacts')))}</strong>
+              <span>${escapeHtml(cleanText(fact.text, ''))}</span>
+            </article>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderMatchDetailPanels(stats) {
+    return [
+      renderMatchEvents(stats),
+      renderTeamStats(stats),
+      renderMatchFacts(stats),
+    ].filter(Boolean).join('');
   }
 
   function renderPrematchText(stats) {
@@ -799,18 +1064,22 @@
     ].filter(Boolean).join(' | ');
   }
 
-  async function fetchMatchStats(matchId, options = {}) {
+  async function fetchMatchStatsPayload(matchId, options = {}) {
     const scope = `match-stats:${matchId}`;
     const url = `${apiBase}/api/matches/${matchId}/stats`;
     try {
-      const payload = await fetchJsonDaily(scope, url, {
+      return await fetchJsonDaily(scope, url, {
         force: options.force,
         maxAgeMs: options.maxAgeMs,
       });
-      return renderStatsText(payload);
     } catch {
-      return '';
+      return null;
     }
+  }
+
+  async function fetchMatchStats(matchId, options = {}) {
+    const payload = await fetchMatchStatsPayload(matchId, options);
+    return renderStatsText(payload);
   }
 
   async function fetchPrematchStats(match, options = {}) {
@@ -876,11 +1145,11 @@
 
   function renderNewsSponsorCard() {
     return sponsorLink(`
-      <article class="news-card sponsor-news-card" aria-label="Sponsored">
+      <article class="news-card sponsor-news-card" aria-label="${escapeHtml(t('sponsored'))}">
         <picture>
           <source media="(max-width: 760px)" srcset="../banners/news_card_280x180_mockup_original.png" />
           <source media="(max-width: 1100px)" srcset="../banners/news_card_320x200_mockup_original.png" />
-          <img src="../banners/news_card_360x220_mockup_original.png" width="358" height="213" alt="Sponsored" loading="lazy" />
+          <img src="../banners/news_card_360x220_mockup_original.png" width="358" height="213" alt="${escapeHtml(t('sponsored'))}" loading="lazy" />
         </picture>
       </article>
     `, 'sponsor-link');
@@ -971,9 +1240,9 @@
 
   function renderMatchSponsorCard() {
     return sponsorLink(`
-      <aside class="match-sponsor sponsor-slot" aria-label="Sponsored">
+      <aside class="match-sponsor sponsor-slot" aria-label="${escapeHtml(t('sponsored'))}">
         <picture>
-          <img src="../banners/melbet_banner_1870x245_safe_player.png" width="1870" height="245" alt="Sponsored" loading="lazy" />
+          <img src="../banners/melbet_banner_1870x245_safe_player.png" width="1870" height="245" alt="${escapeHtml(t('sponsored'))}" loading="lazy" />
         </picture>
       </aside>
     `, 'sponsor-link match-sponsor-link');
@@ -1015,10 +1284,11 @@
     const badgeClass = statusBadgeClass(displayStatus);
     const href = hasStream ? playerUrl({ match: match.id, title }) : '';
     const isLiveStatus = displayStatus === 'live' || displayStatus === 'half_time';
-    const liveStatsText = await fetchMatchStats(match.id, {
+    const matchStats = await fetchMatchStatsPayload(match.id, {
       force: options.force,
       maxAgeMs: isLiveStatus ? 30_000 : 24 * 60 * 60 * 1000,
     });
+    const liveStatsText = renderStatsText(matchStats);
     const statsText = liveStatsText || (match.status === 'scheduled'
       ? await fetchPrematchStats(match, { force: options.force, maxAgeMs: 24 * 60 * 60 * 1000 })
       : '');
@@ -1059,6 +1329,7 @@
           <div>${escapeHtml(t('city'))}: ${escapeHtml(placeName(match.city))}</div>
         </div>
         <div class="detail-statline">${escapeHtml(statsText || emptyStatsMessage(match))}</div>
+        ${renderMatchDetailPanels(matchStats)}
         <div class="detail-footer">
           <div class="match-meta">${escapeHtml(t('updatedAt'))}: ${escapeHtml(formatDate(new Date().toISOString()))}</div>
           <div class="detail-actions">
@@ -1071,10 +1342,10 @@
           </div>
         </div>
         ${sponsorLink(`
-        <aside class="detail-sponsor sponsor-slot" aria-label="Sponsored">
+        <aside class="detail-sponsor sponsor-slot" aria-label="${escapeHtml(t('sponsored'))}">
           <picture>
             <source media="(max-width: 760px)" srcset="../banners/popup_300x80_mockup_original.png" />
-            <img src="../banners/popup_320x80_mockup_original.png" width="335" height="46" alt="Sponsored" loading="lazy" />
+            <img src="../banners/popup_320x80_mockup_original.png" width="335" height="46" alt="${escapeHtml(t('sponsored'))}" loading="lazy" />
           </picture>
         </aside>
         `, 'sponsor-link')}
@@ -1092,23 +1363,16 @@
     if (!grid) return;
     renderMatchSkeleton();
     const today = new Date().toISOString().slice(0, 10);
-    const matchesUrl = `${apiBase}/api/matches?date=${today}&v=${apiVersion}`;
-    const scope = `matches:${today}:${apiVersion}`;
 
     try {
-      const cachedEntry = readDailyCacheEntry(scope);
-      const cachedMatches = Array.isArray(cachedEntry?.data?.matches) ? cachedEntry.data.matches : [];
-      const hasLiveCached = cachedMatches.some((item) => item?.status === 'live' || item?.status === 'half_time');
-      const matchMaxAgeMs = hasLiveCached ? 45_000 : 24 * 60 * 60 * 1000;
-      const data = await fetchJsonDaily(scope, matchesUrl, { force: options.force, maxAgeMs: matchMaxAgeMs });
+      const schedule = await fetchScheduleMatches(today, options);
       fetchActiveStreamMatchIds({ force: options.force }).then((activeIds) => {
         activeStreamMatchIds = activeIds;
         renderMatches(currentMatches);
       });
-      const apiMatches = Array.isArray(data.matches) ? data.matches : [];
-      const matches = mergeManualMatches(apiMatches);
-      if (cachedMatches.length) {
-        const previousStatus = new Map(cachedMatches.map((item) => [String(item.id), String(item.status || '')]));
+      const matches = mergeManualMatches(schedule.matches);
+      if (schedule.cachedMatches.length) {
+        const previousStatus = new Map(schedule.cachedMatches.map((item) => [String(item.id), String(item.status || '')]));
         matches.forEach((item) => {
           const id = String(item.id);
           if (!previousStatus.has(id)) return;

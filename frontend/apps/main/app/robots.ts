@@ -10,7 +10,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/en', '/ru', '/es', '/pt', '/ar', '/fr', '/de', '/zh', '/ja', '/ko'],
+        allow: ['/', '/en', '/ru', '/es', '/pt', '/ar', '/fr', '/de', '/zh', '/ja', '/ko', '/mn'],
         disallow: [
           '/*/matches/', // individual match detail pages
           '/admin',

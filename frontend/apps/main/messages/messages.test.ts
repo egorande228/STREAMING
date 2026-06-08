@@ -6,6 +6,7 @@ import es from './es.json';
 import fr from './fr.json';
 import ja from './ja.json';
 import ko from './ko.json';
+import mn from './mn.json';
 import pt from './pt.json';
 import ru from './ru.json';
 import zh from './zh.json';
@@ -16,6 +17,7 @@ import streamEs from '../../stream/messages/es.json';
 import streamFr from '../../stream/messages/fr.json';
 import streamJa from '../../stream/messages/ja.json';
 import streamKo from '../../stream/messages/ko.json';
+import streamMn from '../../stream/messages/mn.json';
 import streamPt from '../../stream/messages/pt.json';
 import streamRu from '../../stream/messages/ru.json';
 import streamZh from '../../stream/messages/zh.json';
@@ -32,7 +34,7 @@ function listKeys(value: unknown, prefix = ''): string[] {
     .sort();
 }
 
-const mainLocales: Record<string, Messages> = { en, ru, es, pt, ar, fr, de, zh, ja, ko };
+const mainLocales: Record<string, Messages> = { en, ru, es, pt, ar, fr, de, zh, ja, ko, mn };
 const streamLocales: Record<string, Messages> = {
   en: streamEn,
   ru: streamRu,
@@ -44,6 +46,7 @@ const streamLocales: Record<string, Messages> = {
   zh: streamZh,
   ja: streamJa,
   ko: streamKo,
+  mn: streamMn,
 };
 
 describe('message catalogs', () => {

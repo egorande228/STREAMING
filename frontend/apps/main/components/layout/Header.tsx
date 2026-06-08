@@ -16,6 +16,7 @@ const LOCALES = [
   { code: 'zh', label: 'ZH', flag: '🇨🇳' },
   { code: 'ja', label: 'JA', flag: '🇯🇵' },
   { code: 'ko', label: 'KO', flag: '🇰🇷' },
+  { code: 'mn', label: 'MN', flag: '🇲🇳' },
 ];
 
 interface Props { locale: string; }

@@ -41,10 +41,17 @@
       newsUnavailable: 'Football news is not available right now.',
       statsAfterKickoff: 'Statistics will appear after kickoff.',
       statsUnavailable: 'Statistics are not available from the API yet.',
+      matchEvents: 'Match events',
+      teamStatistics: 'Team statistics',
+      matchFacts: 'Match facts',
+      noMatchEvents: 'Events will appear during the match.',
       possession: 'Possession',
       shotsOnGoal: 'Shots on goal',
       shots: 'Shots',
       corners: 'Corners',
+      fouls: 'Fouls',
+      yellowCards: 'Yellow cards',
+      redCards: 'Red cards',
       wins: 'Wins',
       draws: 'Draws',
       goals: 'Goals',
@@ -101,10 +108,17 @@
       newsUnavailable: 'Las noticias de fútbol no están disponibles ahora.',
       statsAfterKickoff: 'Las estadísticas aparecerán tras el inicio del partido.',
       statsUnavailable: 'Las estadísticas aún no están disponibles en la API.',
+      matchEvents: 'Eventos del partido',
+      teamStatistics: 'Estadísticas del equipo',
+      matchFacts: 'Datos del partido',
+      noMatchEvents: 'Los eventos aparecerán durante el partido.',
       possession: 'Posesión',
       shotsOnGoal: 'Tiros a puerta',
       shots: 'Tiros',
       corners: 'Córners',
+      fouls: 'Faltas',
+      yellowCards: 'Tarjetas amarillas',
+      redCards: 'Tarjetas rojas',
       wins: 'Victorias',
       draws: 'Empates',
       goals: 'Goles',
@@ -160,10 +174,17 @@
       newsUnavailable: 'Les actualités football ne sont pas disponibles pour le moment.',
       statsAfterKickoff: 'Les statistiques apparaîtront après le coup d’envoi.',
       statsUnavailable: 'Les statistiques ne sont pas encore disponibles depuis l’API.',
+      matchEvents: 'Événements du match',
+      teamStatistics: 'Statistiques d’équipe',
+      matchFacts: 'Faits du match',
+      noMatchEvents: 'Les événements apparaîtront pendant le match.',
       possession: 'Possession',
       shotsOnGoal: 'Tirs cadrés',
       shots: 'Tirs',
       corners: 'Corners',
+      fouls: 'Fautes',
+      yellowCards: 'Cartons jaunes',
+      redCards: 'Cartons rouges',
       wins: 'Victoires',
       draws: 'Nuls',
       goals: 'Buts',
@@ -219,10 +240,17 @@
       newsUnavailable: 'أخبار كرة القدم غير متاحة الآن.',
       statsAfterKickoff: 'ستظهر الإحصاءات بعد بداية المباراة.',
       statsUnavailable: 'الإحصاءات غير متاحة حالياً من الـ API.',
+      matchEvents: 'أحداث المباراة',
+      teamStatistics: 'إحصاءات الفريقين',
+      matchFacts: 'حقائق المباراة',
+      noMatchEvents: 'ستظهر الأحداث أثناء المباراة.',
       possession: 'الاستحواذ',
       shotsOnGoal: 'تسديدات على المرمى',
       shots: 'التسديدات',
       corners: 'الركنيات',
+      fouls: 'الأخطاء',
+      yellowCards: 'بطاقات صفراء',
+      redCards: 'بطاقات حمراء',
       wins: 'الانتصارات',
       draws: 'التعادلات',
       goals: 'الأهداف',
@@ -278,10 +306,17 @@
       newsUnavailable: 'Хөлбөмбөгийн мэдээ одоогоор боломжгүй байна.',
       statsAfterKickoff: 'Статистик тоглолт эхэлсний дараа гарна.',
       statsUnavailable: 'Статистик API-аас одоогоор боломжгүй байна.',
+      matchEvents: 'Тоглолтын үйл явдал',
+      teamStatistics: 'Багийн статистик',
+      matchFacts: 'Тоглолтын факт',
+      noMatchEvents: 'Үйл явдал тоглолтын үеэр гарна.',
       possession: 'Бөмбөг эзэмшилт',
       shotsOnGoal: 'Хаалга руу цохилт',
       shots: 'Цохилт',
       corners: 'Булангийн цохилт',
+      fouls: 'Алдаа',
+      yellowCards: 'Шар карт',
+      redCards: 'Улаан карт',
       wins: 'Ялалт',
       draws: 'Тэнцээ',
       goals: 'Гоол',
@@ -838,13 +873,13 @@
   }
 
   function renderStatsText(stats) {
-    const teams = Array.isArray(stats?.teams) ? stats.teams : [];
+    const teams = Array.isArray(stats?.team_stats) ? stats.team_stats : (Array.isArray(stats?.teams) ? stats.teams : []);
     if (teams.length < 2) return '';
     const home = teams[0]?.stats || {};
     const away = teams[1]?.stats || {};
     const parts = [];
 
-    if (home.possession && away.possession) parts.push(`${t('possession')} ${home.possession} - ${away.possession}`);
+    if (home.possession && away.possession) parts.push(`${t('possession')} ${displayStatValue('possession', home.possession)} - ${displayStatValue('possession', away.possession)}`);
     if (home.shots_on_goal != null && away.shots_on_goal != null) {
       parts.push(`${t('shotsOnGoal')} ${home.shots_on_goal} - ${away.shots_on_goal}`);
     }
@@ -852,6 +887,126 @@
     if (home.corners != null && away.corners != null) parts.push(`${t('corners')} ${home.corners} - ${away.corners}`);
 
     return parts.join(' | ');
+  }
+
+  function statValue(value) {
+    if (value == null || value === '') return null;
+    return String(value);
+  }
+
+  function displayStatValue(key, value) {
+    const normalized = statValue(value);
+    if (normalized == null) return null;
+    if (key === 'possession' && !normalized.includes('%')) return `${normalized}%`;
+    return normalized;
+  }
+
+  function eventIcon(type) {
+    const normalized = String(type || '').toLowerCase();
+    if (normalized === 'goal' || normalized === 'own_goal') return '⚽';
+    if (normalized === 'yellow_card') return 'YC';
+    if (normalized === 'red_card') return 'RC';
+    if (normalized === 'substitution') return '↔';
+    return '•';
+  }
+
+  function eventMinute(event) {
+    const minute = Number(event?.minute) || 0;
+    const extra = Number(event?.extra_minute);
+    return Number.isFinite(extra) && extra > 0 ? `${minute}+${extra}'` : `${minute}'`;
+  }
+
+  function renderMatchEvents(stats) {
+    const events = Array.isArray(stats?.events) ? stats.events : [];
+    if (!events.length) {
+      return `
+        <section class="detail-panel">
+          <h4>${escapeHtml(t('matchEvents'))}</h4>
+          <p class="detail-empty">${escapeHtml(t('noMatchEvents'))}</p>
+        </section>
+      `;
+    }
+
+    return `
+      <section class="detail-panel">
+        <h4>${escapeHtml(t('matchEvents'))}</h4>
+        <div class="event-list">
+          ${events.map((event) => `
+            <div class="event-row ${escapeHtml(String(event.team || ''))}">
+              <span class="event-minute">${escapeHtml(eventMinute(event))}</span>
+              <span class="event-icon">${escapeHtml(eventIcon(event.type))}</span>
+              <span class="event-body">
+                <strong>${escapeHtml(cleanText(event.player_name, t('football')))}</strong>
+                ${event.detail ? `<em>${escapeHtml(cleanText(event.detail, ''))}</em>` : ''}
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderTeamStats(stats) {
+    const teams = Array.isArray(stats?.team_stats) ? stats.team_stats : (Array.isArray(stats?.teams) ? stats.teams : []);
+    if (teams.length < 2) return '';
+    const home = teams[0]?.stats || {};
+    const away = teams[1]?.stats || {};
+    const rows = [
+      ['possession', t('possession')],
+      ['shots_on_goal', t('shotsOnGoal')],
+      ['total_shots', t('shots')],
+      ['corners', t('corners')],
+      ['fouls', t('fouls')],
+      ['yellow_cards', t('yellowCards')],
+      ['red_cards', t('redCards')],
+    ]
+      .map(([key, label]) => {
+        const homeValue = displayStatValue(key, home[key]);
+        const awayValue = displayStatValue(key, away[key]);
+        if (homeValue == null && awayValue == null) return '';
+        return `
+          <div class="stat-row">
+            <strong>${escapeHtml(homeValue ?? '0')}</strong>
+            <span>${escapeHtml(label)} ${escapeHtml(homeValue ?? '0')} - ${escapeHtml(awayValue ?? '0')}</span>
+            <strong>${escapeHtml(awayValue ?? '0')}</strong>
+          </div>
+        `;
+      })
+      .filter(Boolean)
+      .join('');
+    if (!rows) return '';
+    return `
+      <section class="detail-panel">
+        <h4>${escapeHtml(t('teamStatistics'))}</h4>
+        <div class="stat-list">${rows}</div>
+      </section>
+    `;
+  }
+
+  function renderMatchFacts(stats) {
+    const facts = Array.isArray(stats?.facts) ? stats.facts : [];
+    if (!facts.length) return '';
+    return `
+      <section class="detail-panel">
+        <h4>${escapeHtml(t('matchFacts'))}</h4>
+        <div class="fact-list">
+          ${facts.map((fact) => `
+            <article class="fact-row">
+              <strong>${escapeHtml(cleanText(fact.title, t('matchFacts')))}</strong>
+              <span>${escapeHtml(cleanText(fact.text, ''))}</span>
+            </article>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderMatchDetailPanels(stats) {
+    return [
+      renderMatchEvents(stats),
+      renderTeamStats(stats),
+      renderMatchFacts(stats),
+    ].filter(Boolean).join('');
   }
 
   function renderPrematchText(stats) {
@@ -864,18 +1019,22 @@
     ].filter(Boolean).join(' | ');
   }
 
-  async function fetchMatchStats(matchId, options = {}) {
+  async function fetchMatchStatsPayload(matchId, options = {}) {
     const scope = `match-stats:${matchId}`;
     const url = `${apiBase}/api/matches/${matchId}/stats`;
     try {
-      const payload = await fetchJsonDaily(scope, url, {
+      return await fetchJsonDaily(scope, url, {
         force: options.force,
         maxAgeMs: options.maxAgeMs,
       });
-      return renderStatsText(payload);
     } catch {
-      return '';
+      return null;
     }
+  }
+
+  async function fetchMatchStats(matchId, options = {}) {
+    const payload = await fetchMatchStatsPayload(matchId, options);
+    return renderStatsText(payload);
   }
 
   async function fetchPrematchStats(match, options = {}) {
@@ -1080,10 +1239,11 @@
     const badgeClass = statusBadgeClass(displayStatus);
     const href = hasStream ? playerUrl({ match: match.id, title }) : '';
     const isLiveStatus = displayStatus === 'live' || displayStatus === 'half_time';
-    const liveStatsText = await fetchMatchStats(match.id, {
+    const matchStats = await fetchMatchStatsPayload(match.id, {
       force: options.force,
       maxAgeMs: isLiveStatus ? 30_000 : 24 * 60 * 60 * 1000,
     });
+    const liveStatsText = renderStatsText(matchStats);
     const statsText = liveStatsText || (match.status === 'scheduled'
       ? await fetchPrematchStats(match, { force: options.force, maxAgeMs: 24 * 60 * 60 * 1000 })
       : '');
@@ -1124,6 +1284,7 @@
           <div>${escapeHtml(t('city'))}: ${escapeHtml(placeName(match.city))}</div>
         </div>
         <div class="detail-statline">${escapeHtml(statsText || emptyStatsMessage(match))}</div>
+        ${renderMatchDetailPanels(matchStats)}
         <div class="detail-footer">
           <div class="match-meta">${escapeHtml(t('updatedAt'))}: ${escapeHtml(formatDate(new Date().toISOString()))}</div>
           <div class="detail-actions">

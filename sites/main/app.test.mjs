@@ -431,6 +431,32 @@ test('opens match details with stats and only shows player button when stream ex
           ok: true,
           json: () =>
             Promise.resolve({
+              events: [
+                {
+                  id: 10,
+                  minute: 23,
+                  type: 'goal',
+                  team: 'home',
+                  player_name: 'Saka',
+                  detail: 'Assist: Odegaard',
+                },
+                {
+                  id: 11,
+                  minute: 40,
+                  extra_minute: 2,
+                  type: 'yellow_card',
+                  team: 'away',
+                  player_name: 'Koke',
+                  detail: '',
+                },
+              ],
+              facts: [
+                { id: 1, title: 'Match fact', text: 'Arsenal scored first' },
+              ],
+              team_stats: [
+                { team: { name: 'Arsenal' }, stats: { possession: 61, shots_on_goal: 5, total_shots: 11, corners: 6 } },
+                { team: { name: 'Atletico Madrid' }, stats: { possession: 39, shots_on_goal: 3, total_shots: 7, corners: 2 } },
+              ],
               teams: [
                 { team: { name: 'Arsenal' }, stats: { possession: '61%', shots_on_goal: 5 } },
                 { team: { name: 'Atletico Madrid' }, stats: { possession: '39%', shots_on_goal: 3 } },
@@ -504,6 +530,14 @@ test('opens match details with stats and only shows player button when stream ex
   assert.equal(modalRoot.hidden, false);
   assert.match(modalHtml, /Match details/);
   assert.match(modalHtml, /Possession 61% - 39%/);
+  assert.match(modalHtml, /Match events/);
+  assert.match(modalHtml, /23&#039;/);
+  assert.match(modalHtml, /Saka/);
+  assert.match(modalHtml, /40\+2&#039;/);
+  assert.match(modalHtml, /Team statistics/);
+  assert.match(modalHtml, /Shots on goal 5 - 3/);
+  assert.match(modalHtml, /Match facts/);
+  assert.match(modalHtml, /Arsenal scored first/);
   assert.match(modalHtml, /Open player/);
   assert.match(modalHtml, /match=1540843/);
   assert.match(modalHtml, /https:\/\/logo\.test\/ars\.png/);

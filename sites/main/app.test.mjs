@@ -93,6 +93,97 @@ test('renders same-day matches beyond the first six API results', async () => {
   assert.match(gridHtml, /Arsenal vs Atletico Madrid/);
 });
 
+test('falls back to upcoming schedule when today has no matches', async () => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = new Date(`${today}T00:00:00Z`);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const tomorrowText = tomorrow.toISOString().slice(0, 10);
+  const requests = [];
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll(selector) {
+        return selector === '[data-ad-slot]' ? [] : [];
+      },
+    },
+    fetch(url) {
+      const request = String(url);
+      requests.push(request);
+      if (request.endsWith('/stream.json') || request.endsWith('stream.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      }
+      const matches = request.includes(`date=${tomorrowText}`)
+        ? [
+            {
+              id: 19609127,
+              scheduled_at: `${tomorrowText}T19:00:00+00:00`,
+              status: 'scheduled',
+              stage: 'Group Stage',
+              league: { name: 'World Cup' },
+              home_team: { name_en: 'Mexico' },
+              away_team: { name_en: 'South Africa' },
+            },
+          ]
+        : [];
+
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ matches }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /Mexico vs South Africa/);
+  assert.equal(requests.some((url) => url.includes(`/api/matches?date=${today}`)), true);
+  assert.equal(requests.some((url) => url.includes(`/api/matches?date=${tomorrowText}`)), true);
+});
+
 test('renders finished match score in the match list', async () => {
   let gridHtml = '';
   const matchGrid = {

@@ -1,7 +1,8 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
-  const apiVersion = 'top-leagues-v4-manual-match-removed';
+  const apiVersion = 'sportmonks-upcoming-v1';
+  const scheduleLookaheadDays = 14;
   const playerBase = String(config.playerBase || '../player').replace(/\/$/, '');
   const streamConfigUrl = config.streamConfigUrl || './stream.json';
   const activeStreamsApiUrl = config.activeStreamsApiUrl || `${apiBase}/api/streams/active`;
@@ -437,6 +438,50 @@
     const data = await fetchJson(url);
     writeDailyCache(scope, data);
     return data;
+  }
+
+  function addUtcDays(date, days) {
+    const next = new Date(`${date}T00:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + days);
+    return next.toISOString().slice(0, 10);
+  }
+
+  function matchCacheMaxAge(matches) {
+    const live = Array.isArray(matches) && matches.some((item) => item?.status === 'live' || item?.status === 'half_time');
+    return live ? 45_000 : 24 * 60 * 60 * 1000;
+  }
+
+  async function fetchMatchesForDate(date, options = {}) {
+    const scope = `matches:${date}:${apiVersion}`;
+    const cachedEntry = readDailyCacheEntry(scope);
+    const cachedMatches = Array.isArray(cachedEntry?.data?.matches) ? cachedEntry.data.matches : [];
+    const url = `${apiBase}/api/matches?date=${date}&v=${apiVersion}`;
+    const data = await fetchJsonDaily(scope, url, {
+      force: options.force,
+      maxAgeMs: matchCacheMaxAge(cachedMatches),
+    });
+    return {
+      matches: Array.isArray(data.matches) ? data.matches : [],
+      cachedMatches,
+    };
+  }
+
+  async function fetchScheduleMatches(today, options = {}) {
+    const todayResult = await fetchMatchesForDate(today, options);
+    if (todayResult.matches.length) return todayResult;
+
+    const upcomingDates = Array.from({ length: scheduleLookaheadDays }, (_, index) => addUtcDays(today, index + 1));
+    const upcomingResults = await Promise.all(upcomingDates.map((date) => fetchMatchesForDate(date, options)));
+    const upcomingMatches = upcomingResults.flatMap((result) => result.matches);
+    const cachedMatches = [
+      ...todayResult.cachedMatches,
+      ...upcomingResults.flatMap((result) => result.cachedMatches),
+    ];
+
+    return {
+      matches: upcomingMatches.sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || ''))),
+      cachedMatches,
+    };
   }
 
   function localizedNewsUrl() {
@@ -1318,23 +1363,16 @@
     if (!grid) return;
     renderMatchSkeleton();
     const today = new Date().toISOString().slice(0, 10);
-    const matchesUrl = `${apiBase}/api/matches?date=${today}&v=${apiVersion}`;
-    const scope = `matches:${today}:${apiVersion}`;
 
     try {
-      const cachedEntry = readDailyCacheEntry(scope);
-      const cachedMatches = Array.isArray(cachedEntry?.data?.matches) ? cachedEntry.data.matches : [];
-      const hasLiveCached = cachedMatches.some((item) => item?.status === 'live' || item?.status === 'half_time');
-      const matchMaxAgeMs = hasLiveCached ? 45_000 : 24 * 60 * 60 * 1000;
-      const data = await fetchJsonDaily(scope, matchesUrl, { force: options.force, maxAgeMs: matchMaxAgeMs });
+      const schedule = await fetchScheduleMatches(today, options);
       fetchActiveStreamMatchIds({ force: options.force }).then((activeIds) => {
         activeStreamMatchIds = activeIds;
         renderMatches(currentMatches);
       });
-      const apiMatches = Array.isArray(data.matches) ? data.matches : [];
-      const matches = mergeManualMatches(apiMatches);
-      if (cachedMatches.length) {
-        const previousStatus = new Map(cachedMatches.map((item) => [String(item.id), String(item.status || '')]));
+      const matches = mergeManualMatches(schedule.matches);
+      if (schedule.cachedMatches.length) {
+        const previousStatus = new Map(schedule.cachedMatches.map((item) => [String(item.id), String(item.status || '')]));
         matches.forEach((item) => {
           const id = String(item.id);
           if (!previousStatus.has(id)) return;

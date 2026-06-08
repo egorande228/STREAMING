@@ -2,10 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   buildFootballApiUrl,
+  buildSportmonksApiUrl,
   jsonResponse,
   isTopLeagueMatch,
   normalizeFixture,
+  normalizeSportmonksFixture,
   normalizeRssNews,
+  normalizeSportmonksMatchDetails,
   sortMatches,
   resolveCacheTtl,
   routeRequest,
@@ -38,6 +41,25 @@ test('maps site match queries to API-FOOTBALL fixture endpoints', () => {
   );
 });
 
+test('maps site match queries to Sportmonks fixture and livescore endpoints', () => {
+  assert.equal(
+    buildSportmonksApiUrl(new URL('https://kinglive.test/api/matches?status=live')).toString(),
+    'https://api.sportmonks.com/v3/football/livescores/inplay?include=participants%3Bscores%3Bevents.type%3Bstatistics.type%3Bperiods%3Bstate%3Bvenue%3Bstage%3Bleague',
+  );
+  assert.equal(
+    buildSportmonksApiUrl(new URL('https://kinglive.test/api/matches?date=2026-06-11')).toString(),
+    'https://api.sportmonks.com/v3/football/fixtures/date/2026-06-11?include=participants%3Bscores%3Bevents.type%3Bstatistics.type%3Bperiods%3Bstate%3Bvenue%3Bstage%3Bleague',
+  );
+  assert.equal(
+    buildSportmonksApiUrl(new URL('https://kinglive.test/api/matches/42')).toString(),
+    'https://api.sportmonks.com/v3/football/fixtures/42?include=participants%3Bscores%3Bevents.type%3Bstatistics.type%3Bperiods%3Bstate%3Bvenue%3Bstage%3Bleague',
+  );
+  assert.equal(
+    buildSportmonksApiUrl(new URL('https://kinglive.test/api/matches/42/stats')).toString(),
+    'https://api.sportmonks.com/v3/football/fixtures/42?include=participants%3Bscores%3Bevents.type%3Bstatistics.type%3Blineups%3Bperiods%3Bstate%3Bvenue%3Bstage%3Bleague',
+  );
+});
+
 test('normalizes API-FOOTBALL fixture into KingLive match JSON', () => {
   const match = normalizeFixture({
     fixture: {
@@ -63,6 +85,95 @@ test('normalizes API-FOOTBALL fixture into KingLive match JSON', () => {
   assert.equal(match.away_team.code, 'JPN');
   assert.equal(match.stage, 'Group Stage - 1');
   assert.deepEqual(match.league, { id: undefined, name: 'World Cup', country: '' });
+});
+
+test('normalizes Sportmonks fixture into KingLive match JSON', () => {
+  const match = normalizeSportmonksFixture({
+    id: 42,
+    name: 'Brazil vs Japan',
+    starting_at: '2026-06-11 19:00:00',
+    state: { short_name: '2nd' },
+    venue: { name: 'MetLife Stadium', city_name: 'New York' },
+    stage: { name: 'Group Stage' },
+    league: { id: 732, name: 'FIFA World Cup', country: { name: 'World' } },
+    participants: [
+      { id: 1, name: 'Brazil', short_code: 'BRA', image_path: 'https://logo.test/bra.png', meta: { location: 'home' } },
+      { id: 2, name: 'Japan', short_code: 'JPN', image_path: 'https://logo.test/jpn.png', meta: { location: 'away' } },
+    ],
+    scores: [
+      { description: 'CURRENT', score: { goals: 2, participant: 'home' } },
+      { description: 'CURRENT', score: { goals: 1, participant: 'away' } },
+    ],
+    periods: [{ type_id: 2, minutes: 64, ticking: true }],
+  });
+
+  assert.equal(match.id, 42);
+  assert.equal(match.status, 'live');
+  assert.equal(match.minute, 64);
+  assert.equal(match.home_score, 2);
+  assert.equal(match.away_score, 1);
+  assert.equal(match.home_team.name_en, 'Brazil');
+  assert.equal(match.away_team.code, 'JPN');
+  assert.equal(match.stage, 'Group Stage');
+  assert.deepEqual(match.league, { id: 732, name: 'FIFA World Cup', country: 'World' });
+});
+
+test('normalizes Sportmonks match details with events, team statistics, lineups, and facts', () => {
+  const details = normalizeSportmonksMatchDetails(
+    42,
+    {
+      id: 42,
+      participants: [
+        { id: 1, name: 'Brazil', meta: { location: 'home' } },
+        { id: 2, name: 'Japan', meta: { location: 'away' } },
+      ],
+      events: [
+        {
+          id: 10,
+          fixture_id: 42,
+          participant_id: 1,
+          type: { code: 'goal', name: 'Goal' },
+          player_name: 'Raphinha',
+          related_player_name: 'Vinicius Jr',
+          minute: 23,
+          extra_minute: null,
+          result: '1-0',
+          info: 'Left foot shot',
+          sort_order: 1,
+        },
+        {
+          id: 11,
+          fixture_id: 42,
+          team_id: 2,
+          type: { code: 'yellowcard', name: 'Yellow Card' },
+          player_name: 'Japan Defender',
+          minute: 31,
+          sort_order: 2,
+        },
+      ],
+      statistics: [
+        { participant_id: 1, type: { name: 'Ball Possession' }, data: { value: 58 } },
+        { participant_id: 2, type: { name: 'Ball Possession' }, data: { value: 42 } },
+        { participant_id: 1, type: { name: 'Shots On Target' }, data: { value: 6 } },
+        { participant_id: 2, type: { name: 'Shots On Target' }, data: { value: 3 } },
+      ],
+      lineups: [
+        { id: 100, participant_id: 1, player_name: 'Alisson', jersey_number: 1, formation_position: 1, type_id: 11 },
+      ],
+    },
+    [
+      { id: 900, name: 'Brazil scored first in this fixture', type: { name: 'Milestone' } },
+    ],
+  );
+
+  assert.equal(details.match_id, 42);
+  assert.equal(details.events[0].type, 'goal');
+  assert.equal(details.events[0].detail, 'Left foot shot | Assist: Vinicius Jr | Score: 1-0');
+  assert.equal(details.events[1].team, 'away');
+  assert.equal(details.team_stats[0].stats.possession, 58);
+  assert.equal(details.team_stats[1].stats.shots_on_goal, 3);
+  assert.equal(details.lineups[0].team, 'home');
+  assert.deepEqual(details.facts, [{ id: 900, title: 'Milestone', text: 'Brazil scored first in this fixture' }]);
 });
 
 test('identifies only top league matches as displayable', () => {
@@ -589,6 +700,45 @@ test('normalizes fixture statistics into compact match stats JSON', async () => 
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
       match_id: 1540843,
+      events: [],
+      lineups: [],
+      h2h: {
+        home_wins: 0,
+        away_wins: 0,
+        draws: 0,
+        total: 0,
+        home_goals: 0,
+        away_goals: 0,
+        meetings: [],
+      },
+      home_form: [],
+      away_form: [],
+      team_stats: [
+        {
+          team: { id: 1, name: 'Arsenal', logo: 'https://logo.test/ars.png' },
+          stats: {
+            possession: '61%',
+            shots_on_goal: 5,
+            total_shots: 12,
+            corners: 4,
+            fouls: null,
+            yellow_cards: null,
+            red_cards: null,
+          },
+        },
+        {
+          team: { id: 2, name: 'Atletico Madrid', logo: 'https://logo.test/atm.png' },
+          stats: {
+            possession: '39%',
+            shots_on_goal: 3,
+            total_shots: 8,
+            corners: 2,
+            fouls: null,
+            yellow_cards: null,
+            red_cards: null,
+          },
+        },
+      ],
       teams: [
         {
           team: { id: 1, name: 'Arsenal', logo: 'https://logo.test/ars.png' },
@@ -615,6 +765,7 @@ test('normalizes fixture statistics into compact match stats JSON', async () => 
           },
         },
       ],
+      facts: [],
     });
   } finally {
     globalThis.fetch = previousFetch;

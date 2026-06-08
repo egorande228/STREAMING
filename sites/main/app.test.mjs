@@ -184,6 +184,129 @@ test('falls back to upcoming schedule when today has no matches', async () => {
   assert.equal(requests.some((url) => url.includes(`/api/matches?date=${tomorrowText}`)), true);
 });
 
+test('sends site locale with match API requests', async () => {
+  let gridHtml = '';
+  let modalHtml = '';
+  const listeners = new Map();
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener(type, handler) {
+      listeners.set(type, handler);
+    },
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    get innerHTML() {
+      return modalHtml;
+    },
+    set innerHTML(value) {
+      modalHtml = value;
+    },
+    addEventListener(type, handler) {
+      listeners.set(`modal:${type}`, handler);
+    },
+  };
+  const today = new Date().toISOString().slice(0, 10);
+  const requests = [];
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/?lang=fr' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        if (id === 'match-grid') return matchGrid;
+        return null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch(url) {
+      const request = String(url);
+      requests.push(request);
+      if (request.endsWith('/stream.json') || request.endsWith('stream.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      }
+      if (request.includes('/stats')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ team_stats: [] }),
+        });
+      }
+      if (request.includes('/prematch')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ sample_size: 0 }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            matches: [
+              {
+                id: 1540843,
+                scheduled_at: `${today}T19:00:00+00:00`,
+                status: 'scheduled',
+                stage: 'Group Stage',
+                home_team: { id: 1, name_en: 'France' },
+                away_team: { id: 2, name_en: 'Canada' },
+                streams: [],
+              },
+            ],
+          }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  listeners.get('click')({
+    target: {
+      closest(selector) {
+        return selector === '[data-match-id]' ? { dataset: { matchId: '1540843' } } : null;
+      },
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(requests.some((url) => url.includes(`/api/matches?date=${today}`) && url.includes('lang=fr')), true);
+  assert.equal(requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/stats?lang=fr'), true);
+  assert.equal(
+    requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/prematch?home=1&away=2&lang=fr'),
+    true,
+  );
+});
+
 test('renders finished match score in the match list', async () => {
   let gridHtml = '';
   const matchGrid = {
@@ -548,6 +671,13 @@ test('opens match details with stats and only shows player button when stream ex
                 { team: { name: 'Arsenal' }, stats: { possession: 61, shots_on_goal: 5, total_shots: 11, corners: 6 } },
                 { team: { name: 'Atletico Madrid' }, stats: { possession: 39, shots_on_goal: 3, total_shots: 7, corners: 2 } },
               ],
+              lineups: [
+                { id: 1, team: 'home', player_name: 'David Raya', number: 22, position: '1', is_starter: true },
+                { id: 2, team: 'home', player_name: 'Bukayo Saka', number: 7, position: '11', is_starter: true },
+                { id: 3, team: 'away', player_name: 'Jan Oblak', number: 13, position: '1', is_starter: true },
+                { id: 4, team: 'away', player_name: 'Koke', number: 6, position: '8', is_starter: true },
+                { id: 5, team: 'home', player_name: 'Gabriel Jesus', number: 9, position: '', is_starter: false },
+              ],
               teams: [
                 { team: { name: 'Arsenal' }, stats: { possession: '61%', shots_on_goal: 5 } },
                 { team: { name: 'Atletico Madrid' }, stats: { possession: '39%', shots_on_goal: 3 } },
@@ -627,12 +757,17 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /40\+2&#039;/);
   assert.match(modalHtml, /Team statistics/);
   assert.match(modalHtml, /Shots on goal 5 - 3/);
+  assert.match(modalHtml, /Starting lineups/);
+  assert.match(modalHtml, /David Raya/);
+  assert.match(modalHtml, /Bukayo Saka/);
+  assert.match(modalHtml, /Jan Oblak/);
+  assert.doesNotMatch(modalHtml, /Gabriel Jesus/);
   assert.match(modalHtml, /Match facts/);
   assert.match(modalHtml, /Arsenal scored first/);
   assert.match(modalHtml, /Open player/);
   assert.match(modalHtml, /match=1540843/);
   assert.match(modalHtml, /https:\/\/logo\.test\/ars\.png/);
-  assert.equal(requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/stats'), true);
+  assert.equal(requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/stats?lang=en'), true);
 
   listeners.get('click')({
     target: {

@@ -8,6 +8,7 @@ const NEWS_FEED_AR_URL = 'https://feeds.bbci.co.uk/arabic/rss.xml';
 const NEWS_FEED_AR_PROXY_URL = `https://morss.it/${NEWS_FEED_AR_URL}`;
 const NEWS_FEED_AR_FOOTBALL_URL = 'https://news.google.com/rss/search?q=%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85&hl=ar&gl=AE&ceid=AE:ar';
 const STREAM_CONFIG_KV_KEY = 'match_streams_json';
+const SPORTMONKS_SUPPORTED_LOCALES = new Set(['ar', 'ckb', 'de', 'el', 'es', 'fa', 'fr', 'hu', 'it', 'ja', 'kmr', 'ru', 'ua', 'zh']);
 const CHAT_MAX_MESSAGES = 100;
 const CHAT_MAX_MESSAGE_LENGTH = 240;
 const CHAT_MAX_AUTHOR_LENGTH = 24;
@@ -157,7 +158,7 @@ async function routeSportmonksFootballRequest(url, env, ttl) {
 
   if (statsMatch) {
     const matchId = Number(statsMatch[1]);
-    const factsPayload = await fetchSportmonksJson(buildSportmonksMatchFactsUrl(matchId), env);
+    const factsPayload = await fetchSportmonksJson(buildSportmonksMatchFactsUrl(matchId, url), env);
     const facts = factsPayload.ok ? sportmonksDataList(factsPayload.body) : [];
     return jsonResponse(normalizeSportmonksMatchDetails(matchId, fixturePayload.body?.data, facts), 200, ttl);
   }
@@ -753,12 +754,14 @@ export function buildSportmonksApiUrl(siteUrl) {
   if (statsMatch) {
     apiUrl = new URL(`${SPORTMONKS_API_BASE}/fixtures/${statsMatch}`);
     apiUrl.searchParams.set('include', SPORTMONKS_DETAIL_INCLUDES);
+    applySportmonksLocale(apiUrl, siteUrl);
     return apiUrl;
   }
 
   if (matchId) {
     apiUrl = new URL(`${SPORTMONKS_API_BASE}/fixtures/${matchId}`);
     apiUrl.searchParams.set('include', SPORTMONKS_MATCH_INCLUDES);
+    applySportmonksLocale(apiUrl, siteUrl);
     return apiUrl;
   }
 
@@ -768,13 +771,20 @@ export function buildSportmonksApiUrl(siteUrl) {
     apiUrl = new URL(`${SPORTMONKS_API_BASE}/fixtures/date/${date || todayDate()}`);
   }
   apiUrl.searchParams.set('include', SPORTMONKS_MATCH_INCLUDES);
+  applySportmonksLocale(apiUrl, siteUrl);
   return apiUrl;
 }
 
-function buildSportmonksMatchFactsUrl(matchId) {
+function buildSportmonksMatchFactsUrl(matchId, siteUrl = null) {
   const url = new URL(`${SPORTMONKS_API_BASE}/match-facts/${matchId}`);
   url.searchParams.set('include', 'type');
+  if (siteUrl) applySportmonksLocale(url, siteUrl);
   return url;
+}
+
+function applySportmonksLocale(apiUrl, siteUrl) {
+  const locale = resolveSportmonksLocale(siteUrl);
+  if (locale) apiUrl.searchParams.set('locale', locale);
 }
 
 function todayDate() {
@@ -1524,6 +1534,12 @@ function normalizeStatus(short = '') {
 function resolveNewsLanguage(value) {
   const lang = String(value || '').toLowerCase();
   return lang === 'ar' ? 'ar' : 'en';
+}
+
+function resolveSportmonksLocale(url) {
+  const value = url?.searchParams?.get('locale') || url?.searchParams?.get('lang') || '';
+  const locale = String(value).trim().toLowerCase();
+  return SPORTMONKS_SUPPORTED_LOCALES.has(locale) ? locale : '';
 }
 
 export function resolveCacheTtl(url) {

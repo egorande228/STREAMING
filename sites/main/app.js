@@ -1,7 +1,7 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
-  const apiVersion = 'sportmonks-upcoming-v1';
+  const apiVersion = 'sportmonks-locale-v1';
   const scheduleLookaheadDays = 14;
   const playerBase = String(config.playerBase || '../player').replace(/\/$/, '');
   const streamConfigUrl = config.streamConfigUrl || './stream.json';
@@ -45,6 +45,7 @@
       matchEvents: 'Match events',
       teamStatistics: 'Team statistics',
       matchFacts: 'Match facts',
+      startingLineups: 'Starting lineups',
       noMatchEvents: 'Events will appear during the match.',
       possession: 'Possession',
       shotsOnGoal: 'Shots on goal',
@@ -112,6 +113,7 @@
       matchEvents: 'Eventos del partido',
       teamStatistics: 'Estadísticas del equipo',
       matchFacts: 'Datos del partido',
+      startingLineups: 'Alineaciones iniciales',
       noMatchEvents: 'Los eventos aparecerán durante el partido.',
       possession: 'Posesión',
       shotsOnGoal: 'Tiros a puerta',
@@ -178,6 +180,7 @@
       matchEvents: 'Événements du match',
       teamStatistics: 'Statistiques d’équipe',
       matchFacts: 'Faits du match',
+      startingLineups: 'Compositions de départ',
       noMatchEvents: 'Les événements apparaîtront pendant le match.',
       possession: 'Possession',
       shotsOnGoal: 'Tirs cadrés',
@@ -244,6 +247,7 @@
       matchEvents: 'أحداث المباراة',
       teamStatistics: 'إحصاءات الفريقين',
       matchFacts: 'حقائق المباراة',
+      startingLineups: 'التشكيلات الأساسية',
       noMatchEvents: 'ستظهر الأحداث أثناء المباراة.',
       possession: 'الاستحواذ',
       shotsOnGoal: 'تسديدات على المرمى',
@@ -310,6 +314,7 @@
       matchEvents: 'Тоглолтын үйл явдал',
       teamStatistics: 'Багийн статистик',
       matchFacts: 'Тоглолтын факт',
+      startingLineups: 'Гарааны бүрэлдэхүүн',
       noMatchEvents: 'Үйл явдал тоглолтын үеэр гарна.',
       possession: 'Бөмбөг эзэмшилт',
       shotsOnGoal: 'Хаалга руу цохилт',
@@ -451,11 +456,28 @@
     return live ? 45_000 : 24 * 60 * 60 * 1000;
   }
 
+  function localizedApiUrl(path, params = {}) {
+    const origin = (() => {
+      try {
+        return new URL(window.location.href).origin;
+      } catch {
+        return 'https://kinglive.local';
+      }
+    })();
+    const url = new URL(path, `${apiBase || origin}/`);
+    Object.entries(params).forEach(([key, value]) => {
+      if (value == null || value === '') return;
+      url.searchParams.set(key, String(value));
+    });
+    url.searchParams.set('lang', uiLocale);
+    return url.toString();
+  }
+
   async function fetchMatchesForDate(date, options = {}) {
-    const scope = `matches:${date}:${apiVersion}`;
+    const scope = `matches:${uiLocale}:${date}:${apiVersion}`;
     const cachedEntry = readDailyCacheEntry(scope);
     const cachedMatches = Array.isArray(cachedEntry?.data?.matches) ? cachedEntry.data.matches : [];
-    const url = `${apiBase}/api/matches?date=${date}&v=${apiVersion}`;
+    const url = localizedApiUrl('/api/matches', { date, v: apiVersion });
     const data = await fetchJsonDaily(scope, url, {
       force: options.force,
       maxAgeMs: matchCacheMaxAge(cachedMatches),
@@ -487,16 +509,22 @@
   function localizedNewsUrl() {
     try {
       const url = new URL(String(newsApiUrl), window.location.href);
-      url.searchParams.set('lang', uiLocale === 'ar' ? 'ar' : 'en');
+      url.searchParams.set('lang', uiLocale);
       return url.toString();
     } catch {
       const fallback = `${apiBase}/api/news?limit=6`;
-      return `${fallback}&lang=${uiLocale === 'ar' ? 'ar' : 'en'}`;
+      return `${fallback}&lang=${encodeURIComponent(uiLocale)}`;
     }
   }
 
   function resolveLocale() {
-    const fromQuery = new URLSearchParams(window.location.search).get('lang');
+    const fromQuery = (() => {
+      try {
+        return new URL(window.location.href).searchParams.get('lang') || new URLSearchParams(window.location.search).get('lang');
+      } catch {
+        return new URLSearchParams(window.location.search).get('lang');
+      }
+    })();
     if (fromQuery === 'en' || fromQuery === 'ar' || fromQuery === 'es' || fromQuery === 'fr' || fromQuery === 'mn') return fromQuery;
     try {
       const stored = window.localStorage?.getItem('kinglive_locale');
@@ -1028,6 +1056,43 @@
     `;
   }
 
+  function renderLineupList(items) {
+    return items
+      .map((item) => {
+        const number = item.number ? `<span class="lineup-number">${escapeHtml(item.number)}</span>` : '<span class="lineup-number">-</span>';
+        const position = cleanText(item.position, '');
+        return `
+          <li>
+            ${number}
+            <span class="lineup-player">${escapeHtml(cleanText(item.player_name, 'TBD'))}</span>
+            ${position ? `<em>${escapeHtml(position)}</em>` : ''}
+          </li>
+        `;
+      })
+      .join('');
+  }
+
+  function renderLineups(stats) {
+    const starters = Array.isArray(stats?.lineups) ? stats.lineups.filter((item) => item?.is_starter !== false) : [];
+    if (!starters.length) return '';
+    const home = starters.filter((item) => item.team === 'home');
+    const away = starters.filter((item) => item.team === 'away');
+    if (!home.length && !away.length) return '';
+    return `
+      <section class="detail-panel">
+        <h4>${escapeHtml(t('startingLineups'))}</h4>
+        <div class="lineup-grid">
+          <div class="lineup-team">
+            <ol>${renderLineupList(home)}</ol>
+          </div>
+          <div class="lineup-team away">
+            <ol>${renderLineupList(away)}</ol>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
   function renderMatchFacts(stats) {
     const facts = Array.isArray(stats?.facts) ? stats.facts : [];
     if (!facts.length) return '';
@@ -1050,6 +1115,7 @@
     return [
       renderMatchEvents(stats),
       renderTeamStats(stats),
+      renderLineups(stats),
       renderMatchFacts(stats),
     ].filter(Boolean).join('');
   }
@@ -1065,8 +1131,8 @@
   }
 
   async function fetchMatchStatsPayload(matchId, options = {}) {
-    const scope = `match-stats:${matchId}`;
-    const url = `${apiBase}/api/matches/${matchId}/stats`;
+    const scope = `match-stats:${uiLocale}:${matchId}`;
+    const url = localizedApiUrl(`/api/matches/${matchId}/stats`);
     try {
       return await fetchJsonDaily(scope, url, {
         force: options.force,
@@ -1087,10 +1153,10 @@
     const away = match.away_team?.id || match.away_team?.external_id;
     if (!home || !away) return '';
 
-    const scope = `match-prematch:${match.id}:${home}:${away}`;
+    const scope = `match-prematch:${uiLocale}:${match.id}:${home}:${away}`;
     try {
       const params = new URLSearchParams({ home: String(home), away: String(away) });
-      const payload = await fetchJsonDaily(scope, `${apiBase}/api/matches/${match.id}/prematch?${params}`, {
+      const payload = await fetchJsonDaily(scope, localizedApiUrl(`/api/matches/${match.id}/prematch`, Object.fromEntries(params)), {
         force: options.force,
         maxAgeMs: options.maxAgeMs,
       });
@@ -1377,8 +1443,8 @@
           const id = String(item.id);
           if (!previousStatus.has(id)) return;
           if (previousStatus.get(id) === String(item.status || '')) return;
-          clearDailyCacheStartsWith(`match-stats:${id}`);
-          clearDailyCacheStartsWith(`match-prematch:${id}:`);
+          clearDailyCacheStartsWith(`match-stats:${uiLocale}:${id}`);
+          clearDailyCacheStartsWith(`match-prematch:${uiLocale}:${id}:`);
         });
       }
       renderMatches(matches);
@@ -1420,7 +1486,7 @@
   if (refreshMatchesButton) {
     refreshMatchesButton.addEventListener('click', () => {
       const todayUtc = new Date().toISOString().slice(0, 10);
-      clearDailyCacheStartsWith(`matches:${todayUtc}:${apiVersion}`);
+      clearDailyCacheStartsWith(`matches:${uiLocale}:${todayUtc}:${apiVersion}`);
       clearDailyCacheStartsWith(`news:${uiLocale}:`);
       loadMatches({ force: true });
       loadNews();

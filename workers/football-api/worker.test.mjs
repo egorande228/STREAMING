@@ -60,6 +60,21 @@ test('maps site match queries to Sportmonks fixture and livescore endpoints', ()
   );
 });
 
+test('maps site language to Sportmonks locale parameters', () => {
+  assert.equal(
+    buildSportmonksApiUrl(new URL('https://kinglive.test/api/matches?date=2026-06-11&lang=fr')).toString(),
+    'https://api.sportmonks.com/v3/football/fixtures/date/2026-06-11?include=participants%3Bscores%3Bevents.type%3Bstatistics.type%3Bperiods%3Bstate%3Bvenue%3Bstage%3Bleague&locale=fr',
+  );
+  assert.equal(
+    buildSportmonksApiUrl(new URL('https://kinglive.test/api/matches/42/stats?lang=ar')).toString(),
+    'https://api.sportmonks.com/v3/football/fixtures/42?include=participants%3Bscores%3Bevents.type%3Bstatistics.type%3Blineups%3Bperiods%3Bstate%3Bvenue%3Bstage%3Bleague&locale=ar',
+  );
+  assert.equal(
+    buildSportmonksApiUrl(new URL('https://kinglive.test/api/matches?date=2026-06-11&lang=mn')).toString(),
+    'https://api.sportmonks.com/v3/football/fixtures/date/2026-06-11?include=participants%3Bscores%3Bevents.type%3Bstatistics.type%3Bperiods%3Bstate%3Bvenue%3Bstage%3Bleague',
+  );
+});
+
 test('normalizes API-FOOTBALL fixture into KingLive match JSON', () => {
   const match = normalizeFixture({
     fixture: {

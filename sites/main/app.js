@@ -1059,13 +1059,16 @@
   function renderLineupList(items) {
     return items
       .map((item) => {
-        const number = item.number ? `<span class="lineup-number">${escapeHtml(item.number)}</span>` : '<span class="lineup-number">-</span>';
+        const number = item.number ? escapeHtml(item.number) : '-';
+        const avatar = item.image_url
+          ? `<img class="lineup-avatar" src="${escapeHtml(item.image_url)}" alt="" loading="lazy" />`
+          : `<span class="lineup-number">${number}</span>`;
         const position = cleanText(item.position, '');
         return `
           <li>
-            ${number}
+            ${avatar}
             <span class="lineup-player">${escapeHtml(cleanText(item.player_name, 'TBD'))}</span>
-            ${position ? `<em>${escapeHtml(position)}</em>` : ''}
+            <em>${number}${position ? ` · ${escapeHtml(position)}` : ''}</em>
           </li>
         `;
       })

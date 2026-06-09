@@ -1,7 +1,7 @@
 const API_BASE = 'https://v3.football.api-sports.io';
 const SPORTMONKS_API_BASE = 'https://api.sportmonks.com/v3/football';
 const SPORTMONKS_MATCH_INCLUDES = 'participants;scores;events.type;statistics.type;periods;state;venue;stage;league';
-const SPORTMONKS_DETAIL_INCLUDES = 'participants;scores;events.type;statistics.type;lineups;periods;state;venue;stage;league';
+const SPORTMONKS_DETAIL_INCLUDES = 'participants;scores;events.type;statistics.type;lineups.player:display_name,image_path;periods;state;venue;stage;league';
 const NEWS_FEED_URL = 'https://feeds.bbci.co.uk/sport/football/rss.xml';
 const NEWS_FEED_PROXY_URL = `https://morss.it/${NEWS_FEED_URL}`;
 const NEWS_FEED_AR_URL = 'https://feeds.bbci.co.uk/arabic/rss.xml';
@@ -1321,7 +1321,8 @@ function normalizeSportmonksLineups(matchId, lineups = [], teamSideById = new Ma
       id: Number(lineup.id) || hashToPositiveInt(`${matchId}:lineup:${index}`),
       match_id: matchId,
       team: teamSideById.get(participantId) || 'home',
-      player_name: lineup.player_name || lineup.player?.display_name || lineup.player?.name || '',
+      player_name: lineup.player?.display_name || lineup.player?.name || lineup.player_name || '',
+      image_url: lineup.player?.image_path || '',
       number: Number(lineup.jersey_number ?? lineup.number) || 0,
       position: normalizeSportmonksPosition(lineup),
       is_starter: lineup.type_id !== 12 && String(lineup.type?.developer_name || lineup.type?.name || '').toLowerCase() !== 'bench',

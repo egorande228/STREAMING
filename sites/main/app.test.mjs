@@ -672,7 +672,7 @@ test('opens match details with stats and only shows player button when stream ex
                 { team: { name: 'Atletico Madrid' }, stats: { possession: 39, shots_on_goal: 3, total_shots: 7, corners: 2 } },
               ],
               lineups: [
-                { id: 1, team: 'home', player_name: 'David Raya', number: 22, position: '1', is_starter: true },
+                { id: 1, team: 'home', player_name: 'David Raya', number: 22, position: '1', is_starter: true, image_url: 'https://cdn.test/raya.png' },
                 { id: 2, team: 'home', player_name: 'Bukayo Saka', number: 7, position: '11', is_starter: true },
                 { id: 3, team: 'away', player_name: 'Jan Oblak', number: 13, position: '1', is_starter: true },
                 { id: 4, team: 'away', player_name: 'Koke', number: 6, position: '8', is_starter: true },
@@ -759,6 +759,7 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /Shots on goal 5 - 3/);
   assert.match(modalHtml, /Starting lineups/);
   assert.match(modalHtml, /David Raya/);
+  assert.match(modalHtml, /https:\/\/cdn\.test\/raya\.png/);
   assert.match(modalHtml, /Bukayo Saka/);
   assert.match(modalHtml, /Jan Oblak/);
   assert.doesNotMatch(modalHtml, /Gabriel Jesus/);

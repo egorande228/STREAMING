@@ -56,7 +56,7 @@ test('maps site match queries to Sportmonks fixture and livescore endpoints', ()
   );
   assert.equal(
     buildSportmonksApiUrl(new URL('https://kinglive.test/api/matches/42/stats')).toString(),
-    'https://api.sportmonks.com/v3/football/fixtures/42?include=participants%3Bscores%3Bevents.type%3Bstatistics.type%3Blineups%3Bperiods%3Bstate%3Bvenue%3Bstage%3Bleague',
+    'https://api.sportmonks.com/v3/football/fixtures/42?include=participants%3Bscores%3Bevents.type%3Bstatistics.type%3Blineups.player%3Adisplay_name%2Cimage_path%3Bperiods%3Bstate%3Bvenue%3Bstage%3Bleague',
   );
 });
 
@@ -67,7 +67,7 @@ test('maps site language to Sportmonks locale parameters', () => {
   );
   assert.equal(
     buildSportmonksApiUrl(new URL('https://kinglive.test/api/matches/42/stats?lang=ar')).toString(),
-    'https://api.sportmonks.com/v3/football/fixtures/42?include=participants%3Bscores%3Bevents.type%3Bstatistics.type%3Blineups%3Bperiods%3Bstate%3Bvenue%3Bstage%3Bleague&locale=ar',
+    'https://api.sportmonks.com/v3/football/fixtures/42?include=participants%3Bscores%3Bevents.type%3Bstatistics.type%3Blineups.player%3Adisplay_name%2Cimage_path%3Bperiods%3Bstate%3Bvenue%3Bstage%3Bleague&locale=ar',
   );
   assert.equal(
     buildSportmonksApiUrl(new URL('https://kinglive.test/api/matches?date=2026-06-11&lang=mn')).toString(),
@@ -173,7 +173,15 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
         { participant_id: 2, type: { name: 'Shots On Target' }, data: { value: 3 } },
       ],
       lineups: [
-        { id: 100, participant_id: 1, player_name: 'Alisson', jersey_number: 1, formation_position: 1, type_id: 11 },
+        {
+          id: 100,
+          participant_id: 1,
+          player_name: 'Alisson',
+          jersey_number: 1,
+          formation_position: 1,
+          type_id: 11,
+          player: { display_name: 'Alisson Becker', image_path: 'https://cdn.sportmonks.com/images/soccer/players/1/1.png' },
+        },
       ],
     },
     [
@@ -188,6 +196,8 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
   assert.equal(details.team_stats[0].stats.possession, 58);
   assert.equal(details.team_stats[1].stats.shots_on_goal, 3);
   assert.equal(details.lineups[0].team, 'home');
+  assert.equal(details.lineups[0].player_name, 'Alisson Becker');
+  assert.equal(details.lineups[0].image_url, 'https://cdn.sportmonks.com/images/soccer/players/1/1.png');
   assert.deepEqual(details.facts, [{ id: 900, title: 'Milestone', text: 'Brazil scored first in this fixture' }]);
 });
 

@@ -1545,6 +1545,82 @@ html[dir="rtl"] .locale-menu {
   white-space: nowrap;
 }
 
+.melbet-odds {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  border: 1px solid rgba(245, 196, 0, 0.24);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(245, 196, 0, 0.12), rgba(245, 196, 0, 0.025)),
+    rgba(0, 0, 0, 0.22);
+  padding: 12px;
+}
+
+.melbet-odds-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.melbet-odds-head strong {
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.melbet-odds-head a {
+  border: 1px solid rgba(245, 196, 0, 0.35);
+  border-radius: 999px;
+  background: rgba(245, 196, 0, 0.1);
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 950;
+  padding: 7px 10px;
+  text-decoration: none;
+}
+
+.melbet-odds-market {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.melbet-odds-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.melbet-odd {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid rgba(244, 239, 226, 0.1);
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.28);
+  padding: 9px 10px;
+  text-align: center;
+}
+
+.melbet-odd span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.melbet-odd strong {
+  color: var(--text);
+  font-size: 19px;
+  font-weight: 950;
+}
+
 .detail-meta-lines {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1580,7 +1656,6 @@ html[dir="rtl"] .locale-menu {
   gap: 10px;
 }
 
-.detail-refresh,
 .detail-stream {
   margin-top: 0;
 }

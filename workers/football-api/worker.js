@@ -159,8 +159,10 @@ async function routeSportmonksFootballRequest(url, env, ttl) {
   if (statsMatch) {
     const matchId = Number(statsMatch[1]);
     const factsPayload = await fetchSportmonksJson(buildSportmonksMatchFactsUrl(matchId, url), env);
+    const oddsPayload = await fetchSportmonksJson(buildSportmonksOddsUrl(matchId, url), env);
     const facts = factsPayload.ok ? sportmonksDataList(factsPayload.body) : [];
-    return jsonResponse(normalizeSportmonksMatchDetails(matchId, fixturePayload.body?.data, facts), 200, ttl);
+    const odds = oddsPayload.ok ? sportmonksDataList(oddsPayload.body) : [];
+    return jsonResponse(normalizeSportmonksMatchDetails(matchId, fixturePayload.body?.data, facts, odds), 200, ttl);
   }
 
   const streamConfig = await readRuntimeStreamConfig(env);
@@ -782,6 +784,13 @@ function buildSportmonksMatchFactsUrl(matchId, siteUrl = null) {
   return url;
 }
 
+function buildSportmonksOddsUrl(matchId, siteUrl = null) {
+  const url = new URL(`${SPORTMONKS_API_BASE}/odds/pre-match/fixtures/${matchId}`);
+  url.searchParams.set('include', 'bookmaker;market');
+  if (siteUrl) applySportmonksLocale(url, siteUrl);
+  return url;
+}
+
 function applySportmonksLocale(apiUrl, siteUrl) {
   const locale = resolveSportmonksLocale(siteUrl);
   if (locale) apiUrl.searchParams.set('locale', locale);
@@ -858,7 +867,7 @@ export function normalizeSportmonksFixture(item, env = {}, streamConfig = null) 
   }, env, streamConfig);
 }
 
-export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = []) {
+export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [], odds = []) {
   const participants = Array.isArray(fixture?.participants) ? fixture.participants : [];
   const homeTeam = participants.find((team) => team?.meta?.location === 'home') || participants[0] || {};
   const awayTeam = participants.find((team) => team?.meta?.location === 'away') || participants[1] || {};
@@ -880,6 +889,7 @@ export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [
     away_form: [],
     team_stats: teamStats,
     facts: normalizeSportmonksFacts(facts),
+    odds: normalizeSportmonksOdds(odds),
   };
 }
 
@@ -1367,6 +1377,51 @@ function normalizeSportmonksFacts(facts = []) {
       };
     })
     .filter(Boolean);
+}
+
+function normalizeSportmonksOdds(odds = []) {
+  const rows = sportmonksDataList({ data: odds }).filter((odd) => {
+    const bookmaker = String(odd.bookmaker?.name || '').trim().toLowerCase();
+    const market = String(odd.market?.developer_name || odd.market?.name || odd.market_description || '').trim().toLowerCase();
+    return bookmaker === 'melbet' && (market === 'fulltime_result' || market === 'fulltime result');
+  });
+
+  if (!rows.length) return null;
+
+  const outcomes = { home: null, draw: null, away: null };
+  let latestUpdatedAt = '';
+  rows.forEach((odd) => {
+    const key = normalizeFulltimeOutcome(odd);
+    if (!key || outcomes[key]) return;
+    outcomes[key] = {
+      label: key,
+      value: String(odd.value || odd.dp3 || '').trim(),
+      probability: String(odd.probability || '').trim(),
+    };
+    latestUpdatedAt = latestSportmonksTimestamp(latestUpdatedAt, odd.latest_bookmaker_update || odd.updated_at || odd.created_at || '');
+  });
+
+  if (!outcomes.home || !outcomes.draw || !outcomes.away) return null;
+  return {
+    bookmaker: 'MelBet',
+    market: 'Fulltime Result',
+    updated_at: latestUpdatedAt,
+    outcomes,
+  };
+}
+
+function normalizeFulltimeOutcome(odd = {}) {
+  const value = String(odd.label || odd.name || '').trim().toLowerCase();
+  if (value === 'home' || value === '1') return 'home';
+  if (value === 'draw' || value === 'x') return 'draw';
+  if (value === 'away' || value === '2') return 'away';
+  return '';
+}
+
+function latestSportmonksTimestamp(current = '', next = '') {
+  if (!current) return String(next || '');
+  if (!next) return current;
+  return Date.parse(next) > Date.parse(current) ? String(next) : current;
 }
 
 function sportmonksDataList(payload = {}) {

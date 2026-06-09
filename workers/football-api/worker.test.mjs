@@ -187,6 +187,38 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
     [
       { id: 900, name: 'Brazil scored first in this fixture', type: { name: 'Milestone' } },
     ],
+    [
+      {
+        bookmaker: { name: 'MelBet' },
+        market: { developer_name: 'FULLTIME_RESULT', name: 'Fulltime Result' },
+        label: 'Home',
+        value: '1.39',
+        probability: '71.94%',
+        latest_bookmaker_update: '2026-06-09 10:15:10',
+      },
+      {
+        bookmaker: { name: 'MelBet' },
+        market: { developer_name: 'FULLTIME_RESULT', name: 'Fulltime Result' },
+        label: 'Draw',
+        value: '4.44',
+        probability: '22.52%',
+        latest_bookmaker_update: '2026-06-09 10:15:10',
+      },
+      {
+        bookmaker: { name: 'MelBet' },
+        market: { developer_name: 'FULLTIME_RESULT', name: 'Fulltime Result' },
+        label: 'Away',
+        value: '8.90',
+        probability: '11.24%',
+        latest_bookmaker_update: '2026-06-09 10:15:10',
+      },
+      {
+        bookmaker: { name: 'Dafabet' },
+        market: { developer_name: 'FULLTIME_RESULT', name: 'Fulltime Result' },
+        label: 'Home',
+        value: '1.43',
+      },
+    ],
   );
 
   assert.equal(details.match_id, 42);
@@ -199,6 +231,11 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
   assert.equal(details.lineups[0].player_name, 'Alisson Becker');
   assert.equal(details.lineups[0].image_url, 'https://cdn.sportmonks.com/images/soccer/players/1/1.png');
   assert.equal(details.lineups[0].formation_position, 1);
+  assert.equal(details.odds.bookmaker, 'MelBet');
+  assert.equal(details.odds.market, 'Fulltime Result');
+  assert.equal(details.odds.outcomes.home.value, '1.39');
+  assert.equal(details.odds.outcomes.draw.value, '4.44');
+  assert.equal(details.odds.outcomes.away.value, '8.90');
   assert.deepEqual(details.facts, [{ id: 900, title: 'Milestone', text: 'Brazil scored first in this fixture' }]);
 });
 

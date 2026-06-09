@@ -1,7 +1,7 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
-  const apiVersion = 'sportmonks-locale-v1';
+  const apiVersion = 'sportmonks-odds-v1';
   const scheduleLookaheadDays = 14;
   const playerBase = String(config.playerBase || '../player').replace(/\/$/, '');
   const streamConfigUrl = config.streamConfigUrl || './stream.json';
@@ -46,6 +46,9 @@
       teamStatistics: 'Team statistics',
       matchFacts: 'Match facts',
       startingLineups: 'Starting lineups',
+      melbetOdds: 'MelBet odds',
+      homeWin: 'Home',
+      awayWin: 'Away',
       noMatchEvents: 'Events will appear during the match.',
       possession: 'Possession',
       shotsOnGoal: 'Shots on goal',
@@ -63,7 +66,6 @@
       matchDetails: 'Match details',
       closeMatchDetails: 'Close match details',
       refreshNow: 'Refresh now',
-      refreshDetails: 'Refresh details',
       kickoff: 'Kickoff',
       venue: 'Venue',
       city: 'City',
@@ -114,6 +116,9 @@
       teamStatistics: 'Estadísticas del equipo',
       matchFacts: 'Datos del partido',
       startingLineups: 'Alineaciones iniciales',
+      melbetOdds: 'Cuotas MelBet',
+      homeWin: 'Local',
+      awayWin: 'Visitante',
       noMatchEvents: 'Los eventos aparecerán durante el partido.',
       possession: 'Posesión',
       shotsOnGoal: 'Tiros a puerta',
@@ -131,7 +136,6 @@
       matchDetails: 'Detalles del partido',
       closeMatchDetails: 'Cerrar detalles del partido',
       refreshNow: 'Actualizar',
-      refreshDetails: 'Actualizar detalles',
       kickoff: 'Inicio',
       venue: 'Estadio',
       city: 'Ciudad',
@@ -181,6 +185,9 @@
       teamStatistics: 'Statistiques d’équipe',
       matchFacts: 'Faits du match',
       startingLineups: 'Compositions de départ',
+      melbetOdds: 'Cotes MelBet',
+      homeWin: 'Domicile',
+      awayWin: 'Extérieur',
       noMatchEvents: 'Les événements apparaîtront pendant le match.',
       possession: 'Possession',
       shotsOnGoal: 'Tirs cadrés',
@@ -198,7 +205,6 @@
       matchDetails: 'Détails du match',
       closeMatchDetails: 'Fermer les détails du match',
       refreshNow: 'Actualiser',
-      refreshDetails: 'Actualiser les détails',
       kickoff: 'Coup d’envoi',
       venue: 'Stade',
       city: 'Ville',
@@ -248,6 +254,9 @@
       teamStatistics: 'إحصاءات الفريقين',
       matchFacts: 'حقائق المباراة',
       startingLineups: 'التشكيلات الأساسية',
+      melbetOdds: 'احتمالات MelBet',
+      homeWin: 'المضيف',
+      awayWin: 'الضيف',
       noMatchEvents: 'ستظهر الأحداث أثناء المباراة.',
       possession: 'الاستحواذ',
       shotsOnGoal: 'تسديدات على المرمى',
@@ -265,7 +274,6 @@
       matchDetails: 'تفاصيل المباراة',
       closeMatchDetails: 'إغلاق تفاصيل المباراة',
       refreshNow: 'تحديث',
-      refreshDetails: 'تحديث التفاصيل',
       kickoff: 'البداية',
       venue: 'الملعب',
       city: 'المدينة',
@@ -315,6 +323,9 @@
       teamStatistics: 'Багийн статистик',
       matchFacts: 'Тоглолтын факт',
       startingLineups: 'Гарааны бүрэлдэхүүн',
+      melbetOdds: 'MelBet коэффициент',
+      homeWin: 'Эзэн',
+      awayWin: 'Зочин',
       noMatchEvents: 'Үйл явдал тоглолтын үеэр гарна.',
       possession: 'Бөмбөг эзэмшилт',
       shotsOnGoal: 'Хаалга руу цохилт',
@@ -332,7 +343,6 @@
       matchDetails: 'Тоглолтын дэлгэрэнгүй',
       closeMatchDetails: 'Тоглолтын дэлгэрэнгүйг хаах',
       refreshNow: 'Шинэчлэх',
-      refreshDetails: 'Дэлгэрэнгүйг шинэчлэх',
       kickoff: 'Эхлэх цаг',
       venue: 'Цэнгэлдэх',
       city: 'Хот',
@@ -1151,6 +1161,34 @@
     ].filter(Boolean).join('');
   }
 
+  function renderMelbetOdds(stats, homeName, awayName) {
+    const odds = stats?.odds;
+    const outcomes = odds?.outcomes || {};
+    if (!odds || !outcomes.home || !outcomes.draw || !outcomes.away) return '';
+    const items = [
+      [homeName || t('homeWin'), outcomes.home],
+      [t('draw'), outcomes.draw],
+      [awayName || t('awayWin'), outcomes.away],
+    ];
+    return `
+      <section class="melbet-odds" aria-label="${escapeHtml(t('melbetOdds'))}">
+        <div class="melbet-odds-head">
+          <strong>${escapeHtml(t('melbetOdds'))}</strong>
+          <a href="${escapeHtml(sponsorUrl)}" target="_blank" rel="nofollow sponsored noopener">MelBet</a>
+        </div>
+        <div class="melbet-odds-market">${escapeHtml(cleanText(odds.market, '1X2'))}</div>
+        <div class="melbet-odds-grid">
+          ${items.map(([label, item]) => `
+            <article class="melbet-odd">
+              <span>${escapeHtml(cleanText(label, ''))}</span>
+              <strong>${escapeHtml(cleanText(item.value, '-'))}</strong>
+            </article>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+
   function renderPrematchText(stats) {
     if (!stats || !stats.sample_size) return '';
     return [
@@ -1162,8 +1200,8 @@
   }
 
   async function fetchMatchStatsPayload(matchId, options = {}) {
-    const scope = `match-stats:${uiLocale}:${matchId}`;
-    const url = localizedApiUrl(`/api/matches/${matchId}/stats`);
+    const scope = `match-stats:${uiLocale}:${matchId}:${apiVersion}`;
+    const url = localizedApiUrl(`/api/matches/${matchId}/stats`, { v: apiVersion });
     try {
       return await fetchJsonDaily(scope, url, {
         force: options.force,
@@ -1419,6 +1457,7 @@
             ${renderTeamLogo(match.away_team, away)}
           </div>
         </div>
+        ${renderMelbetOdds(matchStats, home, away)}
         <div class="match-stats detail-meta-lines">
           <div>${escapeHtml(t('kickoff'))}: ${escapeHtml(formatDate(match.scheduled_at))}</div>
           <div>${escapeHtml(t('stage'))}: ${escapeHtml(stageName(match))}</div>
@@ -1430,7 +1469,6 @@
         <div class="detail-footer">
           <div class="match-meta">${escapeHtml(t('updatedAt'))}: ${escapeHtml(formatDate(new Date().toISOString()))}</div>
           <div class="detail-actions">
-            <button class="button secondary detail-refresh" type="button" data-refresh-match="${escapeHtml(match.id)}">${escapeHtml(t('refreshDetails'))}</button>
             ${
               href
                 ? `<a class="stream-button detail-stream" href="${href}">${escapeHtml(t('watchStream'))}</a>`
@@ -1543,12 +1581,6 @@
   });
 
   modal.addEventListener('click', (event) => {
-    const refreshButton = event.target.closest('[data-refresh-match]');
-    if (refreshButton) {
-      const matchId = refreshButton.getAttribute('data-refresh-match');
-      if (matchId) openMatchDetails(matchId, { force: true });
-      return;
-    }
     if (event.target.closest('[data-modal-close]')) closeMatchDetails();
   });
 

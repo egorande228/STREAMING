@@ -1209,6 +1209,10 @@ html[dir="rtl"] .locale-menu {
   padding: 0 14px 14px;
 }
 
+.fact-collapse .fact-list {
+  padding: 0 14px 14px;
+}
+
 .formation-grid {
   display: grid;
   grid-template-columns: 1fr;

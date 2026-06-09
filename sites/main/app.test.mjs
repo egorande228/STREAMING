@@ -827,6 +827,8 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /Jan Oblak/);
   assert.doesNotMatch(modalHtml, /Gabriel Jesus/);
   assert.match(modalHtml, /Match facts/);
+  assert.match(modalHtml, /<details class="detail-panel lineup-collapse fact-collapse">/);
+  assert.doesNotMatch(modalHtml, /<details class="detail-panel lineup-collapse fact-collapse" open>/);
   assert.match(modalHtml, /Arsenal scored first/);
   assert.doesNotMatch(modalHtml, /data-refresh-match/);
   assert.doesNotMatch(modalHtml, /Refresh details/);

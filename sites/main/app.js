@@ -1141,8 +1141,11 @@
     const facts = Array.isArray(stats?.facts) ? stats.facts : [];
     if (!facts.length) return '';
     return `
-      <section class="detail-panel">
-        <h4>${escapeHtml(t('matchFacts'))}</h4>
+      <details class="detail-panel lineup-collapse fact-collapse">
+        <summary>
+          <span>${escapeHtml(t('matchFacts'))}</span>
+          <span class="lineup-collapse-icon" aria-hidden="true">⌄</span>
+        </summary>
         <div class="fact-list">
           ${facts.map((fact) => `
             <article class="fact-row">
@@ -1151,7 +1154,7 @@
             </article>
           `).join('')}
         </div>
-      </section>
+      </details>
     `;
   }
 

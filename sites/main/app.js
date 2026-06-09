@@ -1394,22 +1394,8 @@
         `;
       });
 
-    if (cards.length > 5) {
-      cards.splice(5, 0, renderMatchSponsorCard());
-    }
-
     grid.innerHTML = cards.join('');
     sanitizeCyrillic(grid);
-  }
-
-  function renderMatchSponsorCard() {
-    return sponsorLink(`
-      <aside class="match-sponsor sponsor-slot" aria-label="${escapeHtml(t('sponsored'))}">
-        <picture>
-          <img src="../banners/melbet_banner_1870x245_safe_player.png" width="1870" height="245" alt="${escapeHtml(t('sponsored'))}" loading="lazy" />
-        </picture>
-      </aside>
-    `, 'sponsor-link match-sponsor-link');
   }
 
   function renderMatchSkeleton(count = 5) {

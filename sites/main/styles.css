@@ -378,6 +378,10 @@ html[dir="rtl"] .locale-menu {
   height: 100%;
 }
 
+.schedule-sponsor {
+  margin-bottom: var(--space-4);
+}
+
 .hero-card {
   position: relative;
   display: grid;

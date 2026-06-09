@@ -186,6 +186,13 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
     },
     [
       { id: 900, name: 'Brazil scored first in this fixture', type: { name: 'Milestone' } },
+      {
+        id: 901,
+        participant: 'both',
+        scope: 'all_matches',
+        data: { count: 3 },
+        type: { name: 'Total H2H Matches', developer_name: 'MATCH_FACT_TOTAL_H2H_MATCHES' },
+      },
     ],
     [
       {
@@ -213,6 +220,38 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
         latest_bookmaker_update: '2026-06-09 10:15:10',
       },
       {
+        bookmaker: { name: 'MelBet' },
+        market: { developer_name: 'GOAL_LINE', name: 'Goal Line' },
+        label: 'Over',
+        value: '2.15',
+        total: '2.5',
+        latest_bookmaker_update: '2026-06-09 10:15:10',
+      },
+      {
+        bookmaker: { name: 'MelBet' },
+        market: { developer_name: 'GOAL_LINE', name: 'Goal Line' },
+        label: 'Under',
+        value: '1.70',
+        total: '2.5',
+        latest_bookmaker_update: '2026-06-09 10:15:10',
+      },
+      {
+        bookmaker: { name: 'MelBet' },
+        market: { developer_name: 'ASIAN_HANDICAP', name: 'Asian Handicap' },
+        label: 'Home',
+        value: '2.21',
+        handicap: '-1.5',
+        latest_bookmaker_update: '2026-06-09 10:15:10',
+      },
+      {
+        bookmaker: { name: 'MelBet' },
+        market: { developer_name: 'ASIAN_HANDICAP', name: 'Asian Handicap' },
+        label: 'Away',
+        value: '1.59',
+        handicap: '1.5',
+        latest_bookmaker_update: '2026-06-09 10:15:10',
+      },
+      {
         bookmaker: { name: 'Dafabet' },
         market: { developer_name: 'FULLTIME_RESULT', name: 'Fulltime Result' },
         label: 'Home',
@@ -236,7 +275,17 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
   assert.equal(details.odds.outcomes.home.value, '1.39');
   assert.equal(details.odds.outcomes.draw.value, '4.44');
   assert.equal(details.odds.outcomes.away.value, '8.90');
-  assert.deepEqual(details.facts, [{ id: 900, title: 'Milestone', text: 'Brazil scored first in this fixture' }]);
+  assert.equal(details.odds.markets.length, 3);
+  assert.equal(details.odds.markets[1].label, 'Total 2.5');
+  assert.equal(details.odds.markets[1].outcomes.over.value, '2.15');
+  assert.equal(details.odds.markets[1].outcomes.under.value, '1.70');
+  assert.equal(details.odds.markets[2].label, 'Asian Handicap');
+  assert.equal(details.odds.markets[2].outcomes.home.handicap, '-1.5');
+  assert.equal(details.odds.markets[2].outcomes.away.value, '1.59');
+  assert.deepEqual(details.facts, [
+    { id: 900, title: 'Milestone', text: 'Brazil scored first in this fixture' },
+    { id: 901, title: 'Total H2H Matches', text: 'Head-to-head sample: 3 matches (all matches)' },
+  ]);
 });
 
 test('identifies only top league matches as displayable', () => {

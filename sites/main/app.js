@@ -1166,29 +1166,53 @@
 
   function renderMelbetOdds(stats, homeName, awayName) {
     const odds = stats?.odds;
-    const outcomes = odds?.outcomes || {};
-    if (!odds || !outcomes.home || !outcomes.draw || !outcomes.away) return '';
-    const items = [
-      [homeName || t('homeWin'), outcomes.home],
-      [t('draw'), outcomes.draw],
-      [awayName || t('awayWin'), outcomes.away],
-    ];
+    const markets = Array.isArray(odds?.markets) && odds.markets.length
+      ? odds.markets
+      : [{ key: 'fulltime', label: odds?.market, outcomes: odds?.outcomes }];
+    if (!odds || !markets.length) return '';
     return `
       <section class="melbet-odds" aria-label="${escapeHtml(t('melbetOdds'))}">
         <div class="melbet-odds-head">
           <strong>${escapeHtml(t('melbetOdds'))}</strong>
         </div>
-        <div class="melbet-odds-market">${escapeHtml(cleanText(odds.market, '1X2'))}</div>
-        <div class="melbet-odds-grid">
-          ${items.map(([label, item]) => `
-            <a class="melbet-odd" href="${escapeHtml(sponsorUrl)}" target="_blank" rel="nofollow sponsored noopener">
-              <span>${escapeHtml(cleanText(label, ''))}</span>
-              <strong>${escapeHtml(cleanText(item.value, '-'))}</strong>
-            </a>
-          `).join('')}
-        </div>
+        ${markets.map((market) => {
+          const outcomes = market?.outcomes || {};
+          const items = melbetMarketItems(market, outcomes, homeName, awayName);
+          if (!items.length) return '';
+          return `
+            <div class="melbet-odds-market">${escapeHtml(cleanText(market.label, '1X2'))}</div>
+            <div class="melbet-odds-grid">
+              ${items.map(([label, item]) => `
+                <a class="melbet-odd" href="${escapeHtml(sponsorUrl)}" target="_blank" rel="nofollow sponsored noopener">
+                  <span>${escapeHtml(cleanText(label, ''))}</span>
+                  <strong>${escapeHtml(cleanText(item.value, '-'))}</strong>
+                </a>
+              `).join('')}
+            </div>
+          `;
+        }).filter(Boolean).join('')}
       </section>
     `;
+  }
+
+  function melbetMarketItems(market, outcomes, homeName, awayName) {
+    if (market?.key === 'total_goals') {
+      return [
+        [`Over ${outcomes.over?.total || ''}`.trim(), outcomes.over],
+        [`Under ${outcomes.under?.total || ''}`.trim(), outcomes.under],
+      ].filter(([, item]) => item);
+    }
+    if (market?.key === 'asian_handicap') {
+      return [
+        [`${homeName || t('homeWin')} ${outcomes.home?.handicap || ''}`.trim(), outcomes.home],
+        [`${awayName || t('awayWin')} ${outcomes.away?.handicap || ''}`.trim(), outcomes.away],
+      ].filter(([, item]) => item);
+    }
+    return [
+      [homeName || t('homeWin'), outcomes.home],
+      [t('draw'), outcomes.draw],
+      [awayName || t('awayWin'), outcomes.away],
+    ].filter(([, item]) => item);
   }
 
   function renderPrematchText(stats) {

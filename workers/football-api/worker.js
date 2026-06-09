@@ -1368,7 +1368,7 @@ function normalizeSportmonksTeamStatistics(statistics = [], teamSideById = new M
 function normalizeSportmonksFacts(facts = []) {
   return sportmonksDataList({ data: facts })
     .map((fact, index) => {
-      const text = String(fact.name || fact.value || fact.fact || fact.description || '').trim();
+      const text = normalizeSportmonksFactText(fact);
       if (!text) return null;
       return {
         id: Number(fact.id) || hashToPositiveInt(`fact:${index}:${text}`),
@@ -1379,34 +1379,114 @@ function normalizeSportmonksFacts(facts = []) {
     .filter(Boolean);
 }
 
+function normalizeSportmonksFactText(fact = {}) {
+  const direct = String(fact.natural_language || fact.name || fact.value || fact.fact || fact.description || '').trim();
+  if (direct) return direct;
+  const type = String(fact.type?.developer_name || fact.type?.code || fact.type?.name || '').toLowerCase();
+  const participant = String(fact.participant || '').trim();
+  const scope = String(fact.scope || '').replace(/_/g, ' ');
+  const data = fact.data && typeof fact.data === 'object' ? fact.data : {};
+
+  if (type.includes('total_h2h_matches') || type.includes('total-h2h-matches')) {
+    const count = Number(data.count) || 0;
+    return `Head-to-head sample: ${count} match${count === 1 ? '' : 'es'}${scope ? ` (${scope})` : ''}`;
+  }
+
+  if (type.includes('historic_outcomes') || type.includes('historic-outcomes')) {
+    const outcomes = Object.entries(data).map(([score, count]) => `${score} x${count}`).join(', ');
+    return outcomes ? `Historic outcomes: ${outcomes}${scope ? ` (${scope})` : ''}` : '';
+  }
+
+  if (type.includes('goals_conceded') || type.includes('goals-conceded')) {
+    const average = data.all?.average ?? data.average;
+    const count = data.all?.count ?? data.count;
+    if (average == null && count == null) return '';
+    return `${participantLabel(participant)} goals conceded: ${average ?? count} avg${scope ? ` (${scope})` : ''}`;
+  }
+
+  if (type.includes('first_to_score') || type.includes('first-to-score')) {
+    const streak = data.streak ?? data.matches ?? data.count;
+    if (streak == null) return '';
+    return `${participantLabel(participant)} first-to-score trend: ${streak} match${Number(streak) === 1 ? '' : 'es'}${scope ? ` (${scope})` : ''}`;
+  }
+
+  if (type.includes('win_streak') || type.includes('unbeaten_streak') || type.includes('draw_streak')) {
+    const streak = data.streak ?? data.matches ?? data.count;
+    if (streak == null) return '';
+    return `${participantLabel(participant)} ${String(fact.type?.name || 'streak').replace(/^Match Facts?\s*/i, '')}: ${streak}${scope ? ` (${scope})` : ''}`;
+  }
+
+  const summary = Object.entries(data)
+    .filter(([, value]) => value == null || typeof value !== 'object')
+    .map(([key, value]) => `${String(key).replace(/_/g, ' ')} ${value}`)
+    .join(', ');
+  return summary ? `${participantLabel(participant)} ${summary}${scope ? ` (${scope})` : ''}` : '';
+}
+
+function participantLabel(participant = '') {
+  if (participant === 'home') return 'Home';
+  if (participant === 'away') return 'Away';
+  if (participant === 'both') return 'Both teams';
+  return 'Team';
+}
+
 function normalizeSportmonksOdds(odds = []) {
   const rows = sportmonksDataList({ data: odds }).filter((odd) => {
     const bookmaker = String(odd.bookmaker?.name || '').trim().toLowerCase();
     const market = String(odd.market?.developer_name || odd.market?.name || odd.market_description || '').trim().toLowerCase();
-    return bookmaker === 'melbet' && (market === 'fulltime_result' || market === 'fulltime result');
+    return bookmaker === 'melbet' && ['fulltime_result', 'fulltime result', 'goal_line', 'goal line', 'asian_handicap', 'asian handicap'].includes(market);
   });
 
   if (!rows.length) return null;
 
-  const outcomes = { home: null, draw: null, away: null };
+  const fulltime = { home: null, draw: null, away: null };
+  const goalLine = { over: null, under: null };
+  const handicap = { home: null, away: null };
   let latestUpdatedAt = '';
   rows.forEach((odd) => {
-    const key = normalizeFulltimeOutcome(odd);
-    if (!key || outcomes[key]) return;
-    outcomes[key] = {
-      label: key,
-      value: String(odd.value || odd.dp3 || '').trim(),
-      probability: String(odd.probability || '').trim(),
-    };
+    const market = String(odd.market?.developer_name || odd.market?.name || odd.market_description || '').trim().toLowerCase();
+    const oddValue = normalizedOddValue(odd);
+    if (!oddValue) return;
+    if (market === 'fulltime_result' || market === 'fulltime result') {
+      const key = normalizeFulltimeOutcome(odd);
+      if (key && !fulltime[key]) fulltime[key] = oddValue;
+    } else if (market === 'goal_line' || market === 'goal line') {
+      const key = normalizeGoalLineOutcome(odd);
+      if (key && !goalLine[key]) goalLine[key] = oddValue;
+    } else if (market === 'asian_handicap' || market === 'asian handicap') {
+      const key = normalizeHandicapOutcome(odd);
+      if (key && !handicap[key]) handicap[key] = oddValue;
+    }
     latestUpdatedAt = latestSportmonksTimestamp(latestUpdatedAt, odd.latest_bookmaker_update || odd.updated_at || odd.created_at || '');
   });
 
-  if (!outcomes.home || !outcomes.draw || !outcomes.away) return null;
+  const markets = [];
+  if (fulltime.home && fulltime.draw && fulltime.away) {
+    markets.push({ key: 'fulltime', label: 'Fulltime Result', outcomes: fulltime });
+  }
+  if (goalLine.over && goalLine.under) {
+    markets.push({ key: 'total_goals', label: `Total ${goalLine.over.total || goalLine.under.total || ''}`.trim(), outcomes: goalLine });
+  }
+  if (handicap.home && handicap.away) {
+    markets.push({ key: 'asian_handicap', label: 'Asian Handicap', outcomes: handicap });
+  }
+  if (!markets.length) return null;
   return {
     bookmaker: 'MelBet',
-    market: 'Fulltime Result',
+    market: markets[0].label,
     updated_at: latestUpdatedAt,
-    outcomes,
+    outcomes: markets[0].outcomes,
+    markets,
+  };
+}
+
+function normalizedOddValue(odd = {}) {
+  return {
+    label: String(odd.label || odd.name || '').trim(),
+    value: String(odd.value || odd.dp3 || '').trim(),
+    probability: String(odd.probability || '').trim(),
+    total: odd.total == null ? '' : String(odd.total).trim(),
+    handicap: odd.handicap == null ? '' : String(odd.handicap).trim(),
   };
 }
 
@@ -1416,6 +1496,17 @@ function normalizeFulltimeOutcome(odd = {}) {
   if (value === 'draw' || value === 'x') return 'draw';
   if (value === 'away' || value === '2') return 'away';
   return '';
+}
+
+function normalizeGoalLineOutcome(odd = {}) {
+  const value = String(odd.label || odd.name || '').trim().toLowerCase();
+  if (value === 'over') return 'over';
+  if (value === 'under') return 'under';
+  return '';
+}
+
+function normalizeHandicapOutcome(odd = {}) {
+  return normalizeFulltimeOutcome(odd);
 }
 
 function latestSportmonksTimestamp(current = '', next = '') {

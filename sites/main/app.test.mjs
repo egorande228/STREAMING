@@ -677,6 +677,33 @@ test('opens match details with stats and only shows player button when stream ex
                   draw: { label: 'draw', value: '3.40' },
                   away: { label: 'away', value: '4.90' },
                 },
+                markets: [
+                  {
+                    key: 'fulltime',
+                    label: 'Fulltime Result',
+                    outcomes: {
+                      home: { label: 'home', value: '1.72' },
+                      draw: { label: 'draw', value: '3.40' },
+                      away: { label: 'away', value: '4.90' },
+                    },
+                  },
+                  {
+                    key: 'total_goals',
+                    label: 'Total 2.5',
+                    outcomes: {
+                      over: { label: 'Over', value: '2.15', total: '2.5' },
+                      under: { label: 'Under', value: '1.70', total: '2.5' },
+                    },
+                  },
+                  {
+                    key: 'asian_handicap',
+                    label: 'Asian Handicap',
+                    outcomes: {
+                      home: { label: 'Home', value: '2.21', handicap: '-1.5' },
+                      away: { label: 'Away', value: '1.59', handicap: '1.5' },
+                    },
+                  },
+                ],
               },
               team_stats: [
                 { team: { name: 'Arsenal' }, stats: { possession: 61, shots_on_goal: 5, total_shots: 11, corners: 6 } },
@@ -765,11 +792,19 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /MelBet odds/);
   assert.match(modalHtml, /Fulltime Result/);
   assert.match(modalHtml, /https:\/\/refpa3665\.com\/L\?tag=d_5517121m_66329c_worldcuplive/);
-  assert.equal((modalHtml.match(/class="melbet-odd"/g) || []).length, 3);
+  assert.equal((modalHtml.match(/class="melbet-odd"/g) || []).length, 7);
   assert.doesNotMatch(modalHtml.match(/<div class="melbet-odds-head">[\s\S]*?<\/div>/)?.[0] || '', /<a /);
   assert.match(modalHtml, /1\.72/);
   assert.match(modalHtml, /3\.40/);
   assert.match(modalHtml, /4\.90/);
+  assert.match(modalHtml, /Total 2\.5/);
+  assert.match(modalHtml, /Over 2\.5/);
+  assert.match(modalHtml, /Under 2\.5/);
+  assert.match(modalHtml, /2\.15/);
+  assert.match(modalHtml, /1\.70/);
+  assert.match(modalHtml, /Asian Handicap/);
+  assert.match(modalHtml, /Arsenal -1\.5/);
+  assert.match(modalHtml, /Atletico Madrid 1\.5/);
   assert.match(modalHtml, /Match events/);
   assert.match(modalHtml, /23&#039;/);
   assert.match(modalHtml, /Saka/);

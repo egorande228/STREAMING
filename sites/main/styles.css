@@ -1223,7 +1223,7 @@ html[dir="rtl"] .locale-menu {
 .formation-player {
   position: absolute;
   display: grid;
-  width: 74px;
+  width: 62px;
   justify-items: center;
   gap: 4px;
   transform: translate(-50%, -50%);
@@ -1280,19 +1280,19 @@ html[dir="rtl"] .locale-menu {
 .formation-slot-9,
 .formation-fallback-9 {
   left: 50%;
-  top: 16%;
+  top: 12%;
 }
 
 .formation-slot-10,
 .formation-fallback-10 {
-  left: 38%;
-  top: 28%;
+  left: 32%;
+  top: 31%;
 }
 
 .formation-slot-11,
 .formation-fallback-11 {
-  left: 62%;
-  top: 28%;
+  left: 68%;
+  top: 31%;
 }
 
 .formation-photo {
@@ -1331,7 +1331,8 @@ html[dir="rtl"] .locale-menu {
 .formation-caption {
   display: flex;
   align-items: center;
-  max-width: 82px;
+  width: 62px;
+  max-width: 62px;
   overflow: hidden;
   border: 1px solid rgba(244, 239, 226, 0.16);
   border-radius: 5px;
@@ -1343,9 +1344,17 @@ html[dir="rtl"] .locale-menu {
   white-space: nowrap;
 }
 
+.formation-caption span {
+  min-width: 0;
+  overflow: hidden;
+  padding-right: 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .formation-caption b {
   flex: 0 0 auto;
-  min-width: 21px;
+  width: 19px;
   margin-right: 4px;
   border-right: 1px solid rgba(244, 239, 226, 0.16);
   color: var(--gold);

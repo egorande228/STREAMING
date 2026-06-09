@@ -762,8 +762,11 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /formation-pitch/);
   assert.match(modalHtml, /formation-photo/);
   assert.match(modalHtml, /formation-slot-1/);
+  assert.match(modalHtml, /title="David Raya"/);
+  assert.match(modalHtml, /<span>Raya<\/span>/);
   assert.match(modalHtml, /https:\/\/cdn\.test\/raya\.png/);
-  assert.match(modalHtml, /Bukayo Saka/);
+  assert.match(modalHtml, /title="Bukayo Saka"/);
+  assert.match(modalHtml, /<span>Saka<\/span>/);
   assert.doesNotMatch(modalHtml, /22 · 1/);
   assert.match(modalHtml, /Jan Oblak/);
   assert.doesNotMatch(modalHtml, /Gabriel Jesus/);

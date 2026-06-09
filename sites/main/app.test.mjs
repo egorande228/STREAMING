@@ -301,7 +301,7 @@ test('sends site locale with match API requests', async () => {
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(requests.some((url) => url.includes(`/api/matches?date=${today}`) && url.includes('lang=fr')), true);
-  assert.equal(requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/stats?v=sportmonks-odds-v1&lang=fr'), true);
+  assert.equal(requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/stats?v=sportmonks-facts-v2&lang=fr'), true);
   assert.equal(
     requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/prematch?home=1&away=2&lang=fr'),
     true,
@@ -835,7 +835,7 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /Open player/);
   assert.match(modalHtml, /match=1540843/);
   assert.match(modalHtml, /https:\/\/logo\.test\/ars\.png/);
-  assert.equal(requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/stats?v=sportmonks-odds-v1&lang=en'), true);
+  assert.equal(requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/stats?v=sportmonks-facts-v2&lang=en'), true);
 
   listeners.get('click')({
     target: {

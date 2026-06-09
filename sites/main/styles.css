@@ -1188,7 +1188,9 @@ html[dir="rtl"] .locale-menu {
 
 .formation-pitch {
   position: relative;
-  aspect-ratio: 16 / 9;
+  justify-self: center;
+  width: min(100%, 620px);
+  aspect-ratio: 5 / 7;
   min-height: 0;
   overflow: hidden;
   border-radius: 8px;

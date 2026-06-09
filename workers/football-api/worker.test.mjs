@@ -198,6 +198,7 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
   assert.equal(details.lineups[0].team, 'home');
   assert.equal(details.lineups[0].player_name, 'Alisson Becker');
   assert.equal(details.lineups[0].image_url, 'https://cdn.sportmonks.com/images/soccer/players/1/1.png');
+  assert.equal(details.lineups[0].formation_position, 1);
   assert.deepEqual(details.facts, [{ id: 900, title: 'Milestone', text: 'Brazil scored first in this fixture' }]);
 });
 

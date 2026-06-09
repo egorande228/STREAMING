@@ -1325,6 +1325,7 @@ function normalizeSportmonksLineups(matchId, lineups = [], teamSideById = new Ma
       image_url: lineup.player?.image_path || '',
       number: Number(lineup.jersey_number ?? lineup.number) || 0,
       position: normalizeSportmonksPosition(lineup),
+      formation_position: Number(lineup.formation_position) || null,
       is_starter: lineup.type_id !== 12 && String(lineup.type?.developer_name || lineup.type?.name || '').toLowerCase() !== 'bench',
     };
   });

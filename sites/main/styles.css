@@ -1164,66 +1164,193 @@ html[dir="rtl"] .locale-menu {
   gap: 8px;
 }
 
-.lineup-grid {
+.formation-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
-.lineup-team ol {
+.formation-team {
   display: grid;
-  gap: 7px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.lineup-team li {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
-  align-items: center;
   gap: 8px;
-  min-height: 32px;
-  border: 1px solid rgba(244, 239, 226, 0.08);
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.18);
-  padding: 7px 8px;
+  min-width: 0;
 }
 
-.lineup-number,
-.lineup-avatar {
-  display: grid;
-  width: 24px;
-  height: 24px;
-  place-items: center;
-  border: 1px solid var(--gold-line);
-  border-radius: 50%;
-  color: var(--gold);
-  font-size: 11px;
-  font-weight: 950;
-}
-
-.lineup-avatar {
-  display: block;
-  object-fit: cover;
-  background: rgba(245, 196, 0, 0.08);
-}
-
-.lineup-player {
+.formation-title {
   min-width: 0;
   overflow: hidden;
   color: var(--text);
   font-size: 12px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.formation-pitch {
+  position: relative;
+  min-height: 520px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid rgba(244, 239, 226, 0.16);
+  background:
+    linear-gradient(rgba(244, 239, 226, 0.13), rgba(244, 239, 226, 0.13)) 50% 50% / 100% 1px no-repeat,
+    radial-gradient(circle at 50% 50%, transparent 0 38px, rgba(244, 239, 226, 0.12) 39px 40px, transparent 41px),
+    repeating-linear-gradient(90deg, rgba(22, 92, 58, 0.98) 0 13%, rgba(19, 78, 51, 0.98) 13% 26%);
+  box-shadow: inset 0 0 0 2px rgba(244, 239, 226, 0.05);
+}
+
+.formation-pitch::before,
+.formation-pitch::after {
+  position: absolute;
+  left: 26%;
+  width: 48%;
+  height: 13%;
+  border: 1px solid rgba(244, 239, 226, 0.16);
+  content: "";
+  pointer-events: none;
+}
+
+.formation-pitch::before {
+  top: -1px;
+  border-top: 0;
+}
+
+.formation-pitch::after {
+  bottom: -1px;
+  border-bottom: 0;
+}
+
+.formation-player {
+  position: absolute;
+  display: grid;
+  width: 74px;
+  justify-items: center;
+  gap: 4px;
+  transform: translate(-50%, -50%);
+}
+
+.formation-slot-1,
+.formation-fallback-1 {
+  left: 50%;
+  top: 88%;
+}
+
+.formation-slot-2,
+.formation-fallback-2 {
+  left: 82%;
+  top: 72%;
+}
+
+.formation-slot-3,
+.formation-fallback-3 {
+  left: 61%;
+  top: 77%;
+}
+
+.formation-slot-4,
+.formation-fallback-4 {
+  left: 39%;
+  top: 77%;
+}
+
+.formation-slot-5,
+.formation-fallback-5 {
+  left: 18%;
+  top: 72%;
+}
+
+.formation-slot-6,
+.formation-fallback-6 {
+  left: 50%;
+  top: 58%;
+}
+
+.formation-slot-7,
+.formation-fallback-7 {
+  left: 72%;
+  top: 45%;
+}
+
+.formation-slot-8,
+.formation-fallback-8 {
+  left: 28%;
+  top: 45%;
+}
+
+.formation-slot-9,
+.formation-fallback-9 {
+  left: 50%;
+  top: 16%;
+}
+
+.formation-slot-10,
+.formation-fallback-10 {
+  left: 38%;
+  top: 28%;
+}
+
+.formation-slot-11,
+.formation-fallback-11 {
+  left: 62%;
+  top: 28%;
+}
+
+.formation-photo {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid rgba(245, 196, 0, 0.82);
+  border-radius: 50%;
+  background:
+    linear-gradient(180deg, rgba(245, 196, 0, 0.18), rgba(245, 196, 0, 0.04)),
+    rgba(0, 0, 0, 0.42);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.42);
+}
+
+.formation-number,
+.formation-avatar {
+  width: 100%;
+  height: 100%;
+  color: var(--gold);
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.formation-number {
+  display: grid;
+  place-items: center;
+}
+
+.formation-avatar {
+  display: block;
+  object-fit: cover;
+}
+
+.formation-caption {
+  display: flex;
+  align-items: center;
+  max-width: 82px;
+  overflow: hidden;
+  border: 1px solid rgba(244, 239, 226, 0.16);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.64);
+  color: var(--text);
+  font-size: 10px;
   font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.lineup-team em {
-  color: var(--muted);
+.formation-caption b {
+  flex: 0 0 auto;
+  min-width: 21px;
+  margin-right: 4px;
+  border-right: 1px solid rgba(244, 239, 226, 0.16);
+  color: var(--gold);
   font-size: 10px;
-  font-style: normal;
-  font-weight: 900;
+  text-align: center;
 }
 
 .event-row,
@@ -1862,8 +1989,21 @@ html[dir="rtl"] .locale-menu {
     grid-template-columns: 1fr;
   }
 
-  .lineup-grid {
+  .formation-grid {
     grid-template-columns: 1fr;
+  }
+
+  .formation-pitch {
+    min-height: 500px;
+  }
+
+  .formation-player {
+    width: 68px;
+  }
+
+  .formation-photo {
+    width: 42px;
+    height: 42px;
   }
 
   .detail-actions {

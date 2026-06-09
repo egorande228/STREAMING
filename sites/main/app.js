@@ -1056,23 +1056,51 @@
     `;
   }
 
-  function renderLineupList(items) {
-    return items
-      .map((item) => {
-        const number = item.number ? escapeHtml(item.number) : '-';
-        const avatar = item.image_url
-          ? `<img class="lineup-avatar" src="${escapeHtml(item.image_url)}" alt="" loading="lazy" />`
-          : `<span class="lineup-number">${number}</span>`;
-        const position = cleanText(item.position, '');
-        return `
-          <li>
-            ${avatar}
-            <span class="lineup-player">${escapeHtml(cleanText(item.player_name, 'TBD'))}</span>
-            <em>${number}${position ? ` · ${escapeHtml(position)}` : ''}</em>
-          </li>
-        `;
-      })
-      .join('');
+  function numericFormationSlot(item) {
+    const direct = Number(item?.formation_position);
+    if (Number.isInteger(direct) && direct >= 1 && direct <= 11) return direct;
+    const fallback = Number(item?.position);
+    if (Number.isInteger(fallback) && fallback >= 1 && fallback <= 11) return fallback;
+    return 0;
+  }
+
+  function formationClass(item, index) {
+    const slot = numericFormationSlot(item);
+    if (slot) return `formation-slot-${slot}`;
+    return `formation-fallback-${Math.min(11, index + 1)}`;
+  }
+
+  function renderFormationPitch(items, title) {
+    const sorted = [...items].sort((a, b) => {
+      const slotA = numericFormationSlot(a);
+      const slotB = numericFormationSlot(b);
+      if (slotA && slotB) return slotA - slotB;
+      if (slotA) return -1;
+      if (slotB) return 1;
+      return cleanText(a.player_name, '').localeCompare(cleanText(b.player_name, ''));
+    });
+
+    const players = sorted.map((item, index) => {
+      const slotClass = formationClass(item, index);
+      const number = item.number ? escapeHtml(item.number) : '-';
+      const name = escapeHtml(cleanText(item.player_name, 'TBD'));
+      const photo = item.image_url
+        ? `<img class="formation-avatar" src="${escapeHtml(item.image_url)}" alt="" loading="lazy" />`
+        : `<span class="formation-number">${number}</span>`;
+      return `
+        <span class="formation-player ${slotClass}">
+          <span class="formation-photo">${photo}</span>
+          <span class="formation-caption"><b>${number}</b>${name}</span>
+        </span>
+      `;
+    }).join('');
+
+    return `
+      <div class="formation-team">
+        <strong class="formation-title">${escapeHtml(cleanText(title, t('football')))}</strong>
+        <div class="formation-pitch">${players}</div>
+      </div>
+    `;
   }
 
   function renderLineups(stats) {
@@ -1081,16 +1109,15 @@
     const home = starters.filter((item) => item.team === 'home');
     const away = starters.filter((item) => item.team === 'away');
     if (!home.length && !away.length) return '';
+    const teams = Array.isArray(stats?.team_stats) ? stats.team_stats : (Array.isArray(stats?.teams) ? stats.teams : []);
+    const homeTitle = teams[0]?.team?.name || 'Home';
+    const awayTitle = teams[1]?.team?.name || 'Away';
     return `
       <section class="detail-panel">
         <h4>${escapeHtml(t('startingLineups'))}</h4>
-        <div class="lineup-grid">
-          <div class="lineup-team">
-            <ol>${renderLineupList(home)}</ol>
-          </div>
-          <div class="lineup-team away">
-            <ol>${renderLineupList(away)}</ol>
-          </div>
+        <div class="formation-grid">
+          ${renderFormationPitch(home, homeTitle)}
+          ${renderFormationPitch(away, awayTitle)}
         </div>
       </section>
     `;

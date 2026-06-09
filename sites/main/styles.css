@@ -1164,6 +1164,51 @@ html[dir="rtl"] .locale-menu {
   gap: 8px;
 }
 
+.lineup-collapse {
+  padding: 0;
+}
+
+.lineup-collapse summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.13em;
+  list-style: none;
+  padding: 14px;
+  text-transform: uppercase;
+}
+
+.lineup-collapse summary::-webkit-details-marker {
+  display: none;
+}
+
+.lineup-collapse-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid rgba(245, 196, 0, 0.24);
+  border-radius: 50%;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+
+.lineup-collapse[open] .lineup-collapse-icon {
+  transform: rotate(180deg);
+}
+
+.lineup-collapse .formation-grid {
+  padding: 0 14px 14px;
+}
+
 .formation-grid {
   display: grid;
   grid-template-columns: 1fr;

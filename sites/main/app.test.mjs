@@ -777,6 +777,8 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /Team statistics/);
   assert.match(modalHtml, /Shots on goal 5 - 3/);
   assert.match(modalHtml, /Starting lineups/);
+  assert.match(modalHtml, /<details class="detail-panel lineup-collapse">/);
+  assert.doesNotMatch(modalHtml, /<details class="detail-panel lineup-collapse" open>/);
   assert.match(modalHtml, /David Raya/);
   assert.match(modalHtml, /formation-pitch/);
   assert.match(modalHtml, /formation-photo/);

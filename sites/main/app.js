@@ -1124,13 +1124,16 @@
     const homeTitle = teams[0]?.team?.name || 'Home';
     const awayTitle = teams[1]?.team?.name || 'Away';
     return `
-      <section class="detail-panel">
-        <h4>${escapeHtml(t('startingLineups'))}</h4>
+      <details class="detail-panel lineup-collapse">
+        <summary>
+          <span>${escapeHtml(t('startingLineups'))}</span>
+          <span class="lineup-collapse-icon" aria-hidden="true">⌄</span>
+        </summary>
         <div class="formation-grid">
           ${renderFormationPitch(home, homeTitle)}
           ${renderFormationPitch(away, awayTitle)}
         </div>
-      </section>
+      </details>
     `;
   }
 

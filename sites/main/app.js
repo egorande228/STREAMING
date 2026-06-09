@@ -1070,14 +1070,6 @@
     return `formation-fallback-${Math.min(11, index + 1)}`;
   }
 
-  function shortFormationName(name) {
-    const value = cleanText(name, 'TBD');
-    const parts = value.split(/\s+/).filter(Boolean);
-    if (parts.length <= 1) return value;
-    const last = parts[parts.length - 1];
-    return last.length >= 3 ? last : value;
-  }
-
   function renderFormationPitch(items, title) {
     const sorted = [...items].sort((a, b) => {
       const slotA = numericFormationSlot(a);
@@ -1092,7 +1084,7 @@
       const slotClass = formationClass(item, index);
       const number = item.number ? escapeHtml(item.number) : '-';
       const fullName = cleanText(item.player_name, 'TBD');
-      const name = escapeHtml(shortFormationName(fullName));
+      const name = escapeHtml(fullName);
       const photo = item.image_url
         ? `<img class="formation-avatar" src="${escapeHtml(item.image_url)}" alt="" loading="lazy" />`
         : `<span class="formation-number">${number}</span>`;

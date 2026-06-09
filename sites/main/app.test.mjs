@@ -765,6 +765,8 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /MelBet odds/);
   assert.match(modalHtml, /Fulltime Result/);
   assert.match(modalHtml, /https:\/\/refpa3665\.com\/L\?tag=d_5517121m_66329c_worldcuplive/);
+  assert.equal((modalHtml.match(/class="melbet-odd"/g) || []).length, 3);
+  assert.doesNotMatch(modalHtml.match(/<div class="melbet-odds-head">[\s\S]*?<\/div>/)?.[0] || '', /<a /);
   assert.match(modalHtml, /1\.72/);
   assert.match(modalHtml, /3\.40/);
   assert.match(modalHtml, /4\.90/);

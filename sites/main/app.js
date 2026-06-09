@@ -1174,15 +1174,14 @@
       <section class="melbet-odds" aria-label="${escapeHtml(t('melbetOdds'))}">
         <div class="melbet-odds-head">
           <strong>${escapeHtml(t('melbetOdds'))}</strong>
-          <a href="${escapeHtml(sponsorUrl)}" target="_blank" rel="nofollow sponsored noopener">MelBet</a>
         </div>
         <div class="melbet-odds-market">${escapeHtml(cleanText(odds.market, '1X2'))}</div>
         <div class="melbet-odds-grid">
           ${items.map(([label, item]) => `
-            <article class="melbet-odd">
+            <a class="melbet-odd" href="${escapeHtml(sponsorUrl)}" target="_blank" rel="nofollow sponsored noopener">
               <span>${escapeHtml(cleanText(label, ''))}</span>
               <strong>${escapeHtml(cleanText(item.value, '-'))}</strong>
-            </article>
+            </a>
           `).join('')}
         </div>
       </section>

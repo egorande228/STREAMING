@@ -1571,17 +1571,6 @@ html[dir="rtl"] .locale-menu {
   text-transform: uppercase;
 }
 
-.melbet-odds-head a {
-  border: 1px solid rgba(245, 196, 0, 0.35);
-  border-radius: 999px;
-  background: rgba(245, 196, 0, 0.1);
-  color: var(--gold);
-  font-size: 11px;
-  font-weight: 950;
-  padding: 7px 10px;
-  text-decoration: none;
-}
-
 .melbet-odds-market {
   color: var(--muted);
   font-size: 11px;
@@ -1603,6 +1592,15 @@ html[dir="rtl"] .locale-menu {
   background: rgba(0, 0, 0, 0.28);
   padding: 9px 10px;
   text-align: center;
+  text-decoration: none;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.melbet-odd:hover,
+.melbet-odd:focus-visible {
+  border-color: rgba(245, 196, 0, 0.48);
+  background: rgba(245, 196, 0, 0.09);
+  transform: translateY(-1px);
 }
 
 .melbet-odd span {

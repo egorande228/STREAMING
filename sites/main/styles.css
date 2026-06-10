@@ -2379,16 +2379,14 @@ html[dir="rtl"] .locale-menu {
 
   .detail-score-team {
     grid-template-columns: 48px minmax(0, 1fr);
+    align-items: center;
     justify-items: start;
     text-align: left;
   }
 
-  .detail-score-team.away {
-    direction: rtl;
-  }
-
-  .detail-score-team.away strong {
-    direction: ltr;
+  .detail-score-team strong {
+    min-width: 0;
+    line-height: 1.05;
     text-align: left;
   }
 

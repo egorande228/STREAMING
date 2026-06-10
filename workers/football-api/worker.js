@@ -94,7 +94,7 @@ export async function routeRequest(request, env = {}, ctx = {}) {
 
   let response;
   if (provider === 'sportmonks') {
-    response = await routeSportmonksFootballRequest(url, env, ttl);
+    response = await routeSportmonksFootballRequest(url, env, ttl, ctx);
   } else {
     response = await routeApiFootballRequest(url, env, ttl);
   }
@@ -148,18 +148,21 @@ async function routeApiFootballRequest(url, env, ttl) {
     : jsonResponse(visibleMatches[0] ?? { error: 'match_not_found' }, visibleMatches[0] ? 200 : 404, ttl);
 }
 
-async function routeSportmonksFootballRequest(url, env, ttl) {
+async function routeSportmonksFootballRequest(url, env, ttl, ctx = {}) {
   const statsMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/stats$/);
   const apiUrl = buildSportmonksApiUrl(url);
-  const fixturePayload = await fetchSportmonksJson(apiUrl, env);
+  const fixtureTtl = statsMatch && isLiveStatsRequest(url) ? 30 : ttl;
+  const fixturePayload = statsMatch
+    ? await fetchCachedSportmonksJson(apiUrl, env, fixtureTtl, ctx)
+    : await fetchSportmonksJson(apiUrl, env);
   if (!fixturePayload.ok) {
     return jsonResponse({ error: 'sportmonks_api_error', status: fixturePayload.status }, 502, 30);
   }
 
   if (statsMatch) {
     const matchId = Number(statsMatch[1]);
-    const factsPayload = await fetchSportmonksJson(buildSportmonksMatchFactsUrl(matchId, url), env);
-    const oddsPayload = await fetchSportmonksJson(buildSportmonksOddsUrl(matchId, url), env);
+    const factsPayload = await fetchCachedSportmonksJson(buildSportmonksMatchFactsUrl(matchId, url), env, 1800, ctx);
+    const oddsPayload = await fetchCachedSportmonksJson(buildSportmonksOddsUrl(matchId, url), env, 300, ctx);
     const facts = factsPayload.ok ? sportmonksDataList(factsPayload.body) : [];
     const odds = oddsPayload.ok ? sportmonksDataList(oddsPayload.body) : [];
     return jsonResponse(normalizeSportmonksMatchDetails(matchId, fixturePayload.body?.data, facts, odds), 200, ttl);
@@ -183,6 +186,27 @@ async function fetchSportmonksJson(apiUrl, env = {}) {
   const body = await response.json();
   if (body?.errors || (body?.message && !('data' in body))) return { ok: false, status: 422, body };
   return { ok: true, status: response.status, body };
+}
+
+async function fetchCachedSportmonksJson(apiUrl, env = {}, ttl = 0, ctx = {}) {
+  const cache = globalThis.caches?.default;
+  const cacheKey = cache && ttl > 0 ? new Request(normalizeSportmonksSubrequestCacheUrl(apiUrl).toString()) : null;
+  if (cacheKey) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      try {
+        return await cached.json();
+      } catch {}
+    }
+  }
+
+  const payload = await fetchSportmonksJson(apiUrl, env);
+  if (cache && cacheKey && payload.ok) {
+    const cacheable = jsonResponse(payload, 200, ttl);
+    if (ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, cacheable));
+    else await cache.put(cacheKey, cacheable);
+  }
+  return payload;
 }
 
 async function routeNewsRequest(request, ctx = {}) {
@@ -1695,15 +1719,29 @@ export function resolveCacheTtl(url) {
   if (url.pathname === '/api/streams/active') return 30;
   if (url.pathname === '/api/news') return secondsUntilNextUtcDay();
   if (status === 'live' || status === 'half_time') return 30;
+  if (/^\/api\/matches\/\d+\/stats$/.test(url.pathname) && isLiveStatsRequest(url)) return 30;
   if (/^\/api\/matches\/\d+\/stats$/.test(url.pathname)) return 1800;
   if (/^\/api\/matches\/\d+\/prematch$/.test(url.pathname)) return secondsUntilNextUtcDay();
   if (/^\/api\/matches\/\d+$/.test(url.pathname)) return 1800;
   return secondsUntilNextUtcDay();
 }
 
+function isLiveStatsRequest(url) {
+  const live = String(url.searchParams.get('live') || '').toLowerCase();
+  return live === '1' || live === 'true';
+}
+
 function normalizeCacheUrl(url, provider = '') {
   const normalized = new URL(url);
   if (provider) normalized.searchParams.set('__provider', provider);
+  normalized.searchParams.sort();
+  return normalized;
+}
+
+function normalizeSportmonksSubrequestCacheUrl(apiUrl) {
+  const normalized = new URL(apiUrl);
+  normalized.searchParams.delete('api_token');
+  normalized.searchParams.set('__sportmonks_subrequest', '1');
   normalized.searchParams.sort();
   return normalized;
 }

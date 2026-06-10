@@ -334,6 +334,7 @@ test('sorts top league matches by live state, league priority, then kickoff', ()
 test('uses short TTL for live data and day-level TTL for non-live feeds', () => {
   assert.equal(resolveCacheTtl(new URL('https://kinglive.test/api/matches?status=live')), 30);
   assert.equal(resolveCacheTtl(new URL('https://kinglive.test/api/matches?status=half_time')), 30);
+  assert.equal(resolveCacheTtl(new URL('https://kinglive.test/api/matches/42/stats?live=1')), 30);
   assert.equal(resolveCacheTtl(new URL('https://kinglive.test/api/matches/42/stats')), 1800);
 
   const newsTtl = resolveCacheTtl(new URL('https://kinglive.test/api/news'));
@@ -345,6 +346,81 @@ test('uses short TTL for live data and day-level TTL for non-live feeds', () => 
   assert.equal(fixturesTtl <= 86400, true);
 
   assert.equal(resolveCacheTtl(new URL('https://kinglive.test/api/matches/42')), 1800);
+});
+
+test('caches Sportmonks live match detail subrequests separately from stats responses', async () => {
+  const previousFetch = globalThis.fetch;
+  const previousCaches = globalThis.caches;
+  const calls = [];
+  const cacheStore = new Map();
+  globalThis.caches = {
+    default: {
+      async match(request) {
+        const cached = cacheStore.get(request.url);
+        return cached ? cached.clone() : undefined;
+      },
+      async put(request, response) {
+        cacheStore.set(request.url, response.clone());
+      },
+    },
+  };
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    calls.push(requestUrl);
+    if (requestUrl.includes('/fixtures/42')) {
+      return new Response(JSON.stringify({
+        data: {
+          id: 42,
+          participants: [
+            { id: 1, name: 'Brazil', meta: { location: 'home' } },
+            { id: 2, name: 'Japan', meta: { location: 'away' } },
+          ],
+          events: [
+            { id: 10, participant_id: 1, type: { code: 'goal', name: 'Goal' }, player_name: 'Raphinha', minute: 23 },
+          ],
+          statistics: [],
+          lineups: [],
+        },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl.includes('/match-facts/42')) {
+      return new Response(JSON.stringify({
+        data: [{ id: 901, name: 'Brazil have scored in 4 straight matches', type: { name: 'Streak' } }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl.includes('/odds/pre-match/fixtures/42')) {
+      return new Response(JSON.stringify({
+        data: [
+          { bookmaker: { name: 'MelBet' }, market: { developer_name: 'FULLTIME_RESULT' }, label: 'Home', value: '1.40' },
+          { bookmaker: { name: 'MelBet' }, market: { developer_name: 'FULLTIME_RESULT' }, label: 'Draw', value: '4.00' },
+          { bookmaker: { name: 'MelBet' }, market: { developer_name: 'FULLTIME_RESULT' }, label: 'Away', value: '8.00' },
+        ],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const first = await routeRequest(
+      new Request('https://kinglive.test/api/matches/42/stats?live=1&v=a&lang=en'),
+      { SPORTMONKS_TOKEN: 'sportmonks-test-token' },
+      {},
+    );
+    const second = await routeRequest(
+      new Request('https://kinglive.test/api/matches/42/stats?live=1&v=b&lang=en'),
+      { SPORTMONKS_TOKEN: 'sportmonks-test-token' },
+      {},
+    );
+
+    assert.equal(first.headers.get('Cache-Control'), 'public, max-age=30');
+    assert.equal(second.headers.get('Cache-Control'), 'public, max-age=30');
+    assert.equal(calls.filter((url) => new URL(url).pathname === '/v3/football/fixtures/42').length, 1);
+    assert.equal(calls.filter((url) => new URL(url).pathname === '/v3/football/match-facts/42').length, 1);
+    assert.equal(calls.filter((url) => new URL(url).pathname === '/v3/football/odds/pre-match/fixtures/42').length, 1);
+  } finally {
+    globalThis.fetch = previousFetch;
+    globalThis.caches = previousCaches;
+  }
 });
 
 test('returns empty match list when API key is not configured', async () => {

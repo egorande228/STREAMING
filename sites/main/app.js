@@ -1013,11 +1013,11 @@
     return `
       <section class="detail-panel">
         <h4>${escapeHtml(t('matchEvents'))}</h4>
-        <div class="event-list">
+        <div class="event-timeline">
           ${events.map((event) => `
-            <div class="event-row ${escapeHtml(String(event.team || ''))}">
-              <span class="event-minute">${escapeHtml(eventMinute(event))}</span>
-              <span class="event-icon">${escapeHtml(eventIcon(event.type))}</span>
+            <div class="timeline-event ${escapeHtml(String(event.team || ''))}">
+              <span class="timeline-minute">${escapeHtml(eventMinute(event))}</span>
+              <span class="timeline-marker">${escapeHtml(eventIcon(event.type))}</span>
               <span class="event-body">
                 <strong>${escapeHtml(cleanText(event.player_name, t('football')))}</strong>
                 ${event.detail ? `<em>${escapeHtml(cleanText(event.detail, ''))}</em>` : ''}
@@ -1229,8 +1229,11 @@
   }
 
   async function fetchMatchStatsPayload(matchId, options = {}) {
-    const scope = `match-stats:${uiLocale}:${matchId}:${apiVersion}`;
-    const url = localizedApiUrl(`/api/matches/${matchId}/stats`, { v: apiVersion });
+    const scope = `match-stats:${uiLocale}:${matchId}:${apiVersion}:${options.live ? 'live' : 'default'}`;
+    const url = localizedApiUrl(`/api/matches/${matchId}/stats`, {
+      v: apiVersion,
+      live: options.live ? '1' : '',
+    });
     try {
       return await fetchJsonDaily(scope, url, {
         force: options.force,
@@ -1436,6 +1439,7 @@
     const isLiveStatus = displayStatus === 'live' || displayStatus === 'half_time';
     const matchStats = await fetchMatchStatsPayload(match.id, {
       force: options.force,
+      live: isLiveStatus,
       maxAgeMs: isLiveStatus ? 30_000 : 24 * 60 * 60 * 1000,
     });
     const liveStatsText = renderStatsText(matchStats);
@@ -1538,7 +1542,7 @@
           void fetchPrematchStats(match, { maxAgeMs: 24 * 60 * 60 * 1000 });
           return;
         }
-        void fetchMatchStats(match.id, { maxAgeMs: 30_000 });
+        void fetchMatchStats(match.id, { live: true, maxAgeMs: 30_000 });
       });
     } catch {
       renderMatches([]);

@@ -664,6 +664,14 @@ test('opens match details with stats and only shows player button when stream ex
                   player_name: 'Koke',
                   detail: '',
                 },
+                {
+                  id: 12,
+                  minute: 62,
+                  type: 'substitution',
+                  team: 'home',
+                  player_name: 'Martinelli',
+                  detail: 'Replaces Trossard',
+                },
               ],
               facts: [
                 { id: 1, title: 'Match fact', text: 'Arsenal scored first' },
@@ -806,9 +814,14 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /Arsenal -1\.5/);
   assert.match(modalHtml, /Atletico Madrid 1\.5/);
   assert.match(modalHtml, /Match events/);
+  assert.match(modalHtml, /event-timeline/);
+  assert.match(modalHtml, /timeline-event home/);
+  assert.match(modalHtml, /timeline-event away/);
   assert.match(modalHtml, /23&#039;/);
   assert.match(modalHtml, /Saka/);
   assert.match(modalHtml, /40\+2&#039;/);
+  assert.match(modalHtml, /Martinelli/);
+  assert.match(modalHtml, /Replaces Trossard/);
   assert.match(modalHtml, /Team statistics/);
   assert.match(modalHtml, /Shots on goal 5 - 3/);
   assert.match(modalHtml, /Starting lineups/);
@@ -835,7 +848,10 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /Open player/);
   assert.match(modalHtml, /match=1540843/);
   assert.match(modalHtml, /https:\/\/logo\.test\/ars\.png/);
-  assert.equal(requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/stats?v=sportmonks-facts-v2&lang=en'), true);
+  assert.equal(
+    requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/stats?v=sportmonks-facts-v2&live=1&lang=en'),
+    true,
+  );
 
   listeners.get('click')({
     target: {

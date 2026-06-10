@@ -1162,10 +1162,27 @@ html[dir="rtl"] .locale-menu {
 }
 
 .event-list,
+.event-timeline,
 .stat-list,
 .fact-list {
   display: grid;
   gap: 8px;
+}
+
+.event-timeline {
+  position: relative;
+  gap: 10px;
+  padding-left: 10px;
+}
+
+.event-timeline::before {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 58px;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(245, 196, 0, 0.5), transparent);
+  content: "";
 }
 
 .lineup-collapse {
@@ -1430,14 +1447,33 @@ html[dir="rtl"] .locale-menu {
   padding: 9px 10px;
 }
 
+.timeline-event {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(244, 239, 226, 0.08);
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(245, 196, 0, 0.08), rgba(0, 0, 0, 0.2));
+  padding: 10px;
+}
+
+.timeline-event.away {
+  background: linear-gradient(90deg, rgba(244, 239, 226, 0.035), rgba(0, 0, 0, 0.2));
+}
+
 .event-minute,
-.event-icon {
+.event-icon,
+.timeline-minute,
+.timeline-marker {
   color: var(--gold);
   font-size: 12px;
   font-weight: 950;
 }
 
-.event-icon {
+.event-icon,
+.timeline-marker {
   display: grid;
   min-width: 28px;
   min-height: 28px;

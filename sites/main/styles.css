@@ -2373,22 +2373,35 @@ html[dir="rtl"] .locale-menu {
   }
 
   .detail-scorebar {
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    gap: 8px;
+    grid-template-areas:
+      "home away"
+      "score score";
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px 12px;
   }
 
   .detail-score-team {
-    grid-template-columns: 34px minmax(0, 1fr);
+    display: flex;
     align-items: center;
     justify-items: start;
     gap: 6px;
-    font-size: clamp(11px, 3.4vw, 15px);
+    font-size: clamp(12px, 3.6vw, 15px);
     text-align: left;
+    white-space: nowrap;
+  }
+
+  .detail-score-team.home {
+    grid-area: home;
+  }
+
+  .detail-score-center {
+    grid-area: score;
   }
 
   .detail-score-team.away {
-    grid-template-columns: minmax(0, 1fr) 34px;
-    justify-items: end;
+    grid-area: away;
+    justify-content: flex-end;
+    text-align: right;
   }
 
   .detail-score-team.away .team-logo {
@@ -2402,8 +2415,11 @@ html[dir="rtl"] .locale-menu {
 
   .detail-score-team strong {
     min-width: 0;
+    overflow: hidden;
     line-height: 1.05;
     text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .detail-score-team .team-logo {

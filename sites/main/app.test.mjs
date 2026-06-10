@@ -449,12 +449,14 @@ test('renders football news from the backend news endpoint', async () => {
           Promise.resolve({
             news: [
               {
-                title: 'BBC football headline',
-                summary: 'BBC football summary',
+                title: 'Sportmonks match preview',
+                summary: 'Brazil carry a strong attack into the World Cup opener.',
                 url: 'https://www.bbc.com/sport/football/articles/test',
                 published_at: 'Thu, 14 May 2026 09:33:49 GMT',
-                image_url: 'https://ichef.bbci.co.uk/test.jpg',
-                source: 'BBC Sport',
+                image_url: '',
+                source: 'Sportmonks',
+                type: 'prematch',
+                fixture_id: 1540843,
               },
             ],
           }),
@@ -465,8 +467,12 @@ test('renders football news from the backend news endpoint', async () => {
   vm.runInNewContext(appSource, context);
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.match(newsHtml, /BBC football headline/);
-  assert.match(newsHtml, /BBC football summary/);
+  assert.match(newsHtml, /Sportmonks match preview/);
+  assert.match(newsHtml, /Brazil carry a strong attack/);
+  assert.match(newsHtml, /news-football-fallback/);
+  assert.match(newsHtml, /Sportmonks/);
+  assert.match(newsHtml, /prematch/);
+  assert.match(newsHtml, /#1540843/);
   assert.match(
     newsHtml,
     /news\.html\?url=https%3A%2F%2Fwww\.bbc\.com%2Fsport%2Ffootball%2Farticles%2Ftest/,
@@ -674,7 +680,10 @@ test('opens match details with stats and only shows player button when stream ex
                 },
               ],
               facts: [
-                { id: 1, title: 'Match fact', text: 'Arsenal scored first' },
+                { id: 1, title: 'First to score', text: 'Arsenal scored first' },
+                { id: 2, title: 'Total H2H Matches', text: 'Head-to-head sample: 5 matches' },
+                { id: 3, title: 'Win Streak', text: 'Arsenal unbeaten streak: 4' },
+                { id: 4, title: 'Goals Conceded', text: 'Atletico goals conceded: 0.8 avg' },
               ],
               odds: {
                 bookmaker: 'MelBet',
@@ -796,8 +805,14 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(gridHtml, /Arsenal vs Atletico Madrid/);
   assert.equal(modalRoot.hidden, false);
   assert.match(modalHtml, /Match details/);
+  assert.match(modalHtml, /detail-scoreboard-shell/);
+  assert.match(modalHtml, /detail-score-team home/);
+  assert.match(modalHtml, /detail-score-team away/);
+  assert.match(modalHtml, /detail-score-status/);
+  assert.match(modalHtml, /detail-score-venue/);
   assert.match(modalHtml, /Possession 61% - 39%/);
   assert.match(modalHtml, /MelBet odds/);
+  assert.match(modalHtml, /<details class="detail-accordion odds-accordion" open>/);
   assert.match(modalHtml, /Fulltime Result/);
   assert.match(modalHtml, /https:\/\/refpa3665\.com\/L\?tag=d_5517121m_66329c_worldcuplive/);
   assert.equal((modalHtml.match(/class="melbet-odd"/g) || []).length, 7);
@@ -814,6 +829,7 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /Arsenal -1\.5/);
   assert.match(modalHtml, /Atletico Madrid 1\.5/);
   assert.match(modalHtml, /Match events/);
+  assert.match(modalHtml, /<details class="detail-accordion events-accordion" open>/);
   assert.match(modalHtml, /event-timeline/);
   assert.match(modalHtml, /timeline-event home/);
   assert.match(modalHtml, /timeline-event away/);
@@ -823,10 +839,11 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /Martinelli/);
   assert.match(modalHtml, /Replaces Trossard/);
   assert.match(modalHtml, /Team statistics/);
+  assert.match(modalHtml, /<details class="detail-accordion stats-accordion" open>/);
   assert.match(modalHtml, /Shots on goal 5 - 3/);
   assert.match(modalHtml, /Starting lineups/);
-  assert.match(modalHtml, /<details class="detail-panel lineup-collapse">/);
-  assert.doesNotMatch(modalHtml, /<details class="detail-panel lineup-collapse" open>/);
+  assert.match(modalHtml, /<details class="detail-accordion lineup-accordion">/);
+  assert.doesNotMatch(modalHtml, /<details class="detail-accordion lineup-accordion" open>/);
   assert.match(modalHtml, /David Raya/);
   assert.match(modalHtml, /formation-pitch/);
   assert.match(modalHtml, /formation-photo/);
@@ -840,8 +857,12 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /Jan Oblak/);
   assert.doesNotMatch(modalHtml, /Gabriel Jesus/);
   assert.match(modalHtml, /Match facts/);
-  assert.match(modalHtml, /<details class="detail-panel lineup-collapse fact-collapse">/);
-  assert.doesNotMatch(modalHtml, /<details class="detail-panel lineup-collapse fact-collapse" open>/);
+  assert.match(modalHtml, /<details class="detail-accordion facts-accordion">/);
+  assert.doesNotMatch(modalHtml, /<details class="detail-accordion facts-accordion" open>/);
+  assert.match(modalHtml, /fact-card first-score/);
+  assert.match(modalHtml, /fact-card h2h/);
+  assert.match(modalHtml, /fact-card streak/);
+  assert.match(modalHtml, /fact-card goals/);
   assert.match(modalHtml, /Arsenal scored first/);
   assert.doesNotMatch(modalHtml, /data-refresh-match/);
   assert.doesNotMatch(modalHtml, /Refresh details/);

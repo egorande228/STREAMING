@@ -2,6 +2,10 @@ const API_BASE = 'https://v3.football.api-sports.io';
 const SPORTMONKS_API_BASE = 'https://api.sportmonks.com/v3/football';
 const SPORTMONKS_MATCH_INCLUDES = 'participants;scores;events.type;statistics.type;periods;state;venue;stage;league';
 const SPORTMONKS_DETAIL_INCLUDES = 'participants;scores;events.type;statistics.type;lineups.player:display_name,image_path;periods;state;venue;stage;league';
+const SPORTMONKS_STATS_INCLUDES = 'participants;statistics.type';
+const SPORTMONKS_EVENTS_INCLUDES = 'participants;events.type';
+const SPORTMONKS_LINEUPS_INCLUDES = 'participants;lineups.player:display_name,image_path';
+const SPORTMONKS_NEWS_INCLUDES = 'fixture;league;lines';
 const NEWS_FEED_URL = 'https://feeds.bbci.co.uk/sport/football/rss.xml';
 const NEWS_FEED_PROXY_URL = `https://morss.it/${NEWS_FEED_URL}`;
 const NEWS_FEED_AR_URL = 'https://feeds.bbci.co.uk/arabic/rss.xml';
@@ -72,7 +76,7 @@ export async function routeRequest(request, env = {}, ctx = {}) {
   const statsMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/stats$/);
   const prematchMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/prematch$/);
   if (url.pathname === '/api/news') {
-    return routeNewsRequest(request, ctx);
+    return routeNewsRequest(request, env, ctx);
   }
   if (!url.pathname.startsWith('/api/matches')) {
     return jsonResponse({ error: 'not_found' }, 404, 0);
@@ -150,22 +154,41 @@ async function routeApiFootballRequest(url, env, ttl) {
 
 async function routeSportmonksFootballRequest(url, env, ttl, ctx = {}) {
   const statsMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/stats$/);
-  const apiUrl = buildSportmonksApiUrl(url);
-  const fixtureTtl = statsMatch && isLiveStatsRequest(url) ? 30 : ttl;
-  const fixturePayload = statsMatch
-    ? await fetchCachedSportmonksJson(apiUrl, env, fixtureTtl, ctx)
-    : await fetchSportmonksJson(apiUrl, env);
-  if (!fixturePayload.ok) {
-    return jsonResponse({ error: 'sportmonks_api_error', status: fixturePayload.status }, 502, 30);
+  const splitDetailMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/(events|lineups|facts|odds)$/);
+  if (splitDetailMatch) {
+    return routeSportmonksSplitDetailRequest(url, env, ttl, ctx, Number(splitDetailMatch[1]), splitDetailMatch[2]);
   }
 
   if (statsMatch) {
     const matchId = Number(statsMatch[1]);
-    const factsPayload = await fetchCachedSportmonksJson(buildSportmonksMatchFactsUrl(matchId, url), env, 1800, ctx);
-    const oddsPayload = await fetchCachedSportmonksJson(buildSportmonksOddsUrl(matchId, url), env, 300, ctx);
+    const liveTtl = isLiveStatsRequest(url) ? 30 : 1800;
+    const [statisticsPayload, eventsPayload, lineupsPayload, factsPayload, oddsPayload] = await Promise.all([
+      fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, SPORTMONKS_STATS_INCLUDES), env, liveTtl, ctx),
+      fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, SPORTMONKS_EVENTS_INCLUDES), env, liveTtl, ctx),
+      fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, SPORTMONKS_LINEUPS_INCLUDES), env, 1800, ctx),
+      fetchCachedSportmonksJson(buildSportmonksMatchFactsUrl(matchId, url), env, 1800, ctx),
+      fetchCachedSportmonksJson(buildSportmonksOddsUrl(matchId, url), env, 300, ctx),
+    ]);
+    if (!statisticsPayload.ok && !eventsPayload.ok && !lineupsPayload.ok) {
+      return jsonResponse({ error: 'sportmonks_api_error', status: statisticsPayload.status || eventsPayload.status || lineupsPayload.status }, 502, 30);
+    }
     const facts = factsPayload.ok ? sportmonksDataList(factsPayload.body) : [];
     const odds = oddsPayload.ok ? sportmonksDataList(oddsPayload.body) : [];
-    return jsonResponse(normalizeSportmonksMatchDetails(matchId, fixturePayload.body?.data, facts, odds), 200, ttl);
+    return jsonResponse(
+      normalizeSportmonksMatchDetails(matchId, statisticsPayload.body?.data || eventsPayload.body?.data || lineupsPayload.body?.data, facts, odds, {
+        statistics: statisticsPayload.ok ? statisticsPayload.body?.data : null,
+        events: eventsPayload.ok ? eventsPayload.body?.data : null,
+        lineups: lineupsPayload.ok ? lineupsPayload.body?.data : null,
+      }),
+      200,
+      ttl,
+    );
+  }
+
+  const apiUrl = buildSportmonksApiUrl(url);
+  const fixturePayload = await fetchSportmonksJson(apiUrl, env);
+  if (!fixturePayload.ok) {
+    return jsonResponse({ error: 'sportmonks_api_error', status: fixturePayload.status }, 502, 30);
   }
 
   const streamConfig = await readRuntimeStreamConfig(env);
@@ -176,6 +199,30 @@ async function routeSportmonksFootballRequest(url, env, ttl, ctx = {}) {
   return url.pathname === '/api/matches'
     ? jsonResponse({ matches: visibleMatches, total: visibleMatches.length, source: 'sportmonks' }, 200, ttl)
     : jsonResponse(visibleMatches[0] ?? { error: 'match_not_found' }, visibleMatches[0] ? 200 : 404, ttl);
+}
+
+async function routeSportmonksSplitDetailRequest(url, env, ttl, ctx, matchId, section) {
+  if (section === 'facts') {
+    const payload = await fetchCachedSportmonksJson(buildSportmonksMatchFactsUrl(matchId, url), env, ttl, ctx);
+    if (!payload.ok) return jsonResponse({ error: 'sportmonks_api_error', status: payload.status }, 502, 30);
+    return jsonResponse({ match_id: matchId, facts: normalizeSportmonksFacts(sportmonksDataList(payload.body)) }, 200, ttl);
+  }
+
+  if (section === 'odds') {
+    const payload = await fetchCachedSportmonksJson(buildSportmonksOddsUrl(matchId, url), env, ttl, ctx);
+    if (!payload.ok) return jsonResponse({ error: 'sportmonks_api_error', status: payload.status }, 502, 30);
+    return jsonResponse({ match_id: matchId, odds: normalizeSportmonksOdds(sportmonksDataList(payload.body)) }, 200, ttl);
+  }
+
+  const include = section === 'lineups' ? SPORTMONKS_LINEUPS_INCLUDES : SPORTMONKS_EVENTS_INCLUDES;
+  const payload = await fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, include), env, ttl, ctx);
+  if (!payload.ok) return jsonResponse({ error: 'sportmonks_api_error', status: payload.status }, 502, 30);
+  const fixture = payload.body?.data;
+  const teamSideById = sportmonksTeamSideById(fixture);
+  if (section === 'lineups') {
+    return jsonResponse({ match_id: matchId, lineups: normalizeSportmonksLineups(matchId, fixture?.lineups, teamSideById) }, 200, ttl);
+  }
+  return jsonResponse({ match_id: matchId, events: normalizeSportmonksEvents(matchId, fixture?.events, teamSideById) }, 200, ttl);
 }
 
 async function fetchSportmonksJson(apiUrl, env = {}) {
@@ -209,7 +256,7 @@ async function fetchCachedSportmonksJson(apiUrl, env = {}, ttl = 0, ctx = {}) {
   return payload;
 }
 
-async function routeNewsRequest(request, ctx = {}) {
+async function routeNewsRequest(request, env = {}, ctx = {}) {
   const url = new URL(request.url);
   const newsLang = resolveNewsLanguage(url.searchParams.get('lang'));
   const ttl = resolveCacheTtl(url);
@@ -218,12 +265,31 @@ async function routeNewsRequest(request, ctx = {}) {
   const cached = cache ? await cache.match(cacheKey) : null;
   if (cached) return cached;
 
+  const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 6, 1), 12);
+  if (env?.SPORTMONKS_TOKEN) {
+    const sportmonksNews = await fetchSportmonksNews(newsLang, env, limit);
+    if (sportmonksNews.ok && sportmonksNews.news.length) {
+      const body = {
+        source: 'Sportmonks Football News',
+        feed_url: sportmonksNews.feed_url,
+        lang: newsLang,
+        news: sportmonksNews.news,
+      };
+      const newsResponse = jsonResponse(body, 200, ttl);
+      if (cache && newsResponse.ok) {
+        const cacheable = newsResponse.clone();
+        if (ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, cacheable));
+        else await cache.put(cacheKey, cacheable);
+      }
+      return newsResponse;
+    }
+  }
+
   const feed = await fetchNewsFeed(newsLang);
   if (!feed.ok) {
     return jsonResponse({ error: 'news_feed_error', status: feed.status, news: [] }, 502, 60);
   }
 
-  const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 6, 1), 12);
   const allNews = normalizeRssNews(feed.xml, 24, feed.itemSource);
   let source = feed.source;
   let feedUrl = feed.url;
@@ -717,6 +783,31 @@ async function fetchArabicFootballFallbackFeed() {
   };
 }
 
+async function fetchSportmonksNews(lang, env = {}, limit = 6) {
+  const requested = Math.min(Math.max(limit * 2, 6), 50);
+  const urls = [
+    buildSportmonksNewsUrl('post', lang, env, false, requested),
+    buildSportmonksNewsUrl('pre', lang, env, false, requested),
+  ];
+  const payloads = await Promise.all(urls.map((url, index) => fetchSportmonksNewsWithAlias(url, index === 0 ? 'post' : 'pre', lang, env, requested)));
+  const okPayloads = payloads.filter((payload) => payload.ok);
+  if (!okPayloads.length) return { ok: false, status: payloads[0]?.status || 502, news: [], feed_url: '' };
+  const news = dedupeNews(okPayloads.flatMap((payload) => normalizeSportmonksNews(payload.body, payload.type))).slice(0, limit);
+  return {
+    ok: true,
+    status: 200,
+    news,
+    feed_url: urls.map((url) => normalizeSportmonksSubrequestCacheUrl(url).toString()).join(','),
+  };
+}
+
+async function fetchSportmonksNewsWithAlias(url, type, lang, env, limit) {
+  const primary = await fetchSportmonksJson(url, env);
+  if (primary.ok) return { ...primary, type };
+  const alias = await fetchSportmonksJson(buildSportmonksNewsUrl(type, lang, env, true, limit), env);
+  return { ...alias, type };
+}
+
 async function fetchFeedUrl(url) {
   try {
     const response = await fetch(url, {
@@ -808,10 +899,30 @@ function buildSportmonksMatchFactsUrl(matchId, siteUrl = null) {
   return url;
 }
 
+function buildSportmonksFixtureDetailUrl(matchId, siteUrl = null, include = SPORTMONKS_DETAIL_INCLUDES) {
+  const url = new URL(`${SPORTMONKS_API_BASE}/fixtures/${matchId}`);
+  url.searchParams.set('include', include);
+  if (siteUrl) applySportmonksLocale(url, siteUrl);
+  return url;
+}
+
 function buildSportmonksOddsUrl(matchId, siteUrl = null) {
   const url = new URL(`${SPORTMONKS_API_BASE}/odds/pre-match/fixtures/${matchId}`);
   url.searchParams.set('include', 'bookmaker;market');
   if (siteUrl) applySportmonksLocale(url, siteUrl);
+  return url;
+}
+
+function buildSportmonksNewsUrl(type, lang, env = {}, alias = false, limit = 12) {
+  const slug = type === 'post' ? (alias ? 'postmatch' : 'post-match') : (alias ? 'prematch' : 'pre-match');
+  const url = new URL(`${SPORTMONKS_API_BASE}/news/${slug}`);
+  url.searchParams.set('include', SPORTMONKS_NEWS_INCLUDES);
+  url.searchParams.set('order', 'desc');
+  url.searchParams.set('per_page', String(Math.min(Math.max(limit, 1), 50)));
+  const locale = resolveSportmonksLocale({ searchParams: new URLSearchParams({ lang }) });
+  if (locale) url.searchParams.set('locale', locale);
+  const leagueIds = sportmonksConfiguredLeagueIds(env);
+  if (leagueIds.length) url.searchParams.set('filters', `newsitemLeagues:${leagueIds.join(',')}`);
   return url;
 }
 
@@ -891,18 +1002,19 @@ export function normalizeSportmonksFixture(item, env = {}, streamConfig = null) 
   }, env, streamConfig);
 }
 
-export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [], odds = []) {
-  const participants = Array.isArray(fixture?.participants) ? fixture.participants : [];
+export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [], odds = [], detailFixtures = {}) {
+  const statisticsFixture = detailFixtures.statistics || fixture;
+  const eventsFixture = detailFixtures.events || fixture;
+  const lineupsFixture = detailFixtures.lineups || fixture;
+  const participantFixture = [fixture, statisticsFixture, eventsFixture, lineupsFixture].find((item) => Array.isArray(item?.participants) && item.participants.length) || {};
+  const participants = Array.isArray(participantFixture?.participants) ? participantFixture.participants : [];
   const homeTeam = participants.find((team) => team?.meta?.location === 'home') || participants[0] || {};
   const awayTeam = participants.find((team) => team?.meta?.location === 'away') || participants[1] || {};
-  const teamSideById = new Map([
-    [Number(homeTeam.id), 'home'],
-    [Number(awayTeam.id), 'away'],
-  ]);
+  const teamSideById = sportmonksTeamSideById(participantFixture);
 
-  const events = normalizeSportmonksEvents(matchId, fixture?.events, teamSideById);
-  const lineups = normalizeSportmonksLineups(matchId, fixture?.lineups, teamSideById);
-  const teamStats = normalizeSportmonksTeamStatistics(fixture?.statistics, teamSideById, { homeTeam, awayTeam });
+  const events = normalizeSportmonksEvents(matchId, eventsFixture?.events, teamSideById);
+  const lineups = normalizeSportmonksLineups(matchId, lineupsFixture?.lineups, teamSideById);
+  const teamStats = normalizeSportmonksTeamStatistics(statisticsFixture?.statistics, teamSideById, { homeTeam, awayTeam });
 
   return {
     match_id: matchId,
@@ -915,6 +1027,16 @@ export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [
     facts: normalizeSportmonksFacts(facts),
     odds: normalizeSportmonksOdds(odds),
   };
+}
+
+function sportmonksTeamSideById(fixture = {}) {
+  const participants = Array.isArray(fixture?.participants) ? fixture.participants : [];
+  const homeTeam = participants.find((team) => team?.meta?.location === 'home') || participants[0] || {};
+  const awayTeam = participants.find((team) => team?.meta?.location === 'away') || participants[1] || {};
+  return new Map([
+    [Number(homeTeam.id), 'home'],
+    [Number(awayTeam.id), 'away'],
+  ]);
 }
 
 function applyMatchOverrides(matches = [], env = {}, streamConfig = null) {
@@ -1170,6 +1292,76 @@ export function normalizeRssNews(xml, limit = 6, itemSource = 'BBC Sport') {
       source: itemSource,
     };
   });
+}
+
+function normalizeSportmonksNews(payload = {}, fallbackType = 'prematch') {
+  return sportmonksDataList(payload)
+    .map((item, index) => {
+      const lines = sportmonksNewsLines(item);
+      const fullText = lines.join('\n\n').trim();
+      const summary = cleanSentence(item.summary || item.description || lines[0] || item.title || '');
+      const type = String(item.type || fallbackType || '').trim();
+      return {
+        id: String(item.id || item.uuid || `${type || 'news'}-${item.fixture_id || index}`),
+        title: cleanSentence(item.title || item.name || 'Football news'),
+        summary,
+        full_text: fullText || summary,
+        has_full_text: Boolean(fullText),
+        url: String(item.url || item.link || ''),
+        published_at: item.published_at || item.updated_at || item.created_at || '',
+        image_url: normalizeNewsImageUrl(sportmonksNewsImage(item)),
+        source: 'Sportmonks',
+        fixture_id: Number(item.fixture_id || item.fixture?.id) || null,
+        league_id: Number(item.league_id || item.league?.id) || null,
+        type,
+      };
+    })
+    .filter((item) => item.title && item.title !== 'Football news');
+}
+
+function sportmonksNewsLines(item = {}) {
+  const rawLines = Array.isArray(item.lines) ? item.lines : [];
+  const lines = rawLines
+    .map((line) => cleanSentence(line.text || line.line || line.value || line.content || line.title || ''))
+    .filter(Boolean);
+  if (lines.length) return lines;
+  const body = item.body || item.content || item.article || item.preview || item.description || '';
+  if (!body) return [];
+  return htmlToStoryText(String(body)).split(/\n{2,}/).map(cleanSentence).filter(Boolean);
+}
+
+function sportmonksNewsImage(item = {}) {
+  return (
+    item.image_url ||
+    item.image_path ||
+    item.image ||
+    item.league?.image_path ||
+    item.fixture?.league?.image_path ||
+    item.fixture?.participants?.find?.((participant) => participant?.image_path)?.image_path ||
+    ''
+  );
+}
+
+function dedupeNews(items = []) {
+  const seen = new Set();
+  const unique = [];
+  items.forEach((item) => {
+    const titleKey = `${String(item.title || '').toLowerCase().replace(/\s+/g, ' ').trim()}:${item.fixture_id || ''}`;
+    const idKey = item.id ? `id:${item.id}` : '';
+    if ((idKey && seen.has(idKey)) || (titleKey && seen.has(titleKey))) return;
+    if (idKey) seen.add(idKey);
+    if (titleKey) seen.add(titleKey);
+    unique.push(item);
+  });
+  return unique.sort((a, b) => {
+    const dateDelta = Date.parse(b.published_at || '') - Date.parse(a.published_at || '');
+    if (Number.isFinite(dateDelta) && dateDelta !== 0) return dateDelta;
+    return Number(b.id) - Number(a.id);
+  });
+}
+
+function cleanSentence(value = '') {
+  return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
 function isFootballNews(item, lang) {
@@ -1667,10 +1859,7 @@ function normalizeSportmonksStatus(state = {}) {
 }
 
 function filterSportmonksWorldCupMatches(matches = [], env = {}) {
-  const configuredIds = String(env.SPORTMONKS_LEAGUE_IDS || '')
-    .split(',')
-    .map((item) => Number(item.trim()))
-    .filter((item) => Number.isFinite(item));
+  const configuredIds = sportmonksConfiguredLeagueIds(env);
   const filtered = matches.filter((match) => {
     const leagueId = Number(match?.league?.id);
     if (configuredIds.length && configuredIds.includes(leagueId)) return true;
@@ -1678,6 +1867,13 @@ function filterSportmonksWorldCupMatches(matches = [], env = {}) {
     return name.includes('world cup');
   });
   return filtered.length ? filtered : matches;
+}
+
+function sportmonksConfiguredLeagueIds(env = {}) {
+  return String(env.SPORTMONKS_LEAGUE_IDS || '')
+    .split(',')
+    .map((item) => Number(item.trim()))
+    .filter((item) => Number.isFinite(item));
 }
 
 function normalizeTeam(team = {}) {
@@ -1705,7 +1901,8 @@ function normalizeStatus(short = '') {
 
 function resolveNewsLanguage(value) {
   const lang = String(value || '').toLowerCase();
-  return lang === 'ar' ? 'ar' : 'en';
+  if (SPORTMONKS_SUPPORTED_LOCALES.has(lang)) return lang;
+  return 'en';
 }
 
 function resolveSportmonksLocale(url) {
@@ -1719,6 +1916,9 @@ export function resolveCacheTtl(url) {
   if (url.pathname === '/api/streams/active') return 30;
   if (url.pathname === '/api/news') return secondsUntilNextUtcDay();
   if (status === 'live' || status === 'half_time') return 30;
+  if (/^\/api\/matches\/\d+\/(events|lineups)$/.test(url.pathname) && isLiveStatsRequest(url)) return 30;
+  if (/^\/api\/matches\/\d+\/(events|lineups|facts)$/.test(url.pathname)) return 1800;
+  if (/^\/api\/matches\/\d+\/odds$/.test(url.pathname)) return 300;
   if (/^\/api\/matches\/\d+\/stats$/.test(url.pathname) && isLiveStatsRequest(url)) return 30;
   if (/^\/api\/matches\/\d+\/stats$/.test(url.pathname)) return 1800;
   if (/^\/api\/matches\/\d+\/prematch$/.test(url.pathname)) return secondsUntilNextUtcDay();

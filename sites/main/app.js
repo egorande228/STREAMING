@@ -999,34 +999,49 @@
     return Number.isFinite(extra) && extra > 0 ? `${minute}+${extra}'` : `${minute}'`;
   }
 
+  function renderDetailAccordion(title, body, className, options = {}) {
+    if (!body) return '';
+    return `
+      <details class="detail-accordion ${escapeHtml(className || '')}"${options.open ? ' open' : ''}>
+        <summary>
+          <span>${escapeHtml(title)}</span>
+          <span class="detail-accordion-icon" aria-hidden="true">⌄</span>
+        </summary>
+        <div class="detail-accordion-body">${body}</div>
+      </details>
+    `;
+  }
+
   function renderMatchEvents(stats) {
     const events = Array.isArray(stats?.events) ? stats.events : [];
     if (!events.length) {
-      return `
-        <section class="detail-panel">
-          <h4>${escapeHtml(t('matchEvents'))}</h4>
-          <p class="detail-empty">${escapeHtml(t('noMatchEvents'))}</p>
-        </section>
-      `;
+      return renderDetailAccordion(
+        t('matchEvents'),
+        `<p class="detail-empty">${escapeHtml(t('noMatchEvents'))}</p>`,
+        'events-accordion',
+        { open: true },
+      );
     }
 
-    return `
-      <section class="detail-panel">
-        <h4>${escapeHtml(t('matchEvents'))}</h4>
-        <div class="event-timeline">
-          ${events.map((event) => `
-            <div class="timeline-event ${escapeHtml(String(event.team || ''))}">
-              <span class="timeline-minute">${escapeHtml(eventMinute(event))}</span>
-              <span class="timeline-marker">${escapeHtml(eventIcon(event.type))}</span>
-              <span class="event-body">
-                <strong>${escapeHtml(cleanText(event.player_name, t('football')))}</strong>
-                ${event.detail ? `<em>${escapeHtml(cleanText(event.detail, ''))}</em>` : ''}
-              </span>
-            </div>
-          `).join('')}
-        </div>
-      </section>
-    `;
+    return renderDetailAccordion(
+      t('matchEvents'),
+      `
+          <div class="event-timeline">
+            ${events.map((event) => `
+              <div class="timeline-event ${escapeHtml(String(event.team || ''))}">
+                <span class="timeline-minute">${escapeHtml(eventMinute(event))}</span>
+                <span class="timeline-marker">${escapeHtml(eventIcon(event.type))}</span>
+                <span class="event-body">
+                  <strong>${escapeHtml(cleanText(event.player_name, t('football')))}</strong>
+                  ${event.detail ? `<em>${escapeHtml(cleanText(event.detail, ''))}</em>` : ''}
+                </span>
+              </div>
+            `).join('')}
+          </div>
+        `,
+      'events-accordion',
+      { open: true },
+    );
   }
 
   function renderTeamStats(stats) {
@@ -1058,12 +1073,7 @@
       .filter(Boolean)
       .join('');
     if (!rows) return '';
-    return `
-      <section class="detail-panel">
-        <h4>${escapeHtml(t('teamStatistics'))}</h4>
-        <div class="stat-list">${rows}</div>
-      </section>
-    `;
+    return renderDetailAccordion(t('teamStatistics'), `<div class="stat-list">${rows}</div>`, 'stats-accordion', { open: true });
   }
 
   function numericFormationSlot(item) {
@@ -1123,39 +1133,48 @@
     const teams = Array.isArray(stats?.team_stats) ? stats.team_stats : (Array.isArray(stats?.teams) ? stats.teams : []);
     const homeTitle = teams[0]?.team?.name || 'Home';
     const awayTitle = teams[1]?.team?.name || 'Away';
-    return `
-      <details class="detail-panel lineup-collapse">
-        <summary>
-          <span>${escapeHtml(t('startingLineups'))}</span>
-          <span class="lineup-collapse-icon" aria-hidden="true">⌄</span>
-        </summary>
+    return renderDetailAccordion(
+      t('startingLineups'),
+      `
         <div class="formation-grid">
           ${renderFormationPitch(home, homeTitle)}
           ${renderFormationPitch(away, awayTitle)}
         </div>
-      </details>
-    `;
+      `,
+      'lineup-accordion',
+    );
   }
 
   function renderMatchFacts(stats) {
     const facts = Array.isArray(stats?.facts) ? stats.facts : [];
     if (!facts.length) return '';
-    return `
-      <details class="detail-panel lineup-collapse fact-collapse">
-        <summary>
-          <span>${escapeHtml(t('matchFacts'))}</span>
-          <span class="lineup-collapse-icon" aria-hidden="true">⌄</span>
-        </summary>
-        <div class="fact-list">
-          ${facts.map((fact) => `
-            <article class="fact-row">
-              <strong>${escapeHtml(cleanText(fact.title, t('matchFacts')))}</strong>
-              <span>${escapeHtml(cleanText(fact.text, ''))}</span>
-            </article>
-          `).join('')}
+    return renderDetailAccordion(
+      t('matchFacts'),
+      `
+        <div class="fact-card-grid">
+          ${facts.map((fact) => {
+            const insight = factInsight(fact);
+            return `
+              <article class="fact-card ${escapeHtml(insight.key)}">
+                <span>${escapeHtml(insight.label)}</span>
+                <strong>${escapeHtml(cleanText(fact.title, t('matchFacts')))}</strong>
+                <p>${escapeHtml(cleanText(fact.text, ''))}</p>
+              </article>
+            `;
+          }).join('')}
         </div>
-      </details>
-    `;
+      `,
+      'facts-accordion',
+    );
+  }
+
+  function factInsight(fact) {
+    const value = `${fact?.title || ''} ${fact?.text || ''}`.toLowerCase();
+    if (value.includes('h2h') || value.includes('head-to-head') || value.includes('head to head')) return { key: 'h2h', label: 'H2H' };
+    if (value.includes('first') && value.includes('score')) return { key: 'first-score', label: 'First score' };
+    if (value.includes('goal')) return { key: 'goals', label: 'Goals' };
+    if (value.includes('streak') || value.includes('unbeaten') || value.includes('win ')) return { key: 'streak', label: 'Streak' };
+    return { key: 'general', label: 'Fact' };
   }
 
   function renderMatchDetailPanels(stats) {
@@ -1173,12 +1192,7 @@
       ? odds.markets
       : [{ key: 'fulltime', label: odds?.market, outcomes: odds?.outcomes }];
     if (!odds || !markets.length) return '';
-    return `
-      <section class="melbet-odds" aria-label="${escapeHtml(t('melbetOdds'))}">
-        <div class="melbet-odds-head">
-          <strong>${escapeHtml(t('melbetOdds'))}</strong>
-        </div>
-        ${markets.map((market) => {
+    const body = markets.map((market) => {
           const outcomes = market?.outcomes || {};
           const items = melbetMarketItems(market, outcomes, homeName, awayName);
           if (!items.length) return '';
@@ -1193,9 +1207,9 @@
               `).join('')}
             </div>
           `;
-        }).filter(Boolean).join('')}
-      </section>
-    `;
+        }).filter(Boolean).join('');
+    if (!body) return '';
+    return renderDetailAccordion(t('melbetOdds'), `<div class="melbet-odds">${body}</div>`, 'odds-accordion', { open: true });
   }
 
   function melbetMarketItems(market, outcomes, homeName, awayName) {
@@ -1284,14 +1298,20 @@
     const cards = visibleItems.map((item) => {
         const image = item.image_url
           ? `<img src="${escapeHtml(item.image_url)}" alt="" loading="lazy" />`
-          : '<span class="news-image empty"></span>';
+          : '<span class="news-football-fallback" aria-hidden="true"><b>KL</b><span></span></span>';
         const href = `./news.html?url=${encodeURIComponent(item.url || item.id || '')}`;
+        const badges = [
+          cleanText(item.source, t('footballNews')),
+          cleanText(item.type, ''),
+          item.fixture_id ? `#${item.fixture_id}` : '',
+        ].filter(Boolean);
         return `
           <a class="news-card" href="${escapeHtml(href)}">
             <div class="news-image">${image}</div>
             <div>
               <div class="news-meta">
                 <time>${escapeHtml(formatDate(item.published_at))}</time>
+                ${badges.map((badge) => `<span>${escapeHtml(badge)}</span>`).join('')}
               </div>
               <h3>${escapeHtml(cleanText(item.title, t('footballNews')))}</h3>
               <p>${escapeHtml(cleanText(item.summary, ''))}</p>
@@ -1453,27 +1473,27 @@
       <article class="match-detail" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
         <button class="detail-close" type="button" data-modal-close aria-label="${escapeHtml(t('closeMatchDetails'))}">×</button>
         <p class="section-kicker">${escapeHtml(t('matchDetails'))}</p>
-        <div class="detail-head">
-          <div>
-            <div class="match-time">${escapeHtml(formatDate(match.scheduled_at))}</div>
-            <h3>
+        <div class="detail-scoreboard-shell" aria-label="${escapeHtml(title)} scoreboard">
+          <div class="detail-scorebar">
+            <div class="detail-score-team home">
               ${renderTeamLogo(match.home_team, home)}
-              <span>${escapeHtml(title)}</span>
+              <strong>${escapeHtml(home)}</strong>
+            </div>
+            <div class="detail-score-center">
+              <span class="detail-score-status match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</span>
+              <div class="detail-score">${escapeHtml(match.home_score ?? 0)} : ${escapeHtml(match.away_score ?? 0)}</div>
+              <span class="detail-score-time">${escapeHtml(formatDate(match.scheduled_at))}</span>
+            </div>
+            <div class="detail-score-team away">
               ${renderTeamLogo(match.away_team, away)}
-            </h3>
-            <div class="match-meta">${escapeHtml(cleanText(match.league?.name, cleanText(match.stage, t('football'))))}</div>
+              <strong>${escapeHtml(away)}</strong>
+            </div>
           </div>
-          <div class="match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</div>
-        </div>
-        <div class="detail-scoreboard" aria-label="${escapeHtml(title)} score">
-          <div class="detail-team">
-            ${renderTeamLogo(match.home_team, home)}
-            <span>${escapeHtml(home)}</span>
-          </div>
-          <div class="detail-score">${escapeHtml(match.home_score ?? 0)} : ${escapeHtml(match.away_score ?? 0)}</div>
-          <div class="detail-team away">
-            <span>${escapeHtml(away)}</span>
-            ${renderTeamLogo(match.away_team, away)}
+          <div class="detail-score-venue">
+            <span>${escapeHtml(cleanText(match.league?.name, cleanText(match.stage, t('football'))))}</span>
+            <span>${escapeHtml(t('stage'))}: ${escapeHtml(stageName(match))}</span>
+            <span>${escapeHtml(t('venue'))}: ${escapeHtml(placeName(match.venue))}</span>
+            <span>${escapeHtml(t('city'))}: ${escapeHtml(placeName(match.city))}</span>
           </div>
         </div>
         ${renderMelbetOdds(matchStats, home, away)}

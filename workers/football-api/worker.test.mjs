@@ -75,6 +75,111 @@ test('maps site language to Sportmonks locale parameters', () => {
   );
 });
 
+test('returns split Sportmonks match detail endpoints with endpoint-specific cache TTLs', async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    calls.push(requestUrl);
+    const path = new URL(requestUrl).pathname;
+    if (path === '/v3/football/fixtures/42') {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 42,
+            participants: [
+              { id: 10, name: 'Brazil', meta: { location: 'home' } },
+              { id: 20, name: 'Japan', meta: { location: 'away' } },
+            ],
+            events: [
+              {
+                id: 701,
+                fixture_id: 42,
+                participant_id: 10,
+                minute: 18,
+                type: { name: 'Goal' },
+                player_name: 'Neymar',
+                result: '1-0',
+              },
+            ],
+            lineups: [
+              {
+                id: 801,
+                participant_id: 10,
+                jersey_number: 10,
+                formation_position: 11,
+                player: { display_name: 'Neymar', image_path: 'https://cdn.test/neymar.png' },
+              },
+            ],
+            statistics: [
+              { participant_id: 10, type: { name: 'Ball Possession' }, data: { value: 58 } },
+              { participant_id: 20, type: { name: 'Ball Possession' }, data: { value: 42 } },
+            ],
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (path === '/v3/football/match-facts/42') {
+      return new Response(
+        JSON.stringify({ data: [{ id: 901, name: 'Brazil are unbeaten in 5', type: { name: 'Streak' } }] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (path === '/v3/football/odds/pre-match/fixtures/42') {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 1001,
+              bookmaker: { name: 'MelBet' },
+              market: { developer_name: 'fulltime_result' },
+              label: 'Home',
+              value: '1.80',
+            },
+            {
+              id: 1002,
+              bookmaker: { name: 'MelBet' },
+              market: { developer_name: 'fulltime_result' },
+              label: 'Draw',
+              value: '3.30',
+            },
+            {
+              id: 1003,
+              bookmaker: { name: 'MelBet' },
+              market: { developer_name: 'fulltime_result' },
+              label: 'Away',
+              value: '4.20',
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    return new Response(JSON.stringify({ data: [] }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const env = { SPORTMONKS_TOKEN: 'token' };
+    const events = await routeRequest(new Request('https://kinglive.test/api/matches/42/events?live=1&lang=fr'), env, {});
+    const lineups = await routeRequest(new Request('https://kinglive.test/api/matches/42/lineups?lang=fr'), env, {});
+    const facts = await routeRequest(new Request('https://kinglive.test/api/matches/42/facts?lang=fr'), env, {});
+    const odds = await routeRequest(new Request('https://kinglive.test/api/matches/42/odds?lang=fr'), env, {});
+
+    assert.equal(events.headers.get('Cache-Control'), 'public, max-age=30');
+    assert.equal(lineups.headers.get('Cache-Control'), 'public, max-age=1800');
+    assert.equal(facts.headers.get('Cache-Control'), 'public, max-age=1800');
+    assert.equal(odds.headers.get('Cache-Control'), 'public, max-age=300');
+    assert.equal((await events.json()).events[0].player_name, 'Neymar');
+    assert.equal((await lineups.json()).lineups[0].image_url, 'https://cdn.test/neymar.png');
+    assert.equal((await facts.json()).facts[0].text, 'Brazil are unbeaten in 5');
+    assert.equal((await odds.json()).odds.markets[0].outcomes.home.value, '1.80');
+    assert.equal(calls.some((url) => url.includes('locale=fr')), true);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test('normalizes API-FOOTBALL fixture into KingLive match JSON', () => {
   const match = normalizeFixture({
     fixture: {
@@ -414,7 +519,7 @@ test('caches Sportmonks live match detail subrequests separately from stats resp
 
     assert.equal(first.headers.get('Cache-Control'), 'public, max-age=30');
     assert.equal(second.headers.get('Cache-Control'), 'public, max-age=30');
-    assert.equal(calls.filter((url) => new URL(url).pathname === '/v3/football/fixtures/42').length, 1);
+    assert.equal(calls.filter((url) => new URL(url).pathname === '/v3/football/fixtures/42').length, 3);
     assert.equal(calls.filter((url) => new URL(url).pathname === '/v3/football/match-facts/42').length, 1);
     assert.equal(calls.filter((url) => new URL(url).pathname === '/v3/football/odds/pre-match/fixtures/42').length, 1);
   } finally {
@@ -564,6 +669,93 @@ test('returns BBC football RSS news without requiring API-FOOTBALL key', async (
         },
       ],
     });
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('returns deduped Sportmonks football news before RSS fallback', async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    calls.push(requestUrl);
+    if (requestUrl.includes('/v3/football/news/pre-match')) {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 501,
+              fixture_id: 42,
+              league_id: 732,
+              title: 'Preview: Brazil vs Japan',
+              type: 'prematch',
+              updated_at: '2026-06-10T10:00:00Z',
+              lines: [
+                { text: 'Brazil enter the fixture with a strong attacking run.' },
+                { line: 'Japan need a compact defensive shape.' },
+              ],
+              fixture: {
+                name: 'Brazil vs Japan',
+                participants: [
+                  { name: 'Brazil', image_path: 'https://cdn.test/brazil.png' },
+                  { name: 'Japan', image_path: 'https://cdn.test/japan.png' },
+                ],
+              },
+              league: { name: 'FIFA World Cup', image_path: 'https://cdn.test/world-cup.png' },
+            },
+            {
+              id: 502,
+              fixture_id: 42,
+              league_id: 732,
+              title: 'Preview: Brazil vs Japan',
+              type: 'prematch',
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (requestUrl.includes('/v3/football/news/post-match')) {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 601,
+              fixture_id: 41,
+              league_id: 732,
+              title: 'Report: France edge Spain',
+              type: 'postmatch',
+              body: 'France moved through after a late winner.',
+              image_path: 'https://cdn.test/report.png',
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    return new Response('unexpected rss call', { status: 500 });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/news?limit=6&lang=fr'),
+      { SPORTMONKS_TOKEN: 'token', SPORTMONKS_LEAGUE_IDS: '732' },
+      {},
+    );
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.source, 'Sportmonks Football News');
+    assert.equal(body.lang, 'fr');
+    assert.equal(body.news.length, 2);
+    assert.equal(body.news[0].title, 'Report: France edge Spain');
+    assert.equal(body.news[1].summary, 'Brazil enter the fixture with a strong attacking run.');
+    assert.equal(body.news[1].full_text, 'Brazil enter the fixture with a strong attacking run.\n\nJapan need a compact defensive shape.');
+    assert.equal(body.news[1].image_url, 'https://cdn.test/world-cup.png');
+    assert.equal(body.news[1].source, 'Sportmonks');
+    assert.equal(body.news[1].fixture_id, 42);
+    assert.equal(calls.every((url) => url.includes('locale=fr')), true);
+    assert.equal(calls.every((url) => url.includes('filters=newsitemLeagues%3A732') || url.includes('filters=newsitemLeagues:732')), true);
   } finally {
     globalThis.fetch = previousFetch;
   }

@@ -1,0 +1,30 @@
+name: Deploy football API Worker
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'workers/football-api/**'
+      - '.github/workflows/deploy-football-worker.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-football-worker
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/football-api
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Workers
+        run: npx wrangler@4 deploy --config wrangler.toml
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 7616dece8b5aecd644f7f8e7a0b0522e

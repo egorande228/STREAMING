@@ -2373,15 +2373,31 @@ html[dir="rtl"] .locale-menu {
   }
 
   .detail-scorebar {
-    grid-template-columns: 1fr;
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 8px;
   }
 
   .detail-score-team {
-    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-columns: 34px minmax(0, 1fr);
     align-items: center;
     justify-items: start;
+    gap: 6px;
+    font-size: clamp(11px, 3.4vw, 15px);
     text-align: left;
+  }
+
+  .detail-score-team.away {
+    grid-template-columns: minmax(0, 1fr) 34px;
+    justify-items: end;
+  }
+
+  .detail-score-team.away .team-logo {
+    order: 2;
+  }
+
+  .detail-score-team.away strong {
+    order: 1;
+    text-align: right;
   }
 
   .detail-score-team strong {
@@ -2391,8 +2407,8 @@ html[dir="rtl"] .locale-menu {
   }
 
   .detail-score-team .team-logo {
-    width: 48px;
-    height: 48px;
+    width: 34px;
+    height: 34px;
   }
 
   .detail-scoreboard {
@@ -2406,7 +2422,7 @@ html[dir="rtl"] .locale-menu {
   }
 
   .detail-score {
-    font-size: 52px;
+    font-size: clamp(34px, 10vw, 46px);
   }
 
   .detail-meta-lines {

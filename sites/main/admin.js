@@ -8,6 +8,9 @@
   const saveMsg = $('save-msg');
   const saveErr = $('save-err');
   const streamsBody = $('streams-body');
+  const monitoringMetrics = $('monitoring-metrics');
+  const monitoringBody = $('monitoring-body');
+  const monitoringMeta = $('monitoring-meta');
 
   function token() {
     try {
@@ -56,6 +59,7 @@
       });
       setToken(payload.token || '');
       setAuthLabel();
+      await loadMonitoring();
       await loadStreams();
     } catch (error) {
       saveErr.textContent = String(error.message || error);
@@ -66,6 +70,7 @@
     setToken('');
     setAuthLabel();
     streamsBody.innerHTML = '<tr><td colspan="8">Logged out</td></tr>';
+    if (monitoringBody) monitoringBody.innerHTML = '<tr><td colspan="3">Logged out</td></tr>';
   }
 
   function streamFromForm() {
@@ -199,6 +204,52 @@
     }
   }
 
+  async function loadMonitoring() {
+    if (!monitoringBody || !monitoringMetrics) return;
+    if (!token()) {
+      monitoringBody.innerHTML = '<tr><td colspan="3">Login first</td></tr>';
+      return;
+    }
+    try {
+      const payload = await adminFetch('/api/admin/monitoring');
+      const activeStreams = payload.active_streams || {};
+      const activeViewers = payload.active_viewers || {};
+      const metrics = payload.metrics || {};
+      monitoringMetrics.innerHTML = [
+        ['Active streams', activeStreams.total || 0],
+        ['Active viewers', activeViewers.total || 0],
+        ['API calls', metrics.api_calls || 0],
+        ['Cache hits', metrics.cache_hits || 0],
+        ['Upstream calls', metrics.upstream_calls || 0],
+        ['Last Sportmonks update', metrics.last_sportmonks_update || 'n/a'],
+      ].map(([label, value]) => `
+        <div class="admin-metric">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </div>
+      `).join('');
+
+      const matchIds = Array.from(new Set([
+        ...Object.keys(activeStreams.by_match || {}),
+        ...Object.keys(activeViewers.by_match || {}),
+      ])).sort((left, right) => Number(left) - Number(right));
+      if (!matchIds.length) {
+        monitoringBody.innerHTML = '<tr><td colspan="3">No active viewers or streams</td></tr>';
+      } else {
+        monitoringBody.innerHTML = matchIds.map((matchId) => `
+          <tr>
+            <td>${escapeHtml(matchId)}</td>
+            <td>${escapeHtml(activeViewers.by_match?.[matchId] || 0)}</td>
+            <td>${escapeHtml(activeStreams.by_match?.[matchId] || 0)}</td>
+          </tr>
+        `).join('');
+      }
+      if (monitoringMeta) monitoringMeta.textContent = `Generated: ${payload.generated_at || ''}`;
+    } catch (error) {
+      monitoringBody.innerHTML = `<tr><td colspan="3">${escapeHtml(String(error.message || error))}</td></tr>`;
+    }
+  }
+
   function normalizeAdminDateTime(value) {
     const normalized = String(value || '').trim();
     if (!normalized) return null;
@@ -233,8 +284,10 @@
   $('logout-button').addEventListener('click', logout);
   $('stream-form').addEventListener('submit', saveStream);
   $('reload-streams').addEventListener('click', loadStreams);
+  $('reload-monitoring').addEventListener('click', loadMonitoring);
   $('reset-form').addEventListener('click', resetForm);
 
   setAuthLabel();
+  loadMonitoring();
   loadStreams();
 })();

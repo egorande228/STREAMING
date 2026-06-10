@@ -5,6 +5,7 @@
   const streamConfigUrl = config.streamConfigUrl || './streams.json';
   const activeStreamsApiUrl = config.activeStreamsApiUrl || `${apiBase}/api/streams/active`;
   const chatApiBase = String(config.chatApiBase || (apiBase ? `${apiBase}/api/chat` : '')).replace(/\/$/, '');
+  const viewerHeartbeatBase = apiBase ? `${apiBase}/api/viewers` : '';
   const chatPollMs = Math.max(3000, Number(config.chatPollMs) || 5000);
   const chatPromo = {
     intervalMs: Math.max(60000, Number(config.chatPromo?.intervalMs) || 5 * 60 * 1000),
@@ -34,6 +35,8 @@
   let chatPromoTimer = null;
   let chatPromoIndex = 0;
   let chatMessagesState = [];
+  let viewerHeartbeatTimer = null;
+  let viewerMatchId = '';
   const adSlotKeys = {
     'player-top': 'playerTop',
     'player-bottom': 'playerBottom',
@@ -46,6 +49,7 @@
   const preferredRegion = params.get('region') || config.defaultRegion || 'global';
   const isAdmin = params.get('admin') === '1';
   const chatClientId = getChatClientId();
+  const viewerClientId = getViewerClientId();
 
   copyEmbed.hidden = !isAdmin;
 
@@ -64,6 +68,18 @@
       if (existing) return existing;
       const next = globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
       window.localStorage?.setItem('kinglive_chat_client_id', next);
+      return next;
+    } catch {
+      return `${Date.now()}`;
+    }
+  }
+
+  function getViewerClientId() {
+    try {
+      const existing = window.localStorage?.getItem('kinglive_viewer_client_id');
+      if (existing) return existing;
+      const next = globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+      window.localStorage?.setItem('kinglive_viewer_client_id', next);
       return next;
     } catch {
       return `${Date.now()}`;
@@ -241,6 +257,7 @@
   }
 
   function clearPlayer() {
+    stopViewerHeartbeat();
     destroyHls();
     stage.innerHTML = '';
     controls.hidden = true;
@@ -517,6 +534,55 @@
     playStream(0);
   }
 
+  function viewerHeartbeatPayload() {
+    return JSON.stringify({
+      client_id: viewerClientId,
+      page: 'player',
+    });
+  }
+
+  async function sendViewerHeartbeat(matchId, options = {}) {
+    if (!viewerHeartbeatBase || !matchId) return;
+    try {
+      await fetch(`${viewerHeartbeatBase}/${encodeURIComponent(matchId)}/heartbeat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: viewerHeartbeatPayload(),
+        keepalive: options.keepalive !== false,
+      });
+    } catch {}
+  }
+
+  function startViewerHeartbeat(matchId) {
+    if (!viewerHeartbeatBase || !matchId) return;
+    stopViewerHeartbeat();
+    viewerMatchId = String(matchId);
+    void sendViewerHeartbeat(viewerMatchId, { keepalive: true });
+    viewerHeartbeatTimer = setInterval(() => {
+      void sendViewerHeartbeat(viewerMatchId, { keepalive: true });
+    }, 25_000);
+  }
+
+  function stopViewerHeartbeat() {
+    if (viewerHeartbeatTimer) {
+      clearInterval(viewerHeartbeatTimer);
+      viewerHeartbeatTimer = null;
+    }
+    viewerMatchId = '';
+  }
+
+  function sendFinalViewerHeartbeat() {
+    if (!viewerHeartbeatBase || !viewerMatchId) return;
+    const url = `${viewerHeartbeatBase}/${encodeURIComponent(viewerMatchId)}/heartbeat`;
+    if (navigator.sendBeacon) {
+      try {
+        const body = typeof Blob === 'function' ? new Blob([viewerHeartbeatPayload()], { type: 'application/json' }) : viewerHeartbeatPayload();
+        if (navigator.sendBeacon(url, body)) return;
+      } catch {}
+    }
+    void sendViewerHeartbeat(viewerMatchId, { keepalive: true });
+  }
+
   async function loadFromMatch(matchId) {
     const query = new URLSearchParams();
     query.set('lang', preferredLang);
@@ -536,12 +602,17 @@
     const away = match?.away_team?.name_en || 'TBD';
     const streams = configuredStreams.length ? configuredStreams : match?.streams || [];
     setStreams(streams, `${home} vs ${away}`);
+    if (currentStreams.length) startViewerHeartbeat(matchId);
   }
 
   sourceSelect.addEventListener('change', () => playStream(Number(sourceSelect.value)));
   if (chatForm) chatForm.addEventListener('submit', submitChatMessage);
   if (typeof window.addEventListener === 'function') {
-    window.addEventListener('beforeunload', stopChatPolling);
+    window.addEventListener('beforeunload', () => {
+      stopChatPolling();
+      sendFinalViewerHeartbeat();
+    });
+    window.addEventListener('pagehide', sendFinalViewerHeartbeat);
   }
 
   if (isAdmin) {

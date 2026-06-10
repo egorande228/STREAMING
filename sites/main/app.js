@@ -376,6 +376,8 @@
   };
   let currentMatches = [];
   let activeStreamMatchIds = new Set();
+  let openMatchId = '';
+  let liveDetailTimer = null;
   const modal = document.createElement('div');
   modal.className = 'match-modal';
   modal.hidden = true;
@@ -554,6 +556,14 @@
 
   function translateStatus(value) {
     return t(`status_${String(value || 'scheduled').toLowerCase()}`);
+  }
+
+  function shortStatusLabel(value, minute) {
+    const normalized = String(value || '').toLowerCase();
+    if (normalized === 'live') return `LIVE${minute ? ` ${minute}'` : ''}`;
+    if (normalized === 'half_time') return 'HT';
+    if (normalized === 'finished') return 'FT';
+    return translateStatus(normalized || 'scheduled').toUpperCase();
   }
 
   function statusBadgeClass(value) {
@@ -984,6 +994,31 @@
     return normalized;
   }
 
+  function lastMatchEvent(stats) {
+    const events = Array.isArray(stats?.events) ? stats.events : [];
+    if (!events.length) return null;
+    return [...events].sort((a, b) => {
+      const minuteDelta = (Number(a.minute) || 0) - (Number(b.minute) || 0);
+      if (minuteDelta !== 0) return minuteDelta;
+      return (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0);
+    }).at(-1);
+  }
+
+  function renderLiveStatusBar(match, stats, displayStatus) {
+    const normalized = String(displayStatus || match?.status || '').toLowerCase();
+    if (!['live', 'half_time', 'finished'].includes(normalized)) return '';
+    const latestEvent = lastMatchEvent(stats);
+    const latestText = latestEvent
+      ? `${eventMinute(latestEvent)} ${eventIcon(latestEvent.type)} ${cleanText(latestEvent.player_name, t('football'))}`
+      : '';
+    return `
+      <div class="live-status-bar ${escapeHtml(normalized)}">
+        <strong>${escapeHtml(shortStatusLabel(normalized, Number(match?.minute) || 0))}</strong>
+        ${latestText ? `<span>${escapeHtml(latestText)}</span>` : ''}
+      </div>
+    `;
+  }
+
   function eventIcon(type) {
     const normalized = String(type || '').toLowerCase();
     if (normalized === 'goal' || normalized === 'own_goal') return '⚽';
@@ -1242,6 +1277,49 @@
     ].filter(Boolean).join(' | ');
   }
 
+  function kickoffCountdown(value) {
+    const kickoff = Date.parse(value || '');
+    if (Number.isNaN(kickoff)) return '';
+    const delta = kickoff - Date.now();
+    if (delta <= 0) return 'Kickoff soon';
+    const minutes = Math.ceil(delta / 60_000);
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    const mins = minutes % 60;
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins}m`;
+  }
+
+  function renderPrematchPanel(match, statsText) {
+    if (String(match?.status || '') !== 'scheduled') return '';
+    const countdown = kickoffCountdown(match.scheduled_at);
+    const items = [
+      [t('kickoff'), formatDate(match.scheduled_at)],
+      ['Countdown', countdown],
+      [t('stage'), stageName(match)],
+      [t('venue'), placeName(match.venue)],
+      [t('city'), placeName(match.city)],
+    ].filter(([, value]) => value);
+    return `
+      <section class="prematch-panel" aria-label="${escapeHtml(t('matchDetails'))}">
+        <div class="prematch-countdown">
+          <span>${escapeHtml(t('kickoff'))}</span>
+          <strong>${escapeHtml(countdown || formatDate(match.scheduled_at))}</strong>
+        </div>
+        <div class="prematch-grid">
+          ${items.map(([label, value]) => `
+            <div>
+              <span>${escapeHtml(label)}</span>
+              <strong>${escapeHtml(value)}</strong>
+            </div>
+          `).join('')}
+        </div>
+        ${statsText ? `<p>${escapeHtml(statsText)}</p>` : ''}
+      </section>
+    `;
+  }
+
   async function fetchMatchStatsPayload(matchId, options = {}) {
     const scope = `match-stats:${uiLocale}:${matchId}:${apiVersion}:${options.live ? 'live' : 'default'}`;
     const url = localizedApiUrl(`/api/matches/${matchId}/stats`, {
@@ -1256,6 +1334,33 @@
     } catch {
       return null;
     }
+  }
+
+  async function fetchMatchDetailPayload(matchId, options = {}) {
+    const url = localizedApiUrl(`/api/matches/${matchId}`, {
+      live: options.live ? '1' : '',
+      v: apiVersion,
+    });
+    try {
+      return await fetchJson(url);
+    } catch {
+      return null;
+    }
+  }
+
+  function updateCurrentMatch(nextMatch) {
+    if (!nextMatch || nextMatch.error || nextMatch.id == null) return null;
+    const index = currentMatches.findIndex((item) => String(item.id) === String(nextMatch.id));
+    if (index < 0) return nextMatch;
+    const merged = {
+      ...currentMatches[index],
+      ...nextMatch,
+      home_team: nextMatch.home_team || currentMatches[index].home_team,
+      away_team: nextMatch.away_team || currentMatches[index].away_team,
+      streams: Array.isArray(nextMatch.streams) ? nextMatch.streams : currentMatches[index].streams,
+    };
+    currentMatches[index] = merged;
+    return merged;
   }
 
   async function fetchMatchStats(matchId, options = {}) {
@@ -1443,9 +1548,61 @@
       .join('');
   }
 
+  function setMatchUrlParam(matchId) {
+    if (!window.history || typeof window.history.replaceState !== 'function') return;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('match', String(matchId));
+      window.history.replaceState({}, '', url.toString());
+    } catch {}
+  }
+
+  function clearMatchUrlParam() {
+    if (!window.history || typeof window.history.replaceState !== 'function') return;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('match');
+      if (/^#match=\d+$/i.test(url.hash)) url.hash = '';
+      window.history.replaceState({}, '', url.toString());
+    } catch {}
+  }
+
+  function deeplinkMatchId() {
+    try {
+      const url = new URL(window.location.href);
+      return url.searchParams.get('match') || String(url.hash || '').match(/^#match=(\d+)$/)?.[1] || '';
+    } catch {
+      return new URLSearchParams(window.location.search).get('match') || '';
+    }
+  }
+
+  function stopLiveDetailRefresh() {
+    if (!liveDetailTimer) return;
+    clearInterval(liveDetailTimer);
+    liveDetailTimer = null;
+  }
+
+  function startLiveDetailRefresh(matchId) {
+    stopLiveDetailRefresh();
+    if (typeof setInterval !== 'function') return;
+    liveDetailTimer = setInterval(() => {
+      void refreshOpenLiveMatch(matchId);
+    }, 25_000);
+  }
+
+  async function refreshOpenLiveMatch(matchId) {
+    if (modal.hidden || String(openMatchId) !== String(matchId)) return;
+    const nextMatch = await fetchMatchDetailPayload(matchId, { live: true });
+    if (nextMatch) updateCurrentMatch(nextMatch);
+    await openMatchDetails(matchId, { force: true, updateUrl: false });
+  }
+
   async function openMatchDetails(matchId, options = {}) {
     const match = currentMatches.find((item) => String(item.id) === String(matchId));
     if (!match) return;
+    openMatchId = String(matchId);
+    stopLiveDetailRefresh();
+    if (options.updateUrl !== false) setMatchUrlParam(matchId);
 
     const home = teamName(match.home_team);
     const away = teamName(match.away_team);
@@ -1466,6 +1623,8 @@
     const statsText = liveStatsText || (match.status === 'scheduled'
       ? await fetchPrematchStats(match, { force: options.force, maxAgeMs: 24 * 60 * 60 * 1000 })
       : '');
+    const liveStatusBar = renderLiveStatusBar(match, matchStats, displayStatus);
+    const prematchPanel = renderPrematchPanel(match, statsText);
 
     modal.hidden = false;
     modal.innerHTML = `
@@ -1496,7 +1655,9 @@
             <span>${escapeHtml(t('city'))}: ${escapeHtml(placeName(match.city))}</span>
           </div>
         </div>
+        ${liveStatusBar}
         ${renderMelbetOdds(matchStats, home, away)}
+        ${prematchPanel}
         <div class="match-stats detail-meta-lines">
           <div>${escapeHtml(t('kickoff'))}: ${escapeHtml(formatDate(match.scheduled_at))}</div>
           <div>${escapeHtml(t('stage'))}: ${escapeHtml(stageName(match))}</div>
@@ -1526,11 +1687,18 @@
       </article>
     `;
     sanitizeCyrillic(modal);
+    const latest = currentMatches.find((item) => String(item.id) === String(matchId));
+    const latestStatus = String(latest?.status || displayStatus);
+    const shouldRefresh = (latestStatus === 'live' || latestStatus === 'half_time') && !modal.hidden;
+    if (shouldRefresh) startLiveDetailRefresh(matchId);
   }
 
   function closeMatchDetails() {
+    stopLiveDetailRefresh();
+    openMatchId = '';
     modal.hidden = true;
     modal.innerHTML = '';
+    clearMatchUrlParam();
   }
 
   async function loadMatches(options = {}) {
@@ -1556,6 +1724,10 @@
         });
       }
       renderMatches(matches);
+      const linkedMatch = deeplinkMatchId();
+      if (linkedMatch && matches.some((match) => String(match.id) === String(linkedMatch))) {
+        void openMatchDetails(linkedMatch, { updateUrl: false });
+      }
       // Warm daily cache for details to avoid extra API calls on modal open.
       matches.forEach((match) => {
         if (match.status === 'scheduled') {

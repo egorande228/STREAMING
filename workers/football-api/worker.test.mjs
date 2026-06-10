@@ -439,6 +439,7 @@ test('sorts top league matches by live state, league priority, then kickoff', ()
 test('uses short TTL for live data and day-level TTL for non-live feeds', () => {
   assert.equal(resolveCacheTtl(new URL('https://kinglive.test/api/matches?status=live')), 30);
   assert.equal(resolveCacheTtl(new URL('https://kinglive.test/api/matches?status=half_time')), 30);
+  assert.equal(resolveCacheTtl(new URL('https://kinglive.test/api/matches/42?live=1')), 30);
   assert.equal(resolveCacheTtl(new URL('https://kinglive.test/api/matches/42/stats?live=1')), 30);
   assert.equal(resolveCacheTtl(new URL('https://kinglive.test/api/matches/42/stats')), 1800);
 
@@ -451,6 +452,79 @@ test('uses short TTL for live data and day-level TTL for non-live feeds', () => 
   assert.equal(fixturesTtl <= 86400, true);
 
   assert.equal(resolveCacheTtl(new URL('https://kinglive.test/api/matches/42')), 1800);
+});
+
+test('tracks viewer heartbeats and returns admin monitoring snapshot from KV', async () => {
+  const kvData = new Map();
+  const expirations = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value, options = {}) {
+      kvData.set(key, value);
+      if (options.expirationTtl) expirations.set(key, options.expirationTtl);
+    },
+    async delete(key) {
+      kvData.delete(key);
+    },
+    async list(options = {}) {
+      const prefix = options.prefix || '';
+      return {
+        keys: Array.from(kvData.keys())
+          .filter((name) => name.startsWith(prefix))
+          .map((name) => ({ name })),
+        list_complete: true,
+      };
+    },
+  };
+  const env = {
+    ADMIN_BEARER_TOKEN: 'test-token',
+    STREAM_CONFIG_KV: kv,
+    MATCH_STREAMS_JSON: JSON.stringify({
+      1540843: [
+        { id: 1, url: 'https://stream.test/live.m3u8', source_type: 'hls', is_active: true },
+        { id: 2, url: 'https://stream.test/embed', source_type: 'iframe', is_active: false },
+      ],
+    }),
+  };
+
+  const heartbeat = await routeRequest(
+    new Request('https://kinglive.test/api/viewers/1540843/heartbeat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.10' },
+      body: JSON.stringify({ client_id: 'viewer-1', page: 'player' }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(heartbeat.status, 200);
+  assert.equal((await heartbeat.json()).viewers, 1);
+  assert.equal(expirations.get('viewer:1540843:viewer-1'), 75);
+
+  kvData.set('viewer:1540843:expired', JSON.stringify({
+    match_id: 1540843,
+    client_id: 'expired',
+    updated_at_ms: Date.now() - 120_000,
+    expires_at_ms: Date.now() - 45_000,
+  }));
+
+  const monitoring = await routeRequest(
+    new Request('https://kinglive.test/api/admin/monitoring', {
+      headers: { Authorization: 'Bearer test-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(monitoring.status, 200);
+  const body = await monitoring.json();
+  assert.equal(body.active_streams.total, 1);
+  assert.equal(body.active_viewers.total, 1);
+  assert.equal(body.active_viewers.by_match['1540843'], 1);
+  assert.equal(body.metrics.api_calls >= 1, true);
+  assert.equal(typeof body.metrics.cache_hits, 'number');
+  assert.equal(typeof body.metrics.upstream_calls, 'number');
+  assert.equal(kvData.has('viewer:1540843:expired'), false);
 });
 
 test('caches Sportmonks live match detail subrequests separately from stats responses', async () => {
@@ -864,6 +938,49 @@ test('falls back to Google Arabic football feed when BBC Arabic filter has no fo
     assert.equal(body.news.length, 1);
     assert.equal(body.news[0].title, 'كرة القدم: خبر عاجل');
     assert.equal(call, 2);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('falls back to localized Google News RSS when Sportmonks news is empty', async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    calls.push(requestUrl);
+    if (requestUrl.includes('/v3/football/news/')) {
+      return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(
+      `<?xml version="1.0"?>
+      <rss><channel>
+        <item>
+          <title><![CDATA[Mercato: le football français bouge]]></title>
+          <description><![CDATA[Un résumé depuis Google News.]]></description>
+          <link>https://news.google.com/articles/google-football-fr</link>
+          <guid isPermaLink="false">google-football-fr-guid</guid>
+          <pubDate>Wed, 10 Jun 2026 12:20:00 GMT</pubDate>
+        </item>
+      </channel></rss>`,
+      { status: 200, headers: { 'Content-Type': 'application/rss+xml' } },
+    );
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/news?limit=1&lang=fr'),
+      { SPORTMONKS_TOKEN: 'token' },
+      {},
+    );
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.source, 'Google News Football');
+    assert.equal(body.feed_url, 'https://news.google.com/rss/search?q=football&hl=fr&gl=FR&ceid=FR:fr');
+    assert.equal(body.news.length, 1);
+    assert.equal(body.news[0].source, 'Google News');
+    assert.equal(body.news[0].title, 'Mercato: le football français bouge');
+    assert.equal(calls.some((url) => url.includes('news.google.com/rss/search')), true);
   } finally {
     globalThis.fetch = previousFetch;
   }

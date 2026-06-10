@@ -11,12 +11,19 @@ const NEWS_FEED_PROXY_URL = `https://morss.it/${NEWS_FEED_URL}`;
 const NEWS_FEED_AR_URL = 'https://feeds.bbci.co.uk/arabic/rss.xml';
 const NEWS_FEED_AR_PROXY_URL = `https://morss.it/${NEWS_FEED_AR_URL}`;
 const NEWS_FEED_AR_FOOTBALL_URL = 'https://news.google.com/rss/search?q=%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85&hl=ar&gl=AE&ceid=AE:ar';
+const GOOGLE_NEWS_FEEDS = {
+  es: 'https://news.google.com/rss/search?q=f%C3%BAtbol&hl=es&gl=ES&ceid=ES:es',
+  fr: 'https://news.google.com/rss/search?q=football&hl=fr&gl=FR&ceid=FR:fr',
+  mn: 'https://news.google.com/rss/search?q=football&hl=mn&gl=MN&ceid=MN:mn',
+};
 const STREAM_CONFIG_KV_KEY = 'match_streams_json';
 const SPORTMONKS_SUPPORTED_LOCALES = new Set(['ar', 'ckb', 'de', 'el', 'es', 'fa', 'fr', 'hu', 'it', 'ja', 'kmr', 'ru', 'ua', 'zh']);
+const NEWS_SUPPORTED_LOCALES = new Set(['en', 'es', 'fr', 'ar', 'mn']);
 const CHAT_MAX_MESSAGES = 100;
 const CHAT_MAX_MESSAGE_LENGTH = 240;
 const CHAT_MAX_AUTHOR_LENGTH = 24;
 const CHAT_RATE_LIMIT_SECONDS = 5;
+const VIEWER_HEARTBEAT_TTL_SECONDS = 75;
 const LIVE_STATUSES = new Set(['1H', '2H', 'ET', 'P', 'BT', 'INT']);
 const HALF_TIME_STATUSES = new Set(['HT']);
 const FINISHED_STATUSES = new Set(['FT', 'AET', 'PEN']);
@@ -60,6 +67,13 @@ export default {
 export async function routeRequest(request, env = {}, ctx = {}) {
   const url = new URL(request.url);
   if (request.method === 'OPTIONS') return emptyResponse(204);
+  if (url.pathname.startsWith('/api/')) {
+    await recordMetric(env, 'api_calls');
+  }
+  const viewerHeartbeatMatch = url.pathname.match(/^\/api\/viewers\/(\d+)\/heartbeat$/);
+  if (viewerHeartbeatMatch) {
+    return routeViewerHeartbeatRequest(request, env, Number(viewerHeartbeatMatch[1]));
+  }
   if (url.pathname.startsWith('/api/admin')) {
     return routeAdminRequest(request, env);
   }
@@ -94,7 +108,10 @@ export async function routeRequest(request, env = {}, ctx = {}) {
   const cacheKey = new Request(normalizeCacheUrl(url, provider).toString(), request);
   const cache = globalThis.caches?.default;
   const cached = cache ? await cache.match(cacheKey) : null;
-  if (cached) return cached;
+  if (cached) {
+    await recordMetric(env, 'cache_hits');
+    return cached;
+  }
 
   let response;
   if (provider === 'sportmonks') {
@@ -116,6 +133,7 @@ async function routeApiFootballRequest(url, env, ttl) {
   const statsMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/stats$/);
   const prematchMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/prematch$/);
   const apiUrl = buildFootballApiUrl(url);
+  await recordMetric(env, 'upstream_calls');
   const apiResponse = await fetch(apiUrl, {
     headers: {
       'x-apisports-key': env.API_FOOTBALL_KEY,
@@ -228,10 +246,12 @@ async function routeSportmonksSplitDetailRequest(url, env, ttl, ctx, matchId, se
 async function fetchSportmonksJson(apiUrl, env = {}) {
   const url = new URL(apiUrl);
   url.searchParams.set('api_token', env.SPORTMONKS_TOKEN);
+  await recordMetric(env, 'upstream_calls');
   const response = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!response.ok) return { ok: false, status: response.status, body: null };
   const body = await response.json();
   if (body?.errors || (body?.message && !('data' in body))) return { ok: false, status: 422, body };
+  await recordMetric(env, 'last_sportmonks_update', new Date().toISOString());
   return { ok: true, status: response.status, body };
 }
 
@@ -241,6 +261,7 @@ async function fetchCachedSportmonksJson(apiUrl, env = {}, ttl = 0, ctx = {}) {
   if (cacheKey) {
     const cached = await cache.match(cacheKey);
     if (cached) {
+      await recordMetric(env, 'cache_hits');
       try {
         return await cached.json();
       } catch {}
@@ -333,6 +354,11 @@ async function routeAdminRequest(request, env = {}) {
     return jsonResponse({ error: 'unauthorized' }, 401, 0);
   }
 
+  if (url.pathname === '/api/admin/monitoring') {
+    if (request.method === 'GET') return routeAdminMonitoring(env);
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
   if (url.pathname === '/api/admin/streams') {
     if (request.method === 'GET') return routeAdminStreamsList(env);
     if (request.method === 'POST') return routeAdminStreamsCreate(request, env);
@@ -347,6 +373,57 @@ async function routeAdminRequest(request, env = {}) {
   }
 
   return jsonResponse({ error: 'not_found' }, 404, 0);
+}
+
+async function routeViewerHeartbeatRequest(request, env = {}, matchId) {
+  if (request.method !== 'POST') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  if (!Number.isFinite(matchId) || matchId <= 0) return jsonResponse({ error: 'invalid_match_id' }, 400, 0);
+  if (!env.STREAM_CONFIG_KV?.put) return jsonResponse({ error: 'viewer_kv_not_configured' }, 503, 0);
+
+  const body = await readJsonBody(request);
+  const clientId = safeKeyPart(body?.client_id || viewerFingerprint(request));
+  const page = safeKeyPart(body?.page || 'player');
+  const now = Date.now();
+  const record = {
+    match_id: matchId,
+    client_id: clientId,
+    page,
+    updated_at: new Date(now).toISOString(),
+    updated_at_ms: now,
+    expires_at_ms: now + VIEWER_HEARTBEAT_TTL_SECONDS * 1000,
+  };
+  await env.STREAM_CONFIG_KV.put(viewerKey(matchId, clientId), JSON.stringify(record), {
+    expirationTtl: VIEWER_HEARTBEAT_TTL_SECONDS,
+  });
+  const viewers = await countActiveViewers(env, matchId, now);
+  return jsonResponse({ ok: true, match_id: matchId, viewers, ttl: VIEWER_HEARTBEAT_TTL_SECONDS }, 200, 0);
+}
+
+async function routeAdminMonitoring(env = {}) {
+  const config = await readRuntimeStreamConfig(env);
+  const streams = flattenStreamConfig(config).filter((stream) => isStreamActiveNow(stream));
+  const byMatch = {};
+  streams.forEach((stream) => {
+    const key = String(stream.match_id);
+    if (!byMatch[key]) byMatch[key] = 0;
+    byMatch[key] += 1;
+  });
+  const activeViewers = await readActiveViewerSnapshot(env);
+  const metrics = await readTodayMetrics(env);
+  return jsonResponse(
+    {
+      generated_at: new Date().toISOString(),
+      active_streams: {
+        total: streams.length,
+        by_match: byMatch,
+        streams,
+      },
+      active_viewers: activeViewers,
+      metrics,
+    },
+    200,
+    0,
+  );
 }
 
 async function routeAdminLogin(request, env) {
@@ -543,7 +620,7 @@ async function readRuntimeStreamConfig(env = {}) {
   let config;
   if (env.STREAM_CONFIG_KV?.get) {
     const raw = await env.STREAM_CONFIG_KV.get(STREAM_CONFIG_KV_KEY);
-    config = readStreamConfig(raw);
+    config = readStreamConfig(raw || env.MATCH_STREAMS_JSON);
   } else {
     config = readStreamConfig(env.MATCH_STREAMS_JSON);
   }
@@ -723,6 +800,103 @@ function chatFingerprint(request, clientId) {
   return safeKeyPart(`${ip}:${clientId || ''}`);
 }
 
+function viewerFingerprint(request) {
+  const ip =
+    request.headers.get('CF-Connecting-IP') ||
+    request.headers.get('X-Forwarded-For')?.split(',')[0] ||
+    'unknown';
+  const ua = request.headers.get('User-Agent') || '';
+  return `${ip}:${ua}`;
+}
+
+function viewerKey(matchId, clientId) {
+  return `viewer:${matchId}:${safeKeyPart(clientId)}`;
+}
+
+async function countActiveViewers(env = {}, matchId, now = Date.now()) {
+  const snapshot = await readActiveViewerSnapshot(env, now, `viewer:${matchId}:`);
+  return snapshot.by_match[String(matchId)] || 0;
+}
+
+async function readActiveViewerSnapshot(env = {}, now = Date.now(), prefix = 'viewer:') {
+  const byMatchSets = new Map();
+  const expiredKeys = [];
+  const keys = await listKvKeys(env, prefix);
+  await Promise.all(keys.map(async (key) => {
+    const raw = await env.STREAM_CONFIG_KV?.get?.(key);
+    if (!raw) return;
+    let record;
+    try {
+      record = JSON.parse(raw);
+    } catch {
+      expiredKeys.push(key);
+      return;
+    }
+    const expiresAt = Number(record.expires_at_ms) || 0;
+    if (expiresAt && expiresAt <= now) {
+      expiredKeys.push(key);
+      return;
+    }
+    const matchId = String(record.match_id || key.split(':')[1] || '');
+    if (!matchId) return;
+    if (!byMatchSets.has(matchId)) byMatchSets.set(matchId, new Set());
+    byMatchSets.get(matchId).add(String(record.client_id || key));
+  }));
+  await Promise.all(expiredKeys.map((key) => env.STREAM_CONFIG_KV?.delete?.(key)));
+
+  const byMatch = {};
+  let total = 0;
+  byMatchSets.forEach((viewers, matchId) => {
+    byMatch[matchId] = viewers.size;
+    total += viewers.size;
+  });
+  return { total, by_match: byMatch };
+}
+
+async function listKvKeys(env = {}, prefix = '') {
+  if (!env.STREAM_CONFIG_KV?.list) return [];
+  const keys = [];
+  let cursor;
+  do {
+    const page = await env.STREAM_CONFIG_KV.list({ prefix, cursor });
+    keys.push(...(Array.isArray(page?.keys) ? page.keys.map((item) => item.name).filter(Boolean) : []));
+    cursor = page?.cursor;
+    if (page?.list_complete !== false) break;
+  } while (cursor);
+  return keys;
+}
+
+async function recordMetric(env = {}, key, value = 1) {
+  if (!env.STREAM_CONFIG_KV?.get || !env.STREAM_CONFIG_KV?.put) return false;
+  const metricsKey = todayMetricsKey();
+  const current = await readTodayMetrics(env);
+  if (typeof value === 'number') current[key] = Number(current[key] || 0) + value;
+  else current[key] = value;
+  await env.STREAM_CONFIG_KV.put(metricsKey, JSON.stringify(current), { expirationTtl: 3 * 24 * 60 * 60 });
+  return true;
+}
+
+async function readTodayMetrics(env = {}) {
+  const defaults = {
+    api_calls: 0,
+    cache_hits: 0,
+    upstream_calls: 0,
+    last_sportmonks_update: '',
+  };
+  if (!env.STREAM_CONFIG_KV?.get) return defaults;
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(todayMetricsKey());
+    const parsed = raw ? JSON.parse(raw) : {};
+    return { ...defaults, ...(parsed && typeof parsed === 'object' ? parsed : {}) };
+  } catch {
+    return defaults;
+  }
+}
+
+function todayMetricsKey() {
+  return `metrics:${new Date().toISOString().slice(0, 10)}`;
+}
+
 function safeKeyPart(value) {
   return String(value || 'unknown').replace(/[^a-zA-Z0-9_.:-]/g, '_').slice(0, 120) || 'unknown';
 }
@@ -753,6 +927,15 @@ async function fetchNewsFeed(newsLang) {
       source: 'BBC Arabic',
       itemSource: 'BBC Arabic',
       url: NEWS_FEED_AR_URL,
+    };
+  }
+  if (GOOGLE_NEWS_FEEDS[newsLang]) {
+    const response = await fetchFeedUrl(GOOGLE_NEWS_FEEDS[newsLang]);
+    return {
+      ...response,
+      source: 'Google News Football',
+      itemSource: 'Google News',
+      url: GOOGLE_NEWS_FEEDS[newsLang],
     };
   }
   const primary = await fetchFeedUrl(NEWS_FEED_PROXY_URL);
@@ -1346,11 +1529,14 @@ function dedupeNews(items = []) {
   const seen = new Set();
   const unique = [];
   items.forEach((item) => {
-    const titleKey = `${String(item.title || '').toLowerCase().replace(/\s+/g, ' ').trim()}:${item.fixture_id || ''}`;
+    const titleKey = `title:${String(item.title || '').toLowerCase().replace(/\s+/g, ' ').trim()}`;
+    const fixtureTitleKey = `${titleKey}:${item.fixture_id || ''}`;
+    const urlKey = item.url ? `url:${String(item.url).toLowerCase().trim()}` : '';
     const idKey = item.id ? `id:${item.id}` : '';
-    if ((idKey && seen.has(idKey)) || (titleKey && seen.has(titleKey))) return;
+    if ((idKey && seen.has(idKey)) || (urlKey && seen.has(urlKey)) || (fixtureTitleKey && seen.has(fixtureTitleKey))) return;
     if (idKey) seen.add(idKey);
-    if (titleKey) seen.add(titleKey);
+    if (urlKey) seen.add(urlKey);
+    if (fixtureTitleKey) seen.add(fixtureTitleKey);
     unique.push(item);
   });
   return unique.sort((a, b) => {
@@ -1901,7 +2087,7 @@ function normalizeStatus(short = '') {
 
 function resolveNewsLanguage(value) {
   const lang = String(value || '').toLowerCase();
-  if (SPORTMONKS_SUPPORTED_LOCALES.has(lang)) return lang;
+  if (NEWS_SUPPORTED_LOCALES.has(lang)) return lang;
   return 'en';
 }
 
@@ -1922,6 +2108,7 @@ export function resolveCacheTtl(url) {
   if (/^\/api\/matches\/\d+\/stats$/.test(url.pathname) && isLiveStatsRequest(url)) return 30;
   if (/^\/api\/matches\/\d+\/stats$/.test(url.pathname)) return 1800;
   if (/^\/api\/matches\/\d+\/prematch$/.test(url.pathname)) return secondsUntilNextUtcDay();
+  if (/^\/api\/matches\/\d+$/.test(url.pathname) && isLiveStatsRequest(url)) return 30;
   if (/^\/api\/matches\/\d+$/.test(url.pathname)) return 1800;
   return secondsUntilNextUtcDay();
 }

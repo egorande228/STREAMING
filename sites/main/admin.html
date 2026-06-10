@@ -16,10 +16,14 @@
       .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
       .admin-table th, .admin-table td { border-bottom: 1px solid #222c37; padding: 10px 8px; text-align: left; vertical-align: top; }
       .admin-actions { display: flex; gap: 8px; }
+      .admin-metrics { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 12px; }
+      .admin-metric { border: 1px solid #222c37; border-radius: 8px; background: #111a24; padding: 12px; }
+      .admin-metric span { display: block; color: #9aa7b7; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+      .admin-metric strong { display: block; margin-top: 6px; color: #fff; font-size: 20px; }
       .admin-msg { color: #83f1b8; }
       .admin-err { color: #ff9aa1; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-      @media (max-width: 760px) { .admin-grid { grid-template-columns: 1fr; } }
+      @media (max-width: 760px) { .admin-grid, .admin-metrics { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
@@ -112,6 +116,30 @@
         </form>
         <p id="save-msg" class="admin-msg"></p>
         <p id="save-err" class="admin-err"></p>
+      </section>
+
+      <section class="admin-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <h2 style="margin:0">Monitoring</h2>
+          <button id="reload-monitoring" class="button secondary" type="button">Reload</button>
+        </div>
+        <div id="monitoring-metrics" class="admin-metrics">
+          <div class="admin-metric"><span>Active streams</span><strong>0</strong></div>
+          <div class="admin-metric"><span>Active viewers</span><strong>0</strong></div>
+          <div class="admin-metric"><span>API calls</span><strong>0</strong></div>
+          <div class="admin-metric"><span>Cache hits</span><strong>0</strong></div>
+        </div>
+        <div style="overflow:auto; margin-top:10px;">
+          <table class="admin-table">
+            <thead>
+              <tr><th>Match</th><th>Viewers</th><th>Streams</th></tr>
+            </thead>
+            <tbody id="monitoring-body">
+              <tr><td colspan="3">No data</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="monitoring-meta" class="mono"></p>
       </section>
 
       <section class="admin-card">

@@ -885,6 +885,8 @@ test('opens match details with stats and only shows player button when stream ex
 
   assert.match(modalHtml, /Match details/);
   assert.match(modalHtml, /Head-to-head last 2 matches/);
+  assert.match(modalHtml, /prematch-panel/);
+  assert.match(modalHtml, /prematch-countdown/);
   assert.match(modalHtml, /Wins 1 - 0/);
   assert.match(modalHtml, /Draws 1/);
   assert.doesNotMatch(modalHtml, /Watch stream/);
@@ -898,4 +900,194 @@ test('opens match details with stats and only shows player button when stream ex
     },
   });
   assert.equal(modalRoot.hidden, true);
+});
+
+test('auto-opens deeplinked match and live popup refresh stops on close', async () => {
+  let gridHtml = '';
+  let modalHtml = '';
+  const listeners = new Map();
+  const intervals = [];
+  const cleared = [];
+  const requests = [];
+  const today = new Date().toISOString().slice(0, 10);
+  let detailCall = 0;
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener(type, handler) {
+      listeners.set(type, handler);
+    },
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    get innerHTML() {
+      return modalHtml;
+    },
+    set innerHTML(value) {
+      modalHtml = value;
+    },
+    addEventListener(type, handler) {
+      listeners.set(`modal:${type}`, handler);
+    },
+  };
+  const location = {
+    href: 'https://kinglive.test/?match=1540843#schedule',
+    search: '?match=1540843',
+    hash: '#schedule',
+  };
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    setInterval(handler, delay) {
+      const id = intervals.length + 1;
+      intervals.push({ id, handler, delay });
+      return id;
+    },
+    clearInterval(id) {
+      cleared.push(id);
+    },
+    window: {
+      location,
+      history: {
+        replaceState(_state, _title, nextUrl) {
+          location.href = new URL(String(nextUrl), location.href).toString();
+          location.search = new URL(location.href).search;
+        },
+      },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener(type, handler) {
+        listeners.set(`document:${type}`, handler);
+      },
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch(url) {
+      requests.push(String(url));
+      if (String(url).includes('/streams/active')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ match_ids: ['1540843'], streams: { 1540843: [{ url: 'https://stream.test/live.m3u8' }] } }),
+        });
+      }
+      if (String(url).includes('/matches/1540843/stats')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              events: [
+                { id: 1, minute: detailCall ? 64 : 23, type: 'goal', team: 'home', player_name: detailCall ? 'Martinelli' : 'Saka' },
+              ],
+              team_stats: [
+                { team: { name: 'Arsenal' }, stats: { possession: detailCall ? 62 : 61, shots_on_goal: 5 } },
+                { team: { name: 'Atletico Madrid' }, stats: { possession: detailCall ? 38 : 39, shots_on_goal: 3 } },
+              ],
+            }),
+        });
+      }
+      if (String(url).includes('/matches/1540843?')) {
+        detailCall += 1;
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              id: 1540843,
+              scheduled_at: `${today}T19:00:00+00:00`,
+              status: detailCall >= 1 ? 'finished' : 'live',
+              minute: detailCall >= 1 ? 90 : 64,
+              home_score: detailCall >= 1 ? 2 : 1,
+              away_score: detailCall >= 1 ? 1 : 1,
+              stage: 'Semi-finals',
+              venue: 'MetLife Stadium',
+              city: 'New York',
+              league: { name: 'World Cup' },
+              home_team: { name_en: 'Arsenal' },
+              away_team: { name_en: 'Atletico Madrid' },
+              streams: [{ url: 'https://stream.test/live.m3u8', is_active: true }],
+            }),
+        });
+      }
+      const matches = String(url).includes(`date=${today}`)
+        ? [
+            {
+              id: 1540843,
+              scheduled_at: `${today}T19:00:00+00:00`,
+              status: 'live',
+              minute: 63,
+              home_score: 1,
+              away_score: 1,
+              stage: 'Semi-finals',
+              venue: 'MetLife Stadium',
+              city: 'New York',
+              league: { name: 'World Cup' },
+              home_team: { name_en: 'Arsenal' },
+              away_team: { name_en: 'Atletico Madrid' },
+              streams: [{ url: 'https://stream.test/live.m3u8', is_active: true }],
+            },
+          ]
+        : [];
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ matches }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(modalRoot.hidden, false);
+  assert.match(modalHtml, /live-status-bar/);
+  assert.match(modalHtml, /LIVE 63&#039;/);
+  assert.match(modalHtml, /Saka/);
+  assert.equal(location.search.includes('match=1540843'), true);
+
+  const liveRefresh = intervals.find((item) => item.delay === 25_000);
+  assert.ok(liveRefresh);
+  await liveRefresh.handler();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(
+    requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843?live=1&v=sportmonks-facts-v2&lang=en'),
+    true,
+  );
+  assert.match(modalHtml, /FT/);
+  assert.match(modalHtml, /2 : 1/);
+  assert.equal(cleared.includes(liveRefresh.id), true);
+
+  listeners.get('modal:click')({
+    target: {
+      closest(selector) {
+        return selector === '[data-modal-close]' ? {} : null;
+      },
+    },
+  });
+  assert.equal(modalRoot.hidden, true);
+  assert.equal(new URL(location.href).searchParams.has('match'), false);
 });

@@ -1202,7 +1202,8 @@ export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [
   const homeTeam = participants.find((team) => team?.meta?.location === 'home') || participants[0] || {};
   const awayTeam = participants.find((team) => team?.meta?.location === 'away') || participants[1] || {};
   const teamSideById = sportmonksTeamSideById(participantFixture);
-  const scores = extractSportmonksScore(scoreFixture?.scores);
+  const scoreFromEvents = extractSportmonksScoreFromEvents(eventsFixture?.events);
+  const scores = scoreFromEvents || extractSportmonksScore(scoreFixture?.scores);
 
   const events = normalizeSportmonksEvents(matchId, eventsFixture?.events, teamSideById);
   const lineups = normalizeSportmonksLineups(matchId, lineupsFixture?.lineups, teamSideById);
@@ -2037,6 +2038,23 @@ function extractSportmonksScore(scores = []) {
     }
   });
   return result;
+}
+
+function extractSportmonksScoreFromEvents(events = []) {
+  if (!Array.isArray(events)) return null;
+  const scoredEvents = events
+    .map((event, index) => {
+      const match = String(event?.result || '').match(/(\d+)\s*[-:]\s*(\d+)/);
+      if (!match) return null;
+      return {
+        home: Number(match[1]),
+        away: Number(match[2]),
+        sort_order: Number.isFinite(Number(event?.sort_order)) ? Number(event.sort_order) : index,
+      };
+    })
+    .filter((score) => score && Number.isFinite(score.home) && Number.isFinite(score.away))
+    .sort((left, right) => left.sort_order - right.sort_order);
+  return scoredEvents.length ? scoredEvents.at(-1) : null;
 }
 
 function extractSportmonksMinute(item = {}) {

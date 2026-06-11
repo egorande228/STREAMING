@@ -247,10 +247,6 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
         { id: 1, name: 'Brazil', meta: { location: 'home' } },
         { id: 2, name: 'Japan', meta: { location: 'away' } },
       ],
-      scores: [
-        { description: 'CURRENT', score: { goals: 1, participant: 'home' } },
-        { description: 'CURRENT', score: { goals: 0, participant: 'away' } },
-      ],
       events: [
         {
           id: 10,

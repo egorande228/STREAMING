@@ -127,7 +127,7 @@ test('falls back to upcoming schedule when today has no matches', async () => {
       KINGLIVE_MAIN_CONFIG: {
         apiBase: 'https://kinglive-football-api.test',
         playerBase: 'https://player.kinglive.test',
-        sponsorUrl: 'https://refpa3665.com/L?tag=d_5517121m_66329c_worldcuplive',
+        sponsorUrl: 'https://refpa3665.com/L?tag=d_5674754m_66329c_KINGLIVE2026&site=5674754&ad=66329',
         defaultLocale: 'en',
         adSlots: {},
       },
@@ -814,7 +814,7 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /MelBet odds/);
   assert.match(modalHtml, /<details class="detail-accordion odds-accordion" open>/);
   assert.match(modalHtml, /Fulltime Result/);
-  assert.match(modalHtml, /https:\/\/refpa3665\.com\/L\?tag=d_5517121m_66329c_worldcuplive/);
+  assert.match(modalHtml, /https:\/\/refpa3665\.com\/L\?tag=d_5674754m_66329c_KINGLIVE2026(&amp;|&)site=5674754(&amp;|&)ad=66329/);
   assert.equal((modalHtml.match(/class="melbet-odd"/g) || []).length, 7);
   assert.doesNotMatch(modalHtml.match(/<div class="melbet-odds-head">[\s\S]*?<\/div>/)?.[0] || '', /<a /);
   assert.match(modalHtml, /1\.72/);

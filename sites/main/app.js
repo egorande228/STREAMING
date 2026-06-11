@@ -363,7 +363,7 @@
   const grid = document.getElementById('match-grid');
   const newsGrid = document.getElementById('news-grid');
   const adSlots = config.adSlots || {};
-  const sponsorUrl = config.sponsorUrl || 'https://refpa3665.com/L?tag=d_5517121m_66329c_worldcuplive';
+  const sponsorUrl = config.sponsorUrl || 'https://refpa3665.com/L?tag=d_5674754m_66329c_KINGLIVE2026&site=5674754&ad=66329';
   const manualMatches = Array.isArray(config.manualMatches) ? config.manualMatches : [];
   const manualMatchesOnly = config.manualMatchesOnly === true;
   const adSlotKeys = {

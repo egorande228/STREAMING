@@ -513,11 +513,12 @@
 
   async function fetchScheduleMatches(today, options = {}) {
     const todayResult = await fetchMatchesForDate(today, options);
-    if (todayResult.matches.length) return todayResult;
-
     const upcomingDates = Array.from({ length: scheduleLookaheadDays }, (_, index) => addUtcDays(today, index + 1));
     const upcomingResults = await Promise.all(upcomingDates.map((date) => fetchMatchesForDate(date, options)));
-    const upcomingMatches = upcomingResults.flatMap((result) => result.matches);
+    const upcomingMatches = [
+      ...todayResult.matches,
+      ...upcomingResults.flatMap((result) => result.matches),
+    ];
     const cachedMatches = [
       ...todayResult.cachedMatches,
       ...upcomingResults.flatMap((result) => result.cachedMatches),

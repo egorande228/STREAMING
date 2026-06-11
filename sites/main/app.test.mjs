@@ -185,6 +185,111 @@ test('falls back to upcoming schedule when today has no matches', async () => {
   assert.equal(requests.some((url) => url.includes(`/api/matches?date=${tomorrowText}`)), true);
 });
 
+test('includes upcoming schedule even when today has matches', async () => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = new Date(`${today}T00:00:00Z`);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const tomorrowText = tomorrow.toISOString().slice(0, 10);
+  const requests = [];
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        playerBase: 'https://player.kinglive.test',
+        sponsorUrl: 'https://refpa3665.com/L?tag=d_5517121m_66329c_worldcuplive',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll(selector) {
+        return selector === '[data-ad-slot]' ? [] : [];
+      },
+    },
+    fetch(url) {
+      const request = String(url);
+      requests.push(request);
+      if (request.endsWith('/stream.json') || request.endsWith('stream.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      }
+      const matches = request.includes(`date=${today}`)
+        ? [
+            {
+              id: 19609127,
+              scheduled_at: `${today}T19:00:00+00:00`,
+              status: 'scheduled',
+              stage: 'Group Stage',
+              league: { name: 'World Cup' },
+              home_team: { name_en: 'Mexico' },
+              away_team: { name_en: 'South Africa' },
+            },
+          ]
+        : request.includes(`date=${tomorrowText}`)
+          ? [
+              {
+                id: 19609128,
+                scheduled_at: `${tomorrowText}T22:00:00+00:00`,
+                status: 'scheduled',
+                stage: 'Group Stage',
+                league: { name: 'World Cup' },
+                home_team: { name_en: 'Canada' },
+                away_team: { name_en: 'Brazil' },
+              },
+            ]
+          : [];
+
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ matches }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /Mexico vs South Africa/);
+  assert.match(gridHtml, /Canada vs Brazil/);
+  assert.equal(requests.some((url) => url.includes(`/api/matches?date=${today}`)), true);
+  assert.equal(requests.some((url) => url.includes(`/api/matches?date=${tomorrowText}`)), true);
+});
+
 test('does not reuse empty daily match cache after API recovers', async () => {
   let gridHtml = '';
   let run = 0;

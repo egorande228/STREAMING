@@ -247,6 +247,10 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
         { id: 1, name: 'Brazil', meta: { location: 'home' } },
         { id: 2, name: 'Japan', meta: { location: 'away' } },
       ],
+      scores: [
+        { description: 'CURRENT', score: { goals: 1, participant: 'home' } },
+        { description: 'CURRENT', score: { goals: 0, participant: 'away' } },
+      ],
       events: [
         {
           id: 10,
@@ -366,6 +370,8 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
   );
 
   assert.equal(details.match_id, 42);
+  assert.equal(details.home_score, 1);
+  assert.equal(details.away_score, 0);
   assert.equal(details.events[0].type, 'goal');
   assert.equal(details.events[0].detail, 'Left foot shot | Assist: Vinicius Jr | Score: 1-0');
   assert.equal(details.events[1].team, 'away');

@@ -1197,10 +1197,12 @@ export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [
   const eventsFixture = detailFixtures.events || fixture;
   const lineupsFixture = detailFixtures.lineups || fixture;
   const participantFixture = [fixture, statisticsFixture, eventsFixture, lineupsFixture].find((item) => Array.isArray(item?.participants) && item.participants.length) || {};
+  const scoreFixture = [fixture, statisticsFixture, eventsFixture, lineupsFixture].find((item) => Array.isArray(item?.scores) && item.scores.length) || {};
   const participants = Array.isArray(participantFixture?.participants) ? participantFixture.participants : [];
   const homeTeam = participants.find((team) => team?.meta?.location === 'home') || participants[0] || {};
   const awayTeam = participants.find((team) => team?.meta?.location === 'away') || participants[1] || {};
   const teamSideById = sportmonksTeamSideById(participantFixture);
+  const scores = extractSportmonksScore(scoreFixture?.scores);
 
   const events = normalizeSportmonksEvents(matchId, eventsFixture?.events, teamSideById);
   const lineups = normalizeSportmonksLineups(matchId, lineupsFixture?.lineups, teamSideById);
@@ -1208,6 +1210,8 @@ export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [
 
   return {
     match_id: matchId,
+    home_score: scores.home,
+    away_score: scores.away,
     events,
     lineups,
     h2h: emptyH2H(),

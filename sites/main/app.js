@@ -1375,6 +1375,18 @@
     return merged;
   }
 
+  function mergeMatchScoreFromStats(match, stats) {
+    if (!match || !stats) return match;
+    const homeScore = Number(stats.home_score);
+    const awayScore = Number(stats.away_score);
+    if (!Number.isFinite(homeScore) && !Number.isFinite(awayScore)) return match;
+    return updateCurrentMatch({
+      id: match.id,
+      home_score: Number.isFinite(homeScore) ? homeScore : match.home_score,
+      away_score: Number.isFinite(awayScore) ? awayScore : match.away_score,
+    }) || match;
+  }
+
   async function fetchMatchStats(matchId, options = {}) {
     const payload = await fetchMatchStatsPayload(matchId, options);
     return renderStatsText(payload);
@@ -1661,7 +1673,7 @@
   }
 
   async function openMatchDetails(matchId, options = {}) {
-    const match = currentMatches.find((item) => String(item.id) === String(matchId));
+    let match = currentMatches.find((item) => String(item.id) === String(matchId));
     if (!match) return;
     openMatchId = String(matchId);
     stopLiveDetailRefresh();
@@ -1682,6 +1694,7 @@
       live: isLiveStatus,
       maxAgeMs: isLiveStatus ? 30_000 : 24 * 60 * 60 * 1000,
     });
+    match = mergeMatchScoreFromStats(match, matchStats);
     const liveStatsText = renderStatsText(matchStats);
     const statsText = liveStatsText || (match.status === 'scheduled'
       ? await fetchPrematchStats(match, { force: options.force, maxAgeMs: 24 * 60 * 60 * 1000 })

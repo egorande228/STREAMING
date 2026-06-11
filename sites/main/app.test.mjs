@@ -963,6 +963,8 @@ test('opens match details with stats and only shows player button when stream ex
           ok: true,
           json: () =>
             Promise.resolve({
+              home_score: 1,
+              away_score: 0,
               events: [
                 {
                   id: 10,
@@ -1121,6 +1123,7 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /detail-score-team away/);
   assert.match(modalHtml, /detail-score-status/);
   assert.match(modalHtml, /detail-score-venue/);
+  assert.match(modalHtml, /<div class="detail-score">1 : 0<\/div>/);
   assert.match(modalHtml, /Possession 61% - 39%/);
   assert.match(modalHtml, /MelBet odds/);
   assert.match(modalHtml, /<details class="detail-accordion odds-accordion" open>/);

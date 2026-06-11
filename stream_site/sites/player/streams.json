@@ -1,0 +1,12 @@
+{
+  "server-test": {
+    "url": "https://hls.livekinglive.win/live/test/index.m3u8",
+    "source_type": "hls",
+    "label": "KingLive HLS",
+    "title": "KingLive Server Test",
+    "language_code": "en",
+    "region": "global",
+    "priority": 100,
+    "is_active": true
+  }
+}

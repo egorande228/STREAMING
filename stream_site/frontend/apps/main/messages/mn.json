@@ -1,0 +1,368 @@
+{
+  "meta": {
+    "title": "WC26 · FIFA World Cup 2026 тоглолтын төв",
+    "description": "FIFA World Cup 2026 тэмцээний хуваарь, оноо, хэсэг болон тоглолтын дэлгэрэнгүйг нэг дор дагаарай."
+  },
+  "nav": {
+    "home": "Нүүр",
+    "schedule": "Хуваарь",
+    "groups": "Хэсгүүд",
+    "search": "Хайх"
+  },
+  "ui": {
+    "home": "Нүүр",
+    "close": "Хаах",
+    "scrollLeft": "Зүүн тийш гүйлгэх",
+    "scrollRight": "Баруун тийш гүйлгэх",
+    "backToMatches": "Тоглолтууд руу буцах"
+  },
+  "ads": {
+    "label": "Сурталчилгаа"
+  },
+  "home": {
+    "heroSubtitle": "АНУ · Канад · Мексик — хуваарь, оноо, тоглолтын дэлгэрэнгүй нэг дор",
+    "liveNow": "Яг одоо",
+    "todayMatches": "Өнөөдрийн тоглолтууд",
+    "upcomingMatches": "Удахгүй",
+    "noLive": "Одоогоор явагдаж буй тоглолт алга",
+    "groups": "Хэсгүүд",
+    "inProgress": "{count, plural, other {# тоглолт явагдаж байна}}",
+    "noMatchesToday": "Өнөөдөр тоглолт алга",
+    "noMatchesApi": "Тоглолтуудыг ачаалж чадсангүй. Backend API ажиллаж байгаа эсэхийг шалгана уу.",
+    "viewFullSchedule": "Бүтэн хуваарь харах",
+    "roadToGlory": "Алдрын зам",
+    "heroTitleLine1": "Бүх",
+    "heroTitleAccent": "World Cup 26",
+    "heroTitleLine3": "тоглолтын өдрийг дага",
+    "heroBody": "Нийт 104 тоглолт. Бүх хүсэл тэмүүлэл. Хуваарь, оноо, тоглолтын дэлгэрэнгүйг нэг цэвэр төвд.",
+    "matchCenter": "Тоглолтын төв",
+    "matchDetails": "Тоглолтын дэлгэрэнгүй",
+    "tournamentDates": "2026 оны 6 сарын 11 - 7 сарын 19",
+    "featuredTitle": "Удахгүй болох",
+    "featuredTitleAccent": "тоглолтууд",
+    "followTitle": "Дэлхий даяараа дагаж байна.",
+    "followAccent": "Та?"
+  },
+  "schedule": {
+    "title": "Бүтэн хуваарь",
+    "comingSoon": "Хуваарь удахгүй гарна"
+  },
+  "match": {
+    "live": "ШУУД",
+    "inPlay": "Тоглолт явагдаж байна",
+    "finished": "ДТ",
+    "fullTime": "Дууссан",
+    "halfTime": "ЗТ",
+    "scheduled": "Удахгүй",
+    "kickoff": "Эхлэх цаг",
+    "venue": "Цэнгэлдэх",
+    "watchNow": "Тоглолтын төв",
+    "streams": "Дамжуулалт",
+    "selectStream": "Дамжуулалт сонгох",
+    "language": "Хэл",
+    "quality": "Чанар",
+    "noStreams": "Дамжуулалтын мэдээлэл одоогоор алга",
+    "tbd": "Тодорхойгүй",
+    "versus": "vs",
+    "startingNow": "Одоо эхэлж байна",
+    "notFound": "Тоглолт олдсонгүй эсвэл боломжгүй байна.",
+    "stages": {
+      "group": "Хэсгийн шат",
+      "round_of_32": "Шөвгийн 32",
+      "round_of_16": "Шөвгийн 16",
+      "quarter": "Шөвгийн 8",
+      "semi": "Хагас шигшээ",
+      "third_place": "Гуравдугаар байрны тоглолт",
+      "final": "Шигшээ тоглолт"
+    }
+  },
+  "matchStats": {
+    "overview": "Тойм",
+    "events": "Үйл явдал",
+    "lineups": "Бүрэлдэхүүн",
+    "venue": "Цэнгэлдэх",
+    "stage": "Шат",
+    "kickoff": "Эхлэх цаг",
+    "headToHead": "Хоорондын тоглолт ({count} уулзалт)",
+    "wins": "{team} ялалт",
+    "goals": "Гоол",
+    "draws": "{count} тэнцээ",
+    "noMeetings": "Өмнөх уулзалтын бүртгэл алга",
+    "recentForm": "Сүүлийн форм",
+    "noEvents": "Тоглолтын үйл явдал одоогоор алга",
+    "lineupsUnavailable": "Бүрэлдэхүүн одоогоор боломжгүй",
+    "substitutes": "Сэлгээ"
+  },
+  "player": {
+    "noStreams": "Дамжуулалтын мэдээлэл боломжгүй",
+    "language": "Хэл",
+    "source": "Эх сурвалж",
+    "quality": "Чанар",
+    "auto": "Авто"
+  },
+  "chat": {
+    "title": "Тоглолтын чат",
+    "placeholder": "Мессеж бичих...",
+    "send": "Илгээх",
+    "joinAs": "Чатлах нэрээ оруулна уу...",
+    "join": "Нэгдэх",
+    "anonymous": "Нэргүй",
+    "connecting": "Холбогдож байна...",
+    "connected": "Холбогдсон",
+    "disconnected": "Салсан",
+    "reconnecting": "Дахин холбогдож байна..."
+  },
+  "news": {
+    "titlePrefix": "Хөлбөмбөгийн",
+    "titleAccent": "мэдээ",
+    "readMore": "Дэлгэрэнгүй",
+    "breadcrumb": "Хөлбөмбөгийн мэдээ",
+    "fullArticleNotice": "Нийтлэлийн бүрэн эх эх сайт дээр байна.",
+    "readFullArticle": "Бүрэн нийтлэлийг унших"
+  },
+  "groups": {
+    "title": "Хэсгийн хүснэгт",
+    "group": "Хэсэг",
+    "team": "Баг",
+    "played": "Т",
+    "won": "Х",
+    "drawn": "Тц",
+    "lost": "Хд",
+    "gf": "ОГ",
+    "ga": "АГ",
+    "gd": "З",
+    "points": "Оноо",
+    "qualified": "Шалгарсан",
+    "notAvailable": "Хэсгүүд одоогоор боломжгүй",
+    "teamsTbd": "Багууд тодорхойгүй",
+    "heroKicker": "Тэмцээний хэсгүүд",
+    "heroDescription": "Хэсгийн бүх хүснэгт, шалгарах байр болон хасагдах шатны төлөөх өрсөлдөөнийг дагаарай."
+  },
+  "mirrors": {
+    "unavailable": "Энэ толин сайт боломжгүй байж магадгүй.",
+    "switchTo": "Солих:"
+  },
+  "streamPage": {
+    "brand": "Тоглолтын дамжуулалт",
+    "backToMatch": "Тоглолт",
+    "mainSite": "Нүүр",
+    "external": "Үргэлжлүүлэх",
+    "matchInfo": "Тоглолт",
+    "status": "Төлөв",
+    "chat": "Чат",
+    "matchFinished": "Тоглолт дууссан",
+    "videoBeforeKickoff": "Видео дамжуулалт тоглолт эхлэхээс өмнө боломжтой болно",
+    "telegramBot": "Telegram бот",
+    "matchAlerts": "Тоглолтын сэрэмжлүүлэг ба шинэчлэлт",
+    "openBot": "Бот нээх"
+  },
+  "footer": {
+    "mirrors": "Толин сайтууд",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "contactUs": "Холбоо барих",
+    "disclaimer": "WC26 · Тоглолтын төв · Бүх эрх тухайн эзэмшигчдэд харьяалагдана"
+  },
+  "admin": {
+    "brand": "WC2026 Админ",
+    "logout": "Гарах",
+    "nav": {
+      "matches": "Тоглолтууд",
+      "streams": "Дамжуулалтууд",
+      "mirrors": "Толин сайтууд"
+    },
+    "common": {
+      "id": "ID",
+      "save": "Хадгалах",
+      "saving": "Хадгалж байна...",
+      "cancel": "Цуцлах",
+      "edit": "Засах",
+      "delete": "Устгах",
+      "actions": "Үйлдлүүд",
+      "closeForm": "Форм хаах",
+      "active": "Идэвхтэй",
+      "yes": "Тийм",
+      "no": "Үгүй",
+      "languages": {
+        "en": "Англи",
+        "ru": "Орос",
+        "es": "Испани",
+        "pt": "Португал",
+        "ar": "Араб",
+        "fr": "Франц",
+        "de": "Герман",
+        "zh": "Хятад",
+        "ja": "Япон",
+        "ko": "Солонгос"
+      }
+    },
+    "login": {
+      "title": "WC2026 Админ",
+      "username": "Хэрэглэгчийн нэр",
+      "password": "Нууц үг",
+      "submit": "Нэвтрэх",
+      "submitting": "Нэвтэрч байна...",
+      "invalidCredentials": "Нэвтрэх мэдээлэл буруу",
+      "connectionError": "Холболтын алдаа"
+    },
+    "matches": {
+      "title": "Тоглолтууд ({count})",
+      "add": "+ Тоглолт нэмэх",
+      "edit": "Тоглолт засах",
+      "create": "Шинэ тоглолт",
+      "created": "Тоглолт үүссэн",
+      "updated": "Тоглолт шинэчлэгдсэн",
+      "deleteConfirm": "Энэ тоглолтыг устгах уу?",
+      "invalidDateTime": "Огноо/цаг буруу",
+      "saveError": "Тоглолтыг хадгалж чадсангүй",
+      "updateStatusError": "Тоглолтын төлөвийг шинэчилж чадсангүй",
+      "scorePushed": "Оноо шууд дамжуулалтад илгээгдлээ",
+      "quickStatusMessage": "Тоглолт #{id} → {status}",
+      "liveScoreTitle": "Шууд оноо - тоглолт #{id}",
+      "pushLive": "Шууд илгээх",
+      "start": "Эхлүүлэх",
+      "halftime": "Завсарлага",
+      "end": "Дуусгах",
+      "score": "Оноо",
+      "tbd": "Тодорхойгүй",
+      "form": {
+        "homeTeamId": "Талбайн эзэн багийн ID",
+        "awayTeamId": "Зочин багийн ID",
+        "groupIdOptional": "Хэсгийн ID (заавал биш)",
+        "dateTime": "Огноо/Цаг",
+        "venue": "Цэнгэлдэх",
+        "city": "Хот",
+        "stage": "Шат",
+        "status": "Төлөв",
+        "homeScore": "Эзэн багийн оноо",
+        "awayScore": "Зочин багийн оноо",
+        "minute": "Минут",
+        "minuteOptional": "Минут (заавал биш)",
+        "streamRedirectUrl": "Стрим сайт руу чиглүүлэх URL",
+        "streamRedirectPlaceholder": "https://example.com/watch/match"
+      },
+      "table": {
+        "home": "Эзэн",
+        "away": "Зочин",
+        "score": "Оноо",
+        "date": "Огноо",
+        "stage": "Шат",
+        "status": "Төлөв"
+      },
+      "stages": {
+        "group": "Хэсгийн шат",
+        "round_of_32": "Шөвгийн 32",
+        "round_of_16": "Шөвгийн 16",
+        "quarter": "Шөвгийн 8",
+        "semi": "Хагас шигшээ",
+        "third_place": "Гуравдугаар байрны тоглолт",
+        "final": "Шигшээ тоглолт"
+      },
+      "statuses": {
+        "scheduled": "Товлогдсон",
+        "live": "Шууд",
+        "half_time": "Завсарлага",
+        "finished": "Дууссан",
+        "postponed": "Хойшлогдсон"
+      }
+    },
+    "streams": {
+      "title": "Дамжуулалтууд ({count})",
+      "add": "+ Дамжуулалт нэмэх",
+      "edit": "Дамжуулалт засах",
+      "create": "Шинэ дамжуулалт",
+      "created": "Дамжуулалт үүссэн",
+      "updated": "Дамжуулалт шинэчлэгдсэн",
+      "loadError": "Дамжуулалтуудыг ачаалж чадсангүй",
+      "saveError": "Дамжуулалтыг хадгалж чадсангүй",
+      "deleteError": "Дамжуулалтыг устгаж чадсангүй",
+      "deleteConfirm": "Дамжуулалтыг устгах уу?",
+      "form": {
+        "matchId": "Тоглолтын ID",
+        "label": "Нэр",
+        "hlsUrl": "m3u8 URL",
+        "iframeUrl": "Embed iframe URL",
+        "sourceType": "Эх сурвалжийн төрөл",
+        "quality": "Чанар",
+        "language": "Хэл",
+        "region": "Бүс",
+        "commentary": "Тайлбар",
+        "priority": "Эрэмбэ"
+      },
+      "table": {
+        "match": "Тоглолт",
+        "label": "Нэр",
+        "type": "Төрөл",
+        "quality": "Чанар",
+        "language": "Хэл",
+        "region": "Бүс",
+        "active": "Идэвхтэй",
+        "url": "URL"
+      },
+      "sourceTypes": {
+        "hls": "HLS",
+        "iframe": "Iframe / Telegram"
+      },
+      "regions": {
+        "global": "Дэлхий",
+        "eu": "Европ",
+        "us": "Америк",
+        "asia": "Ази",
+        "mena": "MENA"
+      },
+      "commentaryTypes": {
+        "full": "Бүрэн тайлбар",
+        "no_commentary": "Тайлбаргүй",
+        "home_team": "Эзэн багийн тайлбар"
+      }
+    },
+    "mirrors": {
+      "title": "Толин сайтууд ({count})",
+      "add": "+ Толин сайт нэмэх",
+      "deleteConfirm": "Толин сайтыг устгах уу?",
+      "activateConfirm": "{domain}-г ҮНДСЭН толин сайт болгох уу?\nЭнэ нь Telegram сэрэмжлүүлэг илгээнэ.",
+      "activate": "Идэвхжүүлэх",
+      "primary": "ҮНДСЭН",
+      "standby": "Нөөц",
+      "lastCheckEmpty": "—",
+      "form": {
+        "domain": "Домэйн",
+        "domainPlaceholder": "example.com",
+        "region": "Бүс",
+        "priority": "Эрэмбэ"
+      },
+      "table": {
+        "domain": "Домэйн",
+        "region": "Бүс",
+        "priority": "Эрэмбэ",
+        "primary": "Үндсэн",
+        "status": "Төлөв",
+        "lastCheck": "Сүүлийн шалгалт"
+      },
+      "regions": {
+        "global": "Дэлхий",
+        "eu": "Европ",
+        "us": "Америк",
+        "asia": "Ази",
+        "mena": "MENA"
+      },
+      "statuses": {
+        "healthy": "Эрүүл",
+        "unreachable": "Холбогдох боломжгүй",
+        "unknown": "Тодорхойгүй"
+      }
+    }
+  },
+  "languages": {
+    "en": "English",
+    "ru": "Русский",
+    "es": "Español",
+    "pt": "Português",
+    "ar": "العربية",
+    "fr": "Français",
+    "de": "Deutsch",
+    "zh": "中文",
+    "ja": "日本語",
+    "ko": "한국어"
+  }
+}

@@ -1,0 +1,15 @@
+[Unit]
+Description=KingLive edge network agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/kinglive-edge-agent/edge_agent.py
+Restart=always
+RestartSec=2
+User=root
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

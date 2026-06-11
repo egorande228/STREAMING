@@ -1,0 +1,77 @@
+services:
+  postgres:
+    env_file:
+      - ../.env.prod
+    environment:
+      ENABLE_DEV_ADMIN_BOOTSTRAP: ${ENABLE_DEV_ADMIN_BOOTSTRAP:-false}
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+  redis:
+    env_file:
+      - ../.env.prod
+    command: /bin/sh -c 'redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD" --maxmemory 512mb --maxmemory-policy allkeys-lru'
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  backend:
+    env_file:
+      - ../.env.prod
+    environment:
+      ENV: ${ENV:-production}
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  frontend_main:
+    env_file:
+      - ../.env.prod
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+
+  frontend_stream:
+    env_file:
+      - ../.env.prod
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 512M
+
+  rtmp:
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
+  hls_proxy:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M

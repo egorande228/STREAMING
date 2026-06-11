@@ -1,0 +1,97 @@
+[
+  {
+    "name": "Mirror Primary - wc26.live",
+    "type": "http",
+    "url": "https://wc26.live/api/health",
+    "interval": 60,
+    "retries": 3,
+    "alertOnDown": true,
+    "notificationChannels": ["telegram"]
+  },
+  {
+    "name": "Mirror - worldcup2026.tv",
+    "type": "http",
+    "url": "https://worldcup2026.tv/api/health",
+    "interval": 60,
+    "retries": 3,
+    "alertOnDown": true,
+    "notificationChannels": ["telegram"]
+  },
+  {
+    "name": "Mirror - wc2026.stream",
+    "type": "http",
+    "url": "https://wc2026.stream/api/health",
+    "interval": 60,
+    "retries": 3,
+    "alertOnDown": true,
+    "notificationChannels": ["telegram"]
+  },
+  {
+    "name": "Mirror - wc26.tv",
+    "type": "http",
+    "url": "https://wc26.tv/api/health",
+    "interval": 60,
+    "retries": 3,
+    "alertOnDown": true,
+    "notificationChannels": ["telegram"]
+  },
+  {
+    "name": "Mirror - wc26.me",
+    "type": "http",
+    "url": "https://wc26.me/api/health",
+    "interval": 60,
+    "retries": 3,
+    "alertOnDown": true,
+    "notificationChannels": ["telegram"]
+  },
+  {
+    "name": "Backend EU - wc26.live",
+    "type": "http",
+    "url": "https://wc26.live/api/health",
+    "interval": 60,
+    "retries": 3,
+    "alertOnDown": true,
+    "notificationChannels": ["telegram"],
+    "tags": ["region:eu"]
+  },
+  {
+    "name": "Backend US - worldcup2026.tv",
+    "type": "http",
+    "url": "https://worldcup2026.tv/api/health",
+    "interval": 60,
+    "retries": 3,
+    "alertOnDown": true,
+    "notificationChannels": ["telegram"],
+    "tags": ["region:us"]
+  },
+  {
+    "name": "Backend Asia - wc2026.stream",
+    "type": "http",
+    "url": "https://wc2026.stream/api/health",
+    "interval": 60,
+    "retries": 3,
+    "alertOnDown": true,
+    "notificationChannels": ["telegram"],
+    "tags": ["region:asia"]
+  },
+  {
+    "name": "Backend MENA - wc26.tv",
+    "type": "http",
+    "url": "https://wc26.tv/api/health",
+    "interval": 60,
+    "retries": 3,
+    "alertOnDown": true,
+    "notificationChannels": ["telegram"],
+    "tags": ["region:mena"]
+  },
+  {
+    "name": "WebSocket Primary - wc26.live :8080",
+    "type": "tcp",
+    "url": "wc26.live",
+    "port": 8080,
+    "interval": 60,
+    "retries": 3,
+    "alertOnDown": true,
+    "notificationChannels": ["telegram"]
+  }
+]

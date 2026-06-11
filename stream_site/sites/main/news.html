@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="KingLive football news story." />
+    <title>KingLive Football News</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/kinglive-mark-flat.svg?v=20260515-flat" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./config.js"></script>
+    <script defer src="./news.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="frame topbar-inner">
+        <a class="brand" href="./" aria-label="KingLive home">
+          <span class="brand-mark" aria-hidden="true">
+            <img src="./assets/kinglive-3d-logo.png?v=20260528-3d" alt="" />
+          </span>
+        </a>
+
+        <nav class="nav" aria-label="Primary">
+          <a href="./" id="nav-home-news">Home</a>
+          <a href="./#schedule" id="nav-schedule-news">Schedule</a>
+          <a class="active" href="./#news-title" id="nav-news-news">News</a>
+        </nav>
+
+        <button class="locale" type="button" aria-label="Language">
+          <span>🇬🇧</span>
+          <span>EN</span>
+          <span aria-hidden="true">⌄</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="frame page-stack">
+      <article class="story-page" id="news-article" aria-live="polite">
+        <p class="section-kicker" id="news-kicker">Football pulse</p>
+        <h1 id="news-loading-title">Loading news</h1>
+      </article>
+    </main>
+  </body>
+</html>

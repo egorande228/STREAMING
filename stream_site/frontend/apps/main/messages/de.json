@@ -1,0 +1,368 @@
+{
+  "meta": {
+    "title": "WC26 · Spielzentrum der WM 2026",
+    "description": "Verfolge Spielplan, Ergebnisse, Gruppen und Matchdetails der WM 2026 an einem Ort."
+  },
+  "nav": {
+    "home": "Start",
+    "schedule": "Spielplan",
+    "groups": "Gruppen",
+    "search": "Suchen"
+  },
+  "ui": {
+    "home": "Start",
+    "close": "Schließen",
+    "scrollLeft": "Nach links scrollen",
+    "scrollRight": "Nach rechts scrollen",
+    "backToMatches": "Zurück zu den Spielen"
+  },
+  "ads": {
+    "label": "Werbung"
+  },
+  "home": {
+    "heroSubtitle": "USA · Kanada · Mexiko — Spielplan, Ergebnisse und Matchdetails an einem Ort",
+    "liveNow": "Läuft Jetzt",
+    "todayMatches": "Heutige Spiele",
+    "upcomingMatches": "Bevorstehend",
+    "noLive": "Derzeit laufen keine Spiele",
+    "groups": "Gruppen",
+    "inProgress": "{count, plural, one {# Spiel läuft} other {# Spiele laufen}}",
+    "noMatchesToday": "Heute keine Spiele",
+    "noMatchesApi": "Spiele konnten nicht geladen werden. Prüfe, ob die Backend-API läuft.",
+    "viewFullSchedule": "Vollen Spielplan ansehen",
+    "roadToGlory": "Der Weg zum Ruhm",
+    "heroTitleLine1": "Verfolge jeden",
+    "heroTitleAccent": "World Cup 26",
+    "heroTitleLine3": "Spieltag",
+    "heroBody": "Alle 104 Spiele. Die ganze Leidenschaft. Ein klarer Hub für Spielplan, Ergebnisse und Matchdetails.",
+    "matchCenter": "Match Center",
+    "matchDetails": "Matchdetails",
+    "tournamentDates": "11. Juni - 19. Juli 2026",
+    "featuredTitle": "Kommende",
+    "featuredTitleAccent": "Spiele",
+    "followTitle": "Die ganze Welt schaut zu.",
+    "followAccent": "Du auch?"
+  },
+  "schedule": {
+    "title": "Voller Spielplan",
+    "comingSoon": "Der Spielplan erscheint bald"
+  },
+  "match": {
+    "live": "LIVE",
+    "inPlay": "Spiel läuft",
+    "finished": "ENDE",
+    "fullTime": "Abpfiff",
+    "halfTime": "HZ",
+    "scheduled": "Bevorstehend",
+    "kickoff": "Anstoß",
+    "venue": "Stadion",
+    "watchNow": "Match Center",
+    "streams": "Berichterstattung",
+    "selectStream": "Berichterstattung wählen",
+    "language": "Sprache",
+    "quality": "Qualität",
+    "noStreams": "Details zur Berichterstattung sind noch nicht verfügbar",
+    "tbd": "Offen",
+    "versus": "vs",
+    "startingNow": "Startet jetzt",
+    "notFound": "Spiel nicht gefunden oder nicht verfügbar.",
+    "stages": {
+      "group": "Gruppenphase",
+      "round_of_32": "Runde der letzten 32",
+      "round_of_16": "Achtelfinale",
+      "quarter": "Viertelfinale",
+      "semi": "Halbfinale",
+      "third_place": "Spiel um Platz 3",
+      "final": "Finale"
+    }
+  },
+  "matchStats": {
+    "overview": "Überblick",
+    "events": "Ereignisse",
+    "lineups": "Aufstellungen",
+    "venue": "Stadion",
+    "stage": "Phase",
+    "kickoff": "Anstoß",
+    "headToHead": "Direkter Vergleich ({count} Spiele)",
+    "wins": "Siege von {team}",
+    "goals": "Tore",
+    "draws": "{count} Unentschieden",
+    "noMeetings": "Keine bisherigen Duelle verzeichnet",
+    "recentForm": "Aktuelle Form",
+    "noEvents": "Noch keine Spielereignisse",
+    "lineupsUnavailable": "Aufstellungen noch nicht verfügbar",
+    "substitutes": "Ersatzspieler"
+  },
+  "player": {
+    "noStreams": "Details zur Berichterstattung sind nicht verfügbar",
+    "language": "Sprache",
+    "source": "Quelle",
+    "quality": "Qualität",
+    "auto": "Auto"
+  },
+  "chat": {
+    "title": "Match-Chat",
+    "placeholder": "Nachricht eingeben...",
+    "send": "Senden",
+    "joinAs": "Gib deinen Namen für den Chat ein...",
+    "join": "Beitreten",
+    "anonymous": "Anonym",
+    "connecting": "Verbinde...",
+    "connected": "Verbunden",
+    "disconnected": "Getrennt",
+    "reconnecting": "Verbinde erneut..."
+  },
+  "news": {
+    "titlePrefix": "Fußball",
+    "titleAccent": "News",
+    "readMore": "Mehr lesen",
+    "breadcrumb": "Fußball-News",
+    "fullArticleNotice": "Der vollständige Artikeltext ist auf der Originalseite verfügbar.",
+    "readFullArticle": "Vollständigen Artikel lesen"
+  },
+  "groups": {
+    "title": "Gruppenstand",
+    "group": "Gruppe",
+    "team": "Team",
+    "played": "Sp",
+    "won": "S",
+    "drawn": "U",
+    "lost": "N",
+    "gf": "TF",
+    "ga": "GT",
+    "gd": "TD",
+    "points": "Pkt",
+    "qualified": "Qualifiziert",
+    "notAvailable": "Gruppen noch nicht verfügbar",
+    "teamsTbd": "Teams offen",
+    "heroKicker": "Turniergruppen",
+    "heroDescription": "Verfolge jede Gruppentabelle, Qualifikationsplätze und das Rennen in die K.-o.-Phase."
+  },
+  "mirrors": {
+    "unavailable": "Dieser Mirror ist möglicherweise nicht verfügbar.",
+    "switchTo": "Wechseln zu:"
+  },
+  "streamPage": {
+    "brand": "Spielübertragung",
+    "backToMatch": "Zum Spiel",
+    "mainSite": "Start",
+    "external": "Weiter",
+    "matchInfo": "Spiel",
+    "status": "Status",
+    "chat": "Chat",
+    "matchFinished": "Spiel beendet",
+    "videoBeforeKickoff": "Die Videoübertragung ist vor dem Anstoß verfügbar",
+    "telegramBot": "Telegram-Bot",
+    "matchAlerts": "Spielwarnungen und Updates",
+    "openBot": "Bot öffnen"
+  },
+  "footer": {
+    "mirrors": "Mirror-Seiten",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "contactUs": "Kontakt",
+    "disclaimer": "WC26 · Spielzentrum · Alle Rechte gehören ihren jeweiligen Eigentümern"
+  },
+  "admin": {
+    "brand": "WC2026 Admin",
+    "logout": "Abmelden",
+    "nav": {
+      "matches": "Spiele",
+      "streams": "Streams",
+      "mirrors": "Mirrors"
+    },
+    "common": {
+      "id": "ID",
+      "save": "Speichern",
+      "saving": "Wird gespeichert...",
+      "cancel": "Abbrechen",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "actions": "Aktionen",
+      "closeForm": "Formular schließen",
+      "active": "Aktiv",
+      "yes": "Ja",
+      "no": "Nein",
+      "languages": {
+        "en": "Englisch",
+        "ru": "Russisch",
+        "es": "Spanisch",
+        "pt": "Portugiesisch",
+        "ar": "Arabisch",
+        "fr": "Französisch",
+        "de": "Deutsch",
+        "zh": "Chinesisch",
+        "ja": "Japanisch",
+        "ko": "Koreanisch"
+      }
+    },
+    "login": {
+      "title": "WC2026 Admin",
+      "username": "Benutzername",
+      "password": "Passwort",
+      "submit": "Anmelden",
+      "submitting": "Anmeldung läuft...",
+      "invalidCredentials": "Ungültige Anmeldedaten",
+      "connectionError": "Verbindungsfehler"
+    },
+    "matches": {
+      "title": "Spiele ({count})",
+      "add": "+ Spiel hinzufügen",
+      "edit": "Spiel bearbeiten",
+      "create": "Neues Spiel",
+      "created": "Spiel erstellt",
+      "updated": "Spiel aktualisiert",
+      "deleteConfirm": "Dieses Spiel löschen?",
+      "invalidDateTime": "Ungültiges Datum oder Uhrzeit",
+      "saveError": "Spiel konnte nicht gespeichert werden",
+      "updateStatusError": "Spielstatus konnte nicht aktualisiert werden",
+      "scorePushed": "Spielstand live gesendet",
+      "quickStatusMessage": "Spiel #{id} → {status}",
+      "liveScoreTitle": "Live-Spielstand - Spiel #{id}",
+      "pushLive": "Live senden",
+      "start": "Start",
+      "halftime": "Halbzeit",
+      "end": "Beenden",
+      "score": "Spielstand",
+      "tbd": "Offen",
+      "form": {
+        "homeTeamId": "ID Heimteam",
+        "awayTeamId": "ID Auswärtsteam",
+        "groupIdOptional": "Gruppen-ID (optional)",
+        "dateTime": "Datum/Uhrzeit",
+        "venue": "Stadion",
+        "city": "Stadt",
+        "stage": "Phase",
+        "status": "Status",
+        "homeScore": "Heimscore",
+        "awayScore": "Auswärtsscore",
+        "minute": "Minute",
+        "minuteOptional": "Minute (optional)",
+        "streamRedirectUrl": "Weiterleitungs-URL zur Streaming-Seite",
+        "streamRedirectPlaceholder": "https://example.com/watch/match"
+      },
+      "table": {
+        "home": "Heim",
+        "away": "Auswärts",
+        "score": "Spielstand",
+        "date": "Datum",
+        "stage": "Phase",
+        "status": "Status"
+      },
+      "stages": {
+        "group": "Gruppenphase",
+        "round_of_32": "Runde der letzten 32",
+        "round_of_16": "Achtelfinale",
+        "quarter": "Viertelfinale",
+        "semi": "Halbfinale",
+        "third_place": "Spiel um Platz 3",
+        "final": "Finale"
+      },
+      "statuses": {
+        "scheduled": "Geplant",
+        "live": "Live",
+        "half_time": "Halbzeit",
+        "finished": "Beendet",
+        "postponed": "Verschoben"
+      }
+    },
+    "streams": {
+      "title": "Streams ({count})",
+      "add": "+ Stream hinzufügen",
+      "edit": "Stream bearbeiten",
+      "create": "Neuer Stream",
+      "created": "Stream erstellt",
+      "updated": "Stream aktualisiert",
+      "loadError": "Streams konnten nicht geladen werden",
+      "saveError": "Stream konnte nicht gespeichert werden",
+      "deleteError": "Stream konnte nicht gelöscht werden",
+      "deleteConfirm": "Stream löschen?",
+      "form": {
+        "matchId": "Spiel-ID",
+        "label": "Bezeichnung",
+        "hlsUrl": "m3u8-URL",
+        "iframeUrl": "Eingebettete Iframe-URL",
+        "sourceType": "Quelltyp",
+        "quality": "Qualität",
+        "language": "Sprache",
+        "region": "Region",
+        "commentary": "Kommentar",
+        "priority": "Priorität"
+      },
+      "table": {
+        "match": "Spiel",
+        "label": "Bezeichnung",
+        "type": "Typ",
+        "quality": "Qualität",
+        "language": "Sprache",
+        "region": "Region",
+        "active": "Aktiv",
+        "url": "URL"
+      },
+      "sourceTypes": {
+        "hls": "HLS",
+        "iframe": "Iframe / Telegram"
+      },
+      "regions": {
+        "global": "Global",
+        "eu": "Europa",
+        "us": "Amerika",
+        "asia": "Asien",
+        "mena": "MENA"
+      },
+      "commentaryTypes": {
+        "full": "Voller Kommentar",
+        "no_commentary": "Ohne Kommentar",
+        "home_team": "Heimteam-Kommentar"
+      }
+    },
+    "mirrors": {
+      "title": "Mirrors ({count})",
+      "add": "+ Mirror hinzufügen",
+      "deleteConfirm": "Mirror löschen?",
+      "activateConfirm": "{domain} als HAUPT-Mirror festlegen?\nDadurch wird eine Telegram-Benachrichtigung gesendet.",
+      "activate": "Aktivieren",
+      "primary": "HAUPT",
+      "standby": "Reserve",
+      "lastCheckEmpty": "—",
+      "form": {
+        "domain": "Domain",
+        "domainPlaceholder": "example.com",
+        "region": "Region",
+        "priority": "Priorität"
+      },
+      "table": {
+        "domain": "Domain",
+        "region": "Region",
+        "priority": "Priorität",
+        "primary": "Haupt",
+        "status": "Status",
+        "lastCheck": "Letzte Prüfung"
+      },
+      "regions": {
+        "global": "Global",
+        "eu": "Europa",
+        "us": "Amerika",
+        "asia": "Asien",
+        "mena": "MENA"
+      },
+      "statuses": {
+        "healthy": "Gesund",
+        "unreachable": "Nicht erreichbar",
+        "unknown": "Unbekannt"
+      }
+    }
+  },
+  "languages": {
+    "en": "English",
+    "ru": "Русский",
+    "es": "Español",
+    "pt": "Português",
+    "ar": "العربية",
+    "fr": "Français",
+    "de": "Deutsch",
+    "zh": "中文",
+    "ja": "日本語",
+    "ko": "한국어"
+  }
+}

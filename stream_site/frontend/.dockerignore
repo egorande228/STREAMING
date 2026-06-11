@@ -1,0 +1,7 @@
+node_modules
+apps/main/.next
+apps/stream/.next
+apps/main/.env.local
+apps/stream/.env.local
+apps/main/tsconfig.tsbuildinfo
+apps/stream/tsconfig.tsbuildinfo

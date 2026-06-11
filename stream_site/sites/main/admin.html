@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KingLive Admin</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./config.js"></script>
+    <script defer src="./admin.js"></script>
+    <style>
+      .admin-shell { max-width: 980px; margin: 24px auto; padding: 0 16px 40px; }
+      .admin-card { background: #0d1218; border: 1px solid #222c37; border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+      .admin-grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .admin-grid .full { grid-column: 1 / -1; }
+      .admin-input, .admin-select { width: 100%; height: 40px; border-radius: 10px; border: 1px solid #2e3b4a; background: #111a24; color: #fff; padding: 0 12px; }
+      .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      .admin-table th, .admin-table td { border-bottom: 1px solid #222c37; padding: 10px 8px; text-align: left; vertical-align: top; }
+      .admin-actions { display: flex; gap: 8px; }
+      .admin-msg { color: #83f1b8; }
+      .admin-err { color: #ff9aa1; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+      @media (max-width: 760px) { .admin-grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="frame topbar-inner">
+        <a class="brand" href="./" aria-label="KingLive home">
+          <span class="brand-copy"><span class="brand-kicker">KingLive Admin</span></span>
+        </a>
+      </div>
+    </header>
+
+    <main class="admin-shell">
+      <section class="admin-card" id="login-card">
+        <h1 style="margin-top:0">Admin Login</h1>
+        <div class="admin-grid">
+          <label>
+            <div>Username</div>
+            <input id="login-username" class="admin-input" value="kinglive-admin" />
+          </label>
+          <label>
+            <div>Password</div>
+            <input id="login-password" class="admin-input" type="password" />
+          </label>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:10px; align-items:center;">
+          <button id="login-button" class="button primary" type="button">Sign in</button>
+          <button id="logout-button" class="button secondary" type="button">Logout</button>
+          <span id="auth-status" class="mono"></span>
+        </div>
+      </section>
+
+      <section class="admin-card">
+        <h2 style="margin-top:0">Stream Form</h2>
+        <form id="stream-form" class="admin-grid">
+          <input id="stream-id" type="hidden" />
+          <label>
+            <div>Match ID</div>
+            <input id="match-id" class="admin-input" type="number" min="1" required />
+          </label>
+          <label>
+            <div>Label</div>
+            <input id="stream-label" class="admin-input" placeholder="Live stream" />
+          </label>
+          <label class="full">
+            <div>URL (HLS or embed)</div>
+            <input id="stream-url" class="admin-input" placeholder="https://..." required />
+          </label>
+          <label>
+            <div>Source</div>
+            <select id="source-type" class="admin-select">
+              <option value="iframe">iframe</option>
+              <option value="hls">hls</option>
+            </select>
+          </label>
+          <label>
+            <div>Quality</div>
+            <input id="quality" class="admin-input" value="720p" />
+          </label>
+          <label>
+            <div>Language</div>
+            <input id="lang" class="admin-input" value="en" />
+          </label>
+          <label>
+            <div>Region</div>
+            <input id="region" class="admin-input" value="global" />
+          </label>
+          <label>
+            <div>Priority</div>
+            <input id="priority" class="admin-input" type="number" value="100" />
+          </label>
+          <label>
+            <div>Active</div>
+            <select id="is-active" class="admin-select">
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </label>
+          <label>
+            <div>Starts at (UTC)</div>
+            <input id="starts-at" class="admin-input" type="datetime-local" />
+          </label>
+          <label>
+            <div>Ends at (UTC)</div>
+            <input id="ends-at" class="admin-input" type="datetime-local" />
+          </label>
+          <div class="full" style="display:flex; gap:10px; margin-top:6px;">
+            <button class="button primary" type="submit">Save stream</button>
+            <button class="button secondary" type="button" id="reset-form">Reset</button>
+          </div>
+        </form>
+        <p id="save-msg" class="admin-msg"></p>
+        <p id="save-err" class="admin-err"></p>
+      </section>
+
+      <section class="admin-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <h2 style="margin:0">Streams</h2>
+          <button id="reload-streams" class="button secondary" type="button">Reload</button>
+        </div>
+        <div style="overflow:auto; margin-top:10px;">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>Match</th><th>Type</th><th>Label</th><th>URL</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="streams-body">
+              <tr><td colspan="10">No data</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

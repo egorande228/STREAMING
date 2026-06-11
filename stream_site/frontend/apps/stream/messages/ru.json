@@ -1,0 +1,368 @@
+{
+  "meta": {
+    "title": "WC26 · Матч-центр ЧМ-2026",
+    "description": "Следите за расписанием, счетом, группами и деталями матчей ЧМ-2026 в одном месте."
+  },
+  "nav": {
+    "home": "Главная",
+    "schedule": "Расписание",
+    "groups": "Группы",
+    "search": "Поиск"
+  },
+  "ui": {
+    "home": "Главная",
+    "close": "Закрыть",
+    "scrollLeft": "Прокрутить влево",
+    "scrollRight": "Прокрутить вправо",
+    "backToMatches": "Назад к матчам"
+  },
+  "ads": {
+    "label": "Реклама"
+  },
+  "home": {
+    "heroSubtitle": "США · Канада · Мексика — расписание, счет и детали матчей в одном месте",
+    "liveNow": "Идут сейчас",
+    "todayMatches": "Матчи сегодня",
+    "upcomingMatches": "Скоро",
+    "noLive": "Сейчас нет матчей в игре",
+    "groups": "Группы",
+    "inProgress": "В игре: {count}",
+    "noMatchesToday": "Сегодня матчей нет",
+    "noMatchesApi": "Не удалось загрузить матчи. Проверьте, что backend API запущен.",
+    "viewFullSchedule": "Полное расписание",
+    "roadToGlory": "Путь к славе",
+    "heroTitleLine1": "Следите за каждым",
+    "heroTitleAccent": "World Cup 26",
+    "heroTitleLine3": "игровым днем",
+    "heroBody": "Все 104 матча. Вся страсть турнира. Один удобный центр для расписания, счетов и деталей матчей.",
+    "matchCenter": "Матч-центр",
+    "matchDetails": "Детали матча",
+    "tournamentDates": "11 июня - 19 июля 2026",
+    "featuredTitle": "Ближайшие",
+    "featuredTitleAccent": "матчи",
+    "followTitle": "Весь мир следит.",
+    "followAccent": "А вы?"
+  },
+  "schedule": {
+    "title": "Полное расписание",
+    "comingSoon": "Расписание скоро появится"
+  },
+  "match": {
+    "live": "LIVE",
+    "inPlay": "Идёт игра",
+    "finished": "З",
+    "fullTime": "Матч окончен",
+    "halfTime": "ПТ",
+    "scheduled": "Скоро",
+    "kickoff": "Начало",
+    "venue": "Стадион",
+    "watchNow": "Матч-центр",
+    "streams": "Освещение",
+    "selectStream": "Выбрать вариант",
+    "language": "Язык",
+    "quality": "Качество",
+    "noStreams": "Детали освещения пока недоступны",
+    "tbd": "TBD",
+    "versus": "vs",
+    "startingNow": "Начинается",
+    "notFound": "Матч не найден или недоступен.",
+    "stages": {
+      "group": "Групповой этап",
+      "round_of_32": "1/16 финала",
+      "round_of_16": "1/8 финала",
+      "quarter": "Четвертьфинал",
+      "semi": "Полуфинал",
+      "third_place": "Матч за 3-е место",
+      "final": "Финал"
+    }
+  },
+  "matchStats": {
+    "overview": "Обзор",
+    "events": "События",
+    "lineups": "Составы",
+    "venue": "Стадион",
+    "stage": "Стадия",
+    "kickoff": "Начало",
+    "headToHead": "Личные встречи ({count})",
+    "wins": "Победы: {team}",
+    "goals": "Голы",
+    "draws": "Ничьих: {count}",
+    "noMeetings": "Предыдущих встреч не было",
+    "recentForm": "Последняя форма",
+    "noEvents": "Событий матча пока нет",
+    "lineupsUnavailable": "Составы пока недоступны",
+    "substitutes": "Запасные"
+  },
+  "player": {
+    "noStreams": "Детали освещения недоступны",
+    "language": "Язык",
+    "source": "Источник",
+    "quality": "Качество",
+    "auto": "Авто"
+  },
+  "chat": {
+    "title": "Чат",
+    "placeholder": "Написать сообщение...",
+    "send": "Отправить",
+    "joinAs": "Введите имя для чата...",
+    "join": "Войти",
+    "anonymous": "Аноним",
+    "connecting": "Подключение...",
+    "connected": "Подключено",
+    "disconnected": "Отключено",
+    "reconnecting": "Переподключение..."
+  },
+  "news": {
+    "titlePrefix": "Футбольные",
+    "titleAccent": "новости",
+    "readMore": "Читать далее",
+    "breadcrumb": "Футбольные новости",
+    "fullArticleNotice": "Полный текст статьи доступен на сайте-источнике.",
+    "readFullArticle": "Читать полную статью"
+  },
+  "groups": {
+    "title": "Турнирные таблицы",
+    "group": "Группа",
+    "team": "Команда",
+    "played": "И",
+    "won": "В",
+    "drawn": "Н",
+    "lost": "П",
+    "gf": "ЗГ",
+    "ga": "ПГ",
+    "gd": "РМ",
+    "points": "Очки",
+    "qualified": "Выходит из группы",
+    "notAvailable": "Группы пока недоступны",
+    "teamsTbd": "Команды уточняются",
+    "heroKicker": "Турнирные группы",
+    "heroDescription": "Следите за таблицами групп, проходными местами и борьбой за плей-офф."
+  },
+  "mirrors": {
+    "unavailable": "Это зеркало может быть недоступно.",
+    "switchTo": "Перейти на:"
+  },
+  "streamPage": {
+    "brand": "Матч онлайн",
+    "backToMatch": "К матчу",
+    "mainSite": "На главную",
+    "external": "Перейти",
+    "matchInfo": "Матч",
+    "status": "Статус",
+    "chat": "Чат",
+    "matchFinished": "Матч завершен",
+    "videoBeforeKickoff": "Видео появится перед началом матча",
+    "telegramBot": "Telegram-бот",
+    "matchAlerts": "Оповещения и обновления по матчам",
+    "openBot": "Открыть бота"
+  },
+  "footer": {
+    "mirrors": "Зеркала",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "contactUs": "Связаться с нами",
+    "disclaimer": "WC26 · Матч-центр · Все права принадлежат правообладателям"
+  },
+  "admin": {
+    "brand": "WC2026 Admin",
+    "logout": "Выйти",
+    "nav": {
+      "matches": "Матчи",
+      "streams": "Трансляции",
+      "mirrors": "Зеркала"
+    },
+    "common": {
+      "id": "ID",
+      "save": "Сохранить",
+      "saving": "Сохранение...",
+      "cancel": "Отмена",
+      "edit": "Изменить",
+      "delete": "Удалить",
+      "actions": "Действия",
+      "closeForm": "Закрыть форму",
+      "active": "Активно",
+      "yes": "Да",
+      "no": "Нет",
+      "languages": {
+        "en": "Английский",
+        "ru": "Русский",
+        "es": "Испанский",
+        "pt": "Португальский",
+        "ar": "Арабский",
+        "fr": "Французский",
+        "de": "Немецкий",
+        "zh": "Китайский",
+        "ja": "Японский",
+        "ko": "Корейский"
+      }
+    },
+    "login": {
+      "title": "WC2026 Admin",
+      "username": "Логин",
+      "password": "Пароль",
+      "submit": "Войти",
+      "submitting": "Вход...",
+      "invalidCredentials": "Неверные учетные данные",
+      "connectionError": "Ошибка соединения"
+    },
+    "matches": {
+      "title": "Матчи ({count})",
+      "add": "+ Добавить матч",
+      "edit": "Редактировать матч",
+      "create": "Новый матч",
+      "created": "Матч создан",
+      "updated": "Матч обновлен",
+      "deleteConfirm": "Удалить этот матч?",
+      "invalidDateTime": "Некорректная дата или время",
+      "saveError": "Не удалось сохранить матч",
+      "updateStatusError": "Не удалось обновить статус матча",
+      "scorePushed": "Счет отправлен в live",
+      "quickStatusMessage": "Матч #{id} → {status}",
+      "liveScoreTitle": "Live-счет - матч #{id}",
+      "pushLive": "Отправить в live",
+      "start": "Старт",
+      "halftime": "Перерыв",
+      "end": "Завершить",
+      "score": "Счет",
+      "tbd": "TBD",
+      "form": {
+        "homeTeamId": "ID домашней команды",
+        "awayTeamId": "ID гостевой команды",
+        "groupIdOptional": "ID группы (необязательно)",
+        "dateTime": "Дата и время",
+        "venue": "Стадион",
+        "city": "Город",
+        "stage": "Стадия",
+        "status": "Статус",
+        "homeScore": "Счет хозяев",
+        "awayScore": "Счет гостей",
+        "minute": "Минута",
+        "minuteOptional": "Минута (необязательно)",
+        "streamRedirectUrl": "URL переадресации на стрим-сайт",
+        "streamRedirectPlaceholder": "https://example.com/watch/match"
+      },
+      "table": {
+        "home": "Хозяева",
+        "away": "Гости",
+        "score": "Счет",
+        "date": "Дата",
+        "stage": "Стадия",
+        "status": "Статус"
+      },
+      "stages": {
+        "group": "Групповой этап",
+        "round_of_32": "1/16 финала",
+        "round_of_16": "1/8 финала",
+        "quarter": "Четвертьфинал",
+        "semi": "Полуфинал",
+        "third_place": "Матч за 3-е место",
+        "final": "Финал"
+      },
+      "statuses": {
+        "scheduled": "Запланирован",
+        "live": "В игре",
+        "half_time": "Перерыв",
+        "finished": "Завершен",
+        "postponed": "Перенесен"
+      }
+    },
+    "streams": {
+      "title": "Трансляции ({count})",
+      "add": "+ Добавить трансляцию",
+      "edit": "Редактировать трансляцию",
+      "create": "Новая трансляция",
+      "created": "Трансляция создана",
+      "updated": "Трансляция обновлена",
+      "loadError": "Не удалось загрузить трансляции",
+      "saveError": "Не удалось сохранить трансляцию",
+      "deleteError": "Не удалось удалить трансляцию",
+      "deleteConfirm": "Удалить трансляцию?",
+      "form": {
+        "matchId": "ID матча",
+        "label": "Название",
+        "hlsUrl": "URL m3u8",
+        "iframeUrl": "URL встроенного iframe",
+        "sourceType": "Тип источника",
+        "quality": "Качество",
+        "language": "Язык",
+        "region": "Регион",
+        "commentary": "Комментарий",
+        "priority": "Приоритет"
+      },
+      "table": {
+        "match": "Матч",
+        "label": "Название",
+        "type": "Тип",
+        "quality": "Качество",
+        "language": "Язык",
+        "region": "Регион",
+        "active": "Активно",
+        "url": "URL"
+      },
+      "sourceTypes": {
+        "hls": "HLS",
+        "iframe": "Iframe / Telegram"
+      },
+      "regions": {
+        "global": "Глобально",
+        "eu": "Европа",
+        "us": "Америка",
+        "asia": "Азия",
+        "mena": "MENA"
+      },
+      "commentaryTypes": {
+        "full": "Полный комментарий",
+        "no_commentary": "Без комментария",
+        "home_team": "Комментарий хозяев"
+      }
+    },
+    "mirrors": {
+      "title": "Зеркала ({count})",
+      "add": "+ Добавить зеркало",
+      "deleteConfirm": "Удалить зеркало?",
+      "activateConfirm": "Назначить {domain} ОСНОВНЫМ зеркалом?\nЭто отправит оповещение в Telegram.",
+      "activate": "Активировать",
+      "primary": "ОСНОВНОЕ",
+      "standby": "Резерв",
+      "lastCheckEmpty": "—",
+      "form": {
+        "domain": "Домен",
+        "domainPlaceholder": "example.com",
+        "region": "Регион",
+        "priority": "Приоритет"
+      },
+      "table": {
+        "domain": "Домен",
+        "region": "Регион",
+        "priority": "Приоритет",
+        "primary": "Основное",
+        "status": "Статус",
+        "lastCheck": "Последняя проверка"
+      },
+      "regions": {
+        "global": "Глобально",
+        "eu": "Европа",
+        "us": "Америка",
+        "asia": "Азия",
+        "mena": "MENA"
+      },
+      "statuses": {
+        "healthy": "Доступно",
+        "unreachable": "Недоступно",
+        "unknown": "Неизвестно"
+      }
+    }
+  },
+  "languages": {
+    "en": "English",
+    "ru": "Русский",
+    "es": "Español",
+    "pt": "Português",
+    "ar": "العربية",
+    "fr": "Français",
+    "de": "Deutsch",
+    "zh": "中文",
+    "ja": "日本語",
+    "ko": "한국어"
+  }
+}

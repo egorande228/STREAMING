@@ -1,0 +1,15 @@
+[Unit]
+Description=KingLive HLS edge redirect balancer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/kinglive-balancer/balancer.py
+Restart=always
+RestartSec=2
+User=root
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+name = "wc26-stream-proxy"
+main = "../scripts/cloudflare-worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+ORIGIN_URL = "https://wc26.live"
+# ALLOWED_STREAM_DOMAINS = "cdn1.example.com,cdn2.example.com"
+# Leave ALLOWED_STREAM_DOMAINS unset to allow any http/https upstream.
+
+# Routes — uncomment and set zone_name to your domain:
+# [[routes]]
+# pattern = "wc26.live/proxy/*"
+# zone_name = "wc26.live"
+
+# [[routes]]
+# pattern = "worldcup2026.tv/proxy/*"
+# zone_name = "worldcup2026.tv"
+
+# Deploy:
+#   wrangler deploy --config config/wrangler.toml
+#
+# Set secrets (don't put in vars):
+#   wrangler secret put JWT_SECRET

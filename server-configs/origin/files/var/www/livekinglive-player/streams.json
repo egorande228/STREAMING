@@ -1,0 +1,26 @@
+{
+  "server-live": [
+    {
+      "id": "eng",
+      "url": "https://hls.livekinglive.win/live/eng/index.m3u8",
+      "source_type": "hls",
+      "label": "English",
+      "title": "KingLive English Broadcast",
+      "language_code": "en",
+      "region": "global",
+      "priority": 100,
+      "is_active": true
+    },
+    {
+      "id": "esp",
+      "url": "https://hls.livekinglive.win/live/esp/index.m3u8",
+      "source_type": "hls",
+      "label": "Spanish",
+      "title": "KingLive Spanish Broadcast",
+      "language_code": "es",
+      "region": "global",
+      "priority": 95,
+      "is_active": true
+    }
+  ]
+}

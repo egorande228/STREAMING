@@ -1,0 +1,27 @@
+livekinglive.win {
+  encode gzip
+  root * /srv/livekinglive-player
+  try_files {path} {path}/index.html /index.html
+  file_server
+}
+
+hls.livekinglive.win {
+  encode gzip
+
+  handle_path /lb/* {
+    reverse_proxy 127.0.0.1:8090
+  }
+
+  handle /live/* {
+    reverse_proxy EDGE_PRIMARY_A_IP EDGE_PRIMARY_B_IP {
+      lb_policy least_conn
+      health_uri /health
+      health_interval 5s
+      header_up Host hls.livekinglive.win
+    }
+  }
+
+  handle {
+    reverse_proxy 127.0.0.1:80
+  }
+}

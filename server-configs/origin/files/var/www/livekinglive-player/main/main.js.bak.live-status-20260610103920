@@ -1,0 +1,72 @@
+const card = document.getElementById('match-card');
+const params = new URLSearchParams(window.location.search);
+const requestedMatch = params.get('match') || '';
+
+function normalizeStreams(configured) {
+  const streams = Array.isArray(configured) ? configured : [configured];
+  return streams.filter((stream) => stream && stream.url && stream.is_active !== false && stream.isActive !== false);
+}
+
+function labelFor(stream) {
+  const lang = String(stream.language_code || stream.languageCode || '').toLowerCase();
+  if (stream.label) return stream.label;
+  if (lang === 'es') return 'Spanish';
+  if (lang === 'en') return 'English';
+  if (lang === 'ar') return 'Arabic';
+  if ((stream.source_type || stream.sourceType) === 'iframe') return 'Iframe';
+  return 'Source';
+}
+
+function sourceUrl(matchId, stream) {
+  const lang = stream.language_code || stream.languageCode || '';
+  const source = stream.id || labelFor(stream).toLowerCase();
+  const q = new URLSearchParams({ match: matchId });
+  if (lang) q.set('lang', lang);
+  if (source) q.set('source', source);
+  return `../?${q.toString()}`;
+}
+
+function render(matchId, streams) {
+  const title = streams[0]?.match_title || streams[0]?.matchTitle || streams[0]?.title || 'KingLive broadcast';
+  card.innerHTML = `
+    <div class="match-head">
+      <div>
+        <div class="kicker">Live match</div>
+        <div class="match-title">${title}</div>
+      </div>
+      <div class="status">LIVE READY</div>
+    </div>
+    <div class="source-grid">
+      ${streams.map((stream) => `
+        <a class="source-card" href="${sourceUrl(matchId, stream)}">
+          <div class="source-label">${labelFor(stream)}</div>
+          <div class="source-type">${stream.source_type || stream.sourceType || 'hls'}</div>
+          <div class="source-action">Open stream</div>
+        </a>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function boot() {
+  const response = await fetch('../streams.json', { cache: 'no-store' });
+  const data = await response.json();
+  const entries = Object.entries(data)
+    .map(([matchId, configured]) => [matchId, normalizeStreams(configured)])
+    .filter(([, streams]) => streams.length);
+
+  const selected = requestedMatch
+    ? entries.find(([matchId]) => matchId === requestedMatch)
+    : entries[0];
+
+  if (!selected) {
+    card.innerHTML = '<div class="empty">No active streams configured yet.</div>';
+    return;
+  }
+
+  render(selected[0], selected[1]);
+}
+
+boot().catch(() => {
+  card.innerHTML = '<div class="empty">Could not load stream list.</div>';
+});

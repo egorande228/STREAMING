@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="KingLive standalone stream player for HLS and iframe restream sources." />
+    <title>KingLive Player</title>
+    <link rel="preload" href="./assets/world-cup-hero.png" as="image" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js"></script>
+    <script defer src="./url-propagation.js"></script>
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="watch-layout">
+        <div class="watch-main">
+          <section class="ad-shell ad-leaderboard" data-ad-slot="player-top" data-ad-size="728x90">
+            <span>Advertisement</span>
+            <strong>728 x 90</strong>
+          </section>
+          <div class="player-grid">
+            <section class="player-panel" aria-label="Stream player">
+              <header class="player-brand">
+                <a class="brand" href="../main/" aria-label="KingLive home">
+                  <span class="brand-mark">K</span>
+                  <span>
+                    <span class="brand-kicker">KingLive</span>
+                    <strong>Player</strong>
+                  </span>
+                </a>
+              </header>
+              <div class="stage" id="stage">
+              </div>
+              <div class="controls" id="controls" hidden>
+                <div>
+                  <p class="eyebrow">Now playing</p>
+                  <h1 id="title">Stream</h1>
+                </div>
+                <div class="control-row">
+                  <label>
+                    Source
+                    <select id="source-select"></select>
+                  </label>
+                  <button class="button" id="copy-embed" type="button">Copy iframe</button>
+                </div>
+              </div>
+            </section>
+
+            <aside class="chat-panel" id="chat-panel" aria-label="Match chat" hidden>
+              <header class="chat-head">
+                <div>
+                  <p class="eyebrow">Live room</p>
+                  <h2>Match chat</h2>
+                </div>
+                <span class="chat-status" id="chat-status">Connecting</span>
+              </header>
+              <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
+              <form class="chat-form" id="chat-form">
+                <label>
+                  Nick
+                  <input id="chat-author" name="author" maxlength="24" autocomplete="nickname" placeholder="Guest" />
+                </label>
+                <label>
+                  Message
+                  <textarea id="chat-message" name="message" maxlength="240" rows="3" placeholder="Write a message"></textarea>
+                </label>
+                <button class="button chat-submit" type="submit">Send</button>
+              </form>
+            </aside>
+          </div>
+          <section class="ad-shell ad-leaderboard" data-ad-slot="player-bottom" data-ad-size="728x90">
+            <span>Advertisement</span>
+            <strong>728 x 90</strong>
+          </section>
+        </div>
+        <aside class="ad-shell ad-rail" data-ad-slot="player-rail" data-ad-size="300x600">
+          <span>Advertisement</span>
+          <strong>300 x 600</strong>
+        </aside>
+      </section>
+      <div class="tg-popup" id="tg-popup" hidden></div>
+    </main>
+  </body>
+</html>

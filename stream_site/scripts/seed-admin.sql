@@ -1,0 +1,2 @@
+-- Bootstrap moved to scripts/seed-admin.sh so local development can opt into
+-- a default admin while production requires ADMIN_PASSWORD_HASH explicitly.

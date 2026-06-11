@@ -1,0 +1,15 @@
+{
+  "name": "obs-scheduler",
+  "version": "1.0.0",
+  "description": "OBS automation scheduler — starts/stops streams by match schedule",
+  "type": "module",
+  "scripts": {
+    "start": "node scheduler.js",
+    "stream": "node scheduler.js stream",
+    "stop": "node scheduler.js stop"
+  },
+  "dependencies": {
+    "obs-websocket-js": "^5.0.5",
+    "node-cron": "^3.0.3"
+  }
+}

@@ -1,0 +1,368 @@
+{
+  "meta": {
+    "title": "WC26 · 2026 世界杯比赛中心",
+    "description": "在一个地方关注 2026 世界杯赛程、比分、小组和比赛详情。"
+  },
+  "nav": {
+    "home": "首页",
+    "schedule": "赛程",
+    "groups": "小组",
+    "search": "搜索"
+  },
+  "ui": {
+    "home": "首页",
+    "close": "关闭",
+    "scrollLeft": "向左滚动",
+    "scrollRight": "向右滚动",
+    "backToMatches": "返回比赛"
+  },
+  "ads": {
+    "label": "广告"
+  },
+  "home": {
+    "heroSubtitle": "美国 · 加拿大 · 墨西哥 — 赛程、比分和比赛详情尽在一处",
+    "liveNow": "进行中",
+    "todayMatches": "今日比赛",
+    "upcomingMatches": "即将开始",
+    "noLive": "当前没有进行中的比赛",
+    "groups": "小组",
+    "inProgress": "{count, plural, one {# 场比赛进行中} other {# 场比赛进行中}}",
+    "noMatchesToday": "今天没有比赛",
+    "noMatchesApi": "无法加载比赛，请检查后端 API 是否正在运行。",
+    "viewFullSchedule": "查看完整赛程",
+    "roadToGlory": "通往荣耀之路",
+    "heroTitleLine1": "关注每一个",
+    "heroTitleAccent": "World Cup 26",
+    "heroTitleLine3": "比赛日",
+    "heroBody": "全部 104 场比赛，全部激情时刻。一个清晰的中心，集中展示赛程、比分和比赛详情。",
+    "matchCenter": "比赛中心",
+    "matchDetails": "比赛详情",
+    "tournamentDates": "2026 年 6 月 11 日 - 7 月 19 日",
+    "featuredTitle": "即将到来的",
+    "featuredTitleAccent": "比赛",
+    "followTitle": "全世界都在关注。",
+    "followAccent": "你呢？"
+  },
+  "schedule": {
+    "title": "完整赛程",
+    "comingSoon": "赛程即将上线"
+  },
+  "match": {
+    "live": "直播",
+    "inPlay": "比赛进行中",
+    "finished": "完场",
+    "fullTime": "全场结束",
+    "halfTime": "中场",
+    "scheduled": "即将开始",
+    "kickoff": "开球",
+    "venue": "球场",
+    "watchNow": "比赛中心",
+    "streams": "转播",
+    "selectStream": "选择转播",
+    "language": "语言",
+    "quality": "画质",
+    "noStreams": "暂未提供转播详情",
+    "tbd": "待定",
+    "versus": "vs",
+    "startingNow": "马上开始",
+    "notFound": "未找到该比赛或比赛不可用。",
+    "stages": {
+      "group": "小组赛",
+      "round_of_32": "32 强",
+      "round_of_16": "16 强",
+      "quarter": "四分之一决赛",
+      "semi": "半决赛",
+      "third_place": "季军赛",
+      "final": "决赛"
+    }
+  },
+  "matchStats": {
+    "overview": "概览",
+    "events": "事件",
+    "lineups": "阵容",
+    "venue": "球场",
+    "stage": "阶段",
+    "kickoff": "开球",
+    "headToHead": "交锋记录（{count} 场）",
+    "wins": "{team} 胜场",
+    "goals": "进球",
+    "draws": "{count} 场平局",
+    "noMeetings": "暂无历史交锋记录",
+    "recentForm": "近期状态",
+    "noEvents": "暂时还没有比赛事件",
+    "lineupsUnavailable": "阵容暂未公布",
+    "substitutes": "替补"
+  },
+  "player": {
+    "noStreams": "暂无转播详情",
+    "language": "语言",
+    "source": "来源",
+    "quality": "画质",
+    "auto": "自动"
+  },
+  "chat": {
+    "title": "比赛聊天",
+    "placeholder": "输入消息...",
+    "send": "发送",
+    "joinAs": "输入你的名字加入聊天...",
+    "join": "加入",
+    "anonymous": "匿名",
+    "connecting": "连接中...",
+    "connected": "已连接",
+    "disconnected": "已断开",
+    "reconnecting": "重新连接中..."
+  },
+  "news": {
+    "titlePrefix": "足球",
+    "titleAccent": "新闻",
+    "readMore": "阅读全文",
+    "breadcrumb": "足球新闻",
+    "fullArticleNotice": "完整文章内容可在原网站查看。",
+    "readFullArticle": "阅读完整文章"
+  },
+  "groups": {
+    "title": "小组积分榜",
+    "group": "小组",
+    "team": "球队",
+    "played": "赛",
+    "won": "胜",
+    "drawn": "平",
+    "lost": "负",
+    "gf": "进",
+    "ga": "失",
+    "gd": "净",
+    "points": "分",
+    "qualified": "已出线",
+    "notAvailable": "小组信息暂不可用",
+    "teamsTbd": "球队待定",
+    "heroKicker": "赛事小组",
+    "heroDescription": "追踪每个小组积分榜、出线席位以及通往淘汰赛的竞争。"
+  },
+  "mirrors": {
+    "unavailable": "该镜像可能不可用。",
+    "switchTo": "切换到："
+  },
+  "streamPage": {
+    "brand": "比赛转播",
+    "backToMatch": "返回比赛",
+    "mainSite": "首页",
+    "external": "继续",
+    "matchInfo": "比赛",
+    "status": "状态",
+    "chat": "聊天",
+    "matchFinished": "比赛已结束",
+    "videoBeforeKickoff": "视频转播将在开球前提供",
+    "telegramBot": "Telegram 机器人",
+    "matchAlerts": "比赛提醒与更新",
+    "openBot": "打开机器人"
+  },
+  "footer": {
+    "mirrors": "镜像站点",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "contactUs": "联系我们",
+    "disclaimer": "WC26 · 比赛中心 · 所有权利归其各自所有者所有"
+  },
+  "admin": {
+    "brand": "WC2026 Admin",
+    "logout": "退出登录",
+    "nav": {
+      "matches": "比赛",
+      "streams": "转播",
+      "mirrors": "镜像"
+    },
+    "common": {
+      "id": "ID",
+      "save": "保存",
+      "saving": "保存中...",
+      "cancel": "取消",
+      "edit": "编辑",
+      "delete": "删除",
+      "actions": "操作",
+      "closeForm": "关闭表单",
+      "active": "启用",
+      "yes": "是",
+      "no": "否",
+      "languages": {
+        "en": "英语",
+        "ru": "俄语",
+        "es": "西班牙语",
+        "pt": "葡萄牙语",
+        "ar": "阿拉伯语",
+        "fr": "法语",
+        "de": "德语",
+        "zh": "中文",
+        "ja": "日语",
+        "ko": "韩语"
+      }
+    },
+    "login": {
+      "title": "WC2026 Admin",
+      "username": "用户名",
+      "password": "密码",
+      "submit": "登录",
+      "submitting": "登录中...",
+      "invalidCredentials": "凭据无效",
+      "connectionError": "连接错误"
+    },
+    "matches": {
+      "title": "比赛 ({count})",
+      "add": "+ 添加比赛",
+      "edit": "编辑比赛",
+      "create": "新比赛",
+      "created": "比赛已创建",
+      "updated": "比赛已更新",
+      "deleteConfirm": "删除这场比赛？",
+      "invalidDateTime": "日期或时间无效",
+      "saveError": "无法保存比赛",
+      "updateStatusError": "无法更新比赛状态",
+      "scorePushed": "比分已推送到直播",
+      "quickStatusMessage": "比赛 #{id} → {status}",
+      "liveScoreTitle": "实时比分 - 比赛 #{id}",
+      "pushLive": "推送直播",
+      "start": "开始",
+      "halftime": "中场",
+      "end": "结束",
+      "score": "比分",
+      "tbd": "待定",
+      "form": {
+        "homeTeamId": "主队 ID",
+        "awayTeamId": "客队 ID",
+        "groupIdOptional": "小组 ID（可选）",
+        "dateTime": "日期/时间",
+        "venue": "球场",
+        "city": "城市",
+        "stage": "阶段",
+        "status": "状态",
+        "homeScore": "主队比分",
+        "awayScore": "客队比分",
+        "minute": "分钟",
+        "minuteOptional": "分钟（可选）",
+        "streamRedirectUrl": "跳转到流媒体站点的 URL",
+        "streamRedirectPlaceholder": "https://example.com/watch/match"
+      },
+      "table": {
+        "home": "主队",
+        "away": "客队",
+        "score": "比分",
+        "date": "日期",
+        "stage": "阶段",
+        "status": "状态"
+      },
+      "stages": {
+        "group": "小组赛",
+        "round_of_32": "32 强",
+        "round_of_16": "16 强",
+        "quarter": "四分之一决赛",
+        "semi": "半决赛",
+        "third_place": "季军赛",
+        "final": "决赛"
+      },
+      "statuses": {
+        "scheduled": "已安排",
+        "live": "直播中",
+        "half_time": "中场",
+        "finished": "已结束",
+        "postponed": "已推迟"
+      }
+    },
+    "streams": {
+      "title": "转播 ({count})",
+      "add": "+ 添加转播",
+      "edit": "编辑转播",
+      "create": "新转播",
+      "created": "转播已创建",
+      "updated": "转播已更新",
+      "loadError": "无法加载转播",
+      "saveError": "无法保存转播",
+      "deleteError": "无法删除转播",
+      "deleteConfirm": "删除转播？",
+      "form": {
+        "matchId": "比赛 ID",
+        "label": "标签",
+        "hlsUrl": "m3u8 URL",
+        "iframeUrl": "嵌入 iframe URL",
+        "sourceType": "来源类型",
+        "quality": "画质",
+        "language": "语言",
+        "region": "地区",
+        "commentary": "解说",
+        "priority": "优先级"
+      },
+      "table": {
+        "match": "比赛",
+        "label": "标签",
+        "type": "类型",
+        "quality": "画质",
+        "language": "语言",
+        "region": "地区",
+        "active": "启用",
+        "url": "URL"
+      },
+      "sourceTypes": {
+        "hls": "HLS",
+        "iframe": "Iframe / Telegram"
+      },
+      "regions": {
+        "global": "全球",
+        "eu": "欧洲",
+        "us": "美洲",
+        "asia": "亚洲",
+        "mena": "中东和北非"
+      },
+      "commentaryTypes": {
+        "full": "完整解说",
+        "no_commentary": "无解说",
+        "home_team": "主队解说"
+      }
+    },
+    "mirrors": {
+      "title": "镜像 ({count})",
+      "add": "+ 添加镜像",
+      "deleteConfirm": "删除镜像？",
+      "activateConfirm": "将 {domain} 设为主镜像？\n这会发送一条 Telegram 提醒。",
+      "activate": "启用",
+      "primary": "主镜像",
+      "standby": "备用",
+      "lastCheckEmpty": "—",
+      "form": {
+        "domain": "域名",
+        "domainPlaceholder": "example.com",
+        "region": "地区",
+        "priority": "优先级"
+      },
+      "table": {
+        "domain": "域名",
+        "region": "地区",
+        "priority": "优先级",
+        "primary": "主镜像",
+        "status": "状态",
+        "lastCheck": "最后检查"
+      },
+      "regions": {
+        "global": "全球",
+        "eu": "欧洲",
+        "us": "美洲",
+        "asia": "亚洲",
+        "mena": "中东和北非"
+      },
+      "statuses": {
+        "healthy": "正常",
+        "unreachable": "不可达",
+        "unknown": "未知"
+      }
+    }
+  },
+  "languages": {
+    "en": "English",
+    "ru": "Русский",
+    "es": "Español",
+    "pt": "Português",
+    "ar": "العربية",
+    "fr": "Français",
+    "de": "Deutsch",
+    "zh": "中文",
+    "ja": "日本語",
+    "ko": "한국어"
+  }
+}

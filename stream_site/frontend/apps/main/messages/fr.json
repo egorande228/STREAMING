@@ -1,0 +1,368 @@
+{
+  "meta": {
+    "title": "WC26 · Centre des matchs de la Coupe du Monde 2026",
+    "description": "Suivez le calendrier, les scores, les groupes et les détails de la Coupe du Monde 2026 en un seul endroit."
+  },
+  "nav": {
+    "home": "Accueil",
+    "schedule": "Calendrier",
+    "groups": "Groupes",
+    "search": "Rechercher"
+  },
+  "ui": {
+    "home": "Accueil",
+    "close": "Fermer",
+    "scrollLeft": "Faire défiler vers la gauche",
+    "scrollRight": "Faire défiler vers la droite",
+    "backToMatches": "Retour aux matchs"
+  },
+  "ads": {
+    "label": "Publicité"
+  },
+  "home": {
+    "heroSubtitle": "États-Unis · Canada · Mexique — calendrier, scores et détails des matchs en un seul endroit",
+    "liveNow": "En Cours",
+    "todayMatches": "Matchs du Jour",
+    "upcomingMatches": "À Venir",
+    "noLive": "Aucun match en cours pour le moment",
+    "groups": "Groupes",
+    "inProgress": "{count, plural, one {# match en cours} other {# matchs en cours}}",
+    "noMatchesToday": "Aucun match aujourd'hui",
+    "noMatchesApi": "Impossible de charger les matchs. Vérifiez que l'API backend est bien lancée.",
+    "viewFullSchedule": "Voir le calendrier complet",
+    "roadToGlory": "Route vers la gloire",
+    "heroTitleLine1": "Suivez chaque",
+    "heroTitleAccent": "World Cup 26",
+    "heroTitleLine3": "jour de match",
+    "heroBody": "Les 104 matchs. Toute la passion. Un seul hub clair pour le calendrier, les scores et les détails des matchs.",
+    "matchCenter": "Centre du match",
+    "matchDetails": "Détails du match",
+    "tournamentDates": "11 juin - 19 juillet 2026",
+    "featuredTitle": "Matchs",
+    "featuredTitleAccent": "à venir",
+    "followTitle": "Le monde entier regarde.",
+    "followAccent": "Et vous ?"
+  },
+  "schedule": {
+    "title": "Calendrier Complet",
+    "comingSoon": "Le calendrier sera bientôt disponible"
+  },
+  "match": {
+    "live": "EN DIRECT",
+    "inPlay": "Match en cours",
+    "finished": "FIN",
+    "fullTime": "Fin du match",
+    "halfTime": "MT",
+    "scheduled": "À venir",
+    "kickoff": "Coup d'envoi",
+    "venue": "Stade",
+    "watchNow": "Centre du match",
+    "streams": "Couverture",
+    "selectStream": "Sélectionner la couverture",
+    "language": "Langue",
+    "quality": "Qualité",
+    "noStreams": "Les détails de la couverture ne sont pas encore disponibles",
+    "tbd": "À définir",
+    "versus": "vs",
+    "startingNow": "Commence maintenant",
+    "notFound": "Match introuvable ou indisponible.",
+    "stages": {
+      "group": "Phase de groupes",
+      "round_of_32": "Seizièmes de finale",
+      "round_of_16": "Huitièmes de finale",
+      "quarter": "Quarts de finale",
+      "semi": "Demi-finales",
+      "third_place": "Match pour la troisième place",
+      "final": "Finale"
+    }
+  },
+  "matchStats": {
+    "overview": "Vue d'ensemble",
+    "events": "Événements",
+    "lineups": "Compositions",
+    "venue": "Stade",
+    "stage": "Phase",
+    "kickoff": "Coup d'envoi",
+    "headToHead": "Face à face ({count} matchs)",
+    "wins": "Victoires de {team}",
+    "goals": "Buts",
+    "draws": "{count} nuls",
+    "noMeetings": "Aucune rencontre précédente enregistrée",
+    "recentForm": "Forme récente",
+    "noEvents": "Aucun événement de match pour le moment",
+    "lineupsUnavailable": "Les compositions ne sont pas encore disponibles",
+    "substitutes": "Remplaçants"
+  },
+  "player": {
+    "noStreams": "Les détails de la couverture ne sont pas disponibles",
+    "language": "Langue",
+    "source": "Source",
+    "quality": "Qualité",
+    "auto": "Auto"
+  },
+  "chat": {
+    "title": "Chat du Match",
+    "placeholder": "Écrivez un message...",
+    "send": "Envoyer",
+    "joinAs": "Entrez votre nom pour discuter...",
+    "join": "Rejoindre",
+    "anonymous": "Anonyme",
+    "connecting": "Connexion...",
+    "connected": "Connecté",
+    "disconnected": "Déconnecté",
+    "reconnecting": "Reconnexion..."
+  },
+  "news": {
+    "titlePrefix": "Actualités",
+    "titleAccent": "football",
+    "readMore": "Lire la suite",
+    "breadcrumb": "Actualités football",
+    "fullArticleNotice": "Le texte complet de l'article est disponible sur le site d'origine.",
+    "readFullArticle": "Lire l'article complet"
+  },
+  "groups": {
+    "title": "Classement des Groupes",
+    "group": "Groupe",
+    "team": "Équipe",
+    "played": "J",
+    "won": "G",
+    "drawn": "N",
+    "lost": "P",
+    "gf": "BP",
+    "ga": "BC",
+    "gd": "Diff",
+    "points": "Pts",
+    "qualified": "Qualifié",
+    "notAvailable": "Les groupes ne sont pas encore disponibles",
+    "teamsTbd": "Équipes à confirmer",
+    "heroKicker": "Groupes du tournoi",
+    "heroDescription": "Suivez chaque classement de groupe, les places qualificatives et la course vers la phase à élimination directe."
+  },
+  "mirrors": {
+    "unavailable": "Ce miroir peut être indisponible.",
+    "switchTo": "Basculer vers :"
+  },
+  "streamPage": {
+    "brand": "Couverture du match",
+    "backToMatch": "Match",
+    "mainSite": "Accueil",
+    "external": "Continuer",
+    "matchInfo": "Match",
+    "status": "Statut",
+    "chat": "Chat",
+    "matchFinished": "Match terminé",
+    "videoBeforeKickoff": "La couverture vidéo sera disponible avant le coup d'envoi",
+    "telegramBot": "Bot Telegram",
+    "matchAlerts": "Alertes et mises à jour du match",
+    "openBot": "Ouvrir le bot"
+  },
+  "footer": {
+    "mirrors": "Miroirs",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "contactUs": "Nous contacter",
+    "disclaimer": "WC26 · Centre des matchs · Tous les droits appartiennent à leurs propriétaires respectifs"
+  },
+  "admin": {
+    "brand": "WC2026 Admin",
+    "logout": "Déconnexion",
+    "nav": {
+      "matches": "Matchs",
+      "streams": "Flux",
+      "mirrors": "Miroirs"
+    },
+    "common": {
+      "id": "ID",
+      "save": "Enregistrer",
+      "saving": "Enregistrement...",
+      "cancel": "Annuler",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "actions": "Actions",
+      "closeForm": "Fermer le formulaire",
+      "active": "Actif",
+      "yes": "Oui",
+      "no": "Non",
+      "languages": {
+        "en": "Anglais",
+        "ru": "Russe",
+        "es": "Espagnol",
+        "pt": "Portugais",
+        "ar": "Arabe",
+        "fr": "Français",
+        "de": "Allemand",
+        "zh": "Chinois",
+        "ja": "Japonais",
+        "ko": "Coréen"
+      }
+    },
+    "login": {
+      "title": "WC2026 Admin",
+      "username": "Nom d'utilisateur",
+      "password": "Mot de passe",
+      "submit": "Connexion",
+      "submitting": "Connexion en cours...",
+      "invalidCredentials": "Identifiants invalides",
+      "connectionError": "Erreur de connexion"
+    },
+    "matches": {
+      "title": "Matchs ({count})",
+      "add": "+ Ajouter un match",
+      "edit": "Modifier le match",
+      "create": "Nouveau match",
+      "created": "Match créé",
+      "updated": "Match mis à jour",
+      "deleteConfirm": "Supprimer ce match ?",
+      "invalidDateTime": "Date ou heure invalide",
+      "saveError": "Impossible d'enregistrer le match",
+      "updateStatusError": "Impossible de mettre à jour le statut du match",
+      "scorePushed": "Score envoyé en direct",
+      "quickStatusMessage": "Match #{id} → {status}",
+      "liveScoreTitle": "Score en direct - Match #{id}",
+      "pushLive": "Envoyer en direct",
+      "start": "Démarrer",
+      "halftime": "Mi-temps",
+      "end": "Terminer",
+      "score": "Score",
+      "tbd": "À définir",
+      "form": {
+        "homeTeamId": "ID de l'équipe à domicile",
+        "awayTeamId": "ID de l'équipe à l'extérieur",
+        "groupIdOptional": "ID du groupe (optionnel)",
+        "dateTime": "Date et heure",
+        "venue": "Stade",
+        "city": "Ville",
+        "stage": "Phase",
+        "status": "Statut",
+        "homeScore": "Score domicile",
+        "awayScore": "Score extérieur",
+        "minute": "Minute",
+        "minuteOptional": "Minute (optionnel)",
+        "streamRedirectUrl": "URL de redirection vers le site de streaming",
+        "streamRedirectPlaceholder": "https://example.com/watch/match"
+      },
+      "table": {
+        "home": "Domicile",
+        "away": "Extérieur",
+        "score": "Score",
+        "date": "Date",
+        "stage": "Phase",
+        "status": "Statut"
+      },
+      "stages": {
+        "group": "Phase de groupes",
+        "round_of_32": "Seizièmes de finale",
+        "round_of_16": "Huitièmes de finale",
+        "quarter": "Quarts de finale",
+        "semi": "Demi-finales",
+        "third_place": "Match pour la troisième place",
+        "final": "Finale"
+      },
+      "statuses": {
+        "scheduled": "Programmé",
+        "live": "En direct",
+        "half_time": "Mi-temps",
+        "finished": "Terminé",
+        "postponed": "Reporté"
+      }
+    },
+    "streams": {
+      "title": "Flux ({count})",
+      "add": "+ Ajouter un flux",
+      "edit": "Modifier le flux",
+      "create": "Nouveau flux",
+      "created": "Flux créé",
+      "updated": "Flux mis à jour",
+      "loadError": "Impossible de charger les flux",
+      "saveError": "Impossible d'enregistrer le flux",
+      "deleteError": "Impossible de supprimer le flux",
+      "deleteConfirm": "Supprimer le flux ?",
+      "form": {
+        "matchId": "ID du match",
+        "label": "Libellé",
+        "hlsUrl": "URL m3u8",
+        "iframeUrl": "URL de l'iframe intégrée",
+        "sourceType": "Type de source",
+        "quality": "Qualité",
+        "language": "Langue",
+        "region": "Région",
+        "commentary": "Commentaire",
+        "priority": "Priorité"
+      },
+      "table": {
+        "match": "Match",
+        "label": "Libellé",
+        "type": "Type",
+        "quality": "Qualité",
+        "language": "Langue",
+        "region": "Région",
+        "active": "Actif",
+        "url": "URL"
+      },
+      "sourceTypes": {
+        "hls": "HLS",
+        "iframe": "Iframe / Telegram"
+      },
+      "regions": {
+        "global": "Global",
+        "eu": "Europe",
+        "us": "Amériques",
+        "asia": "Asie",
+        "mena": "MENA"
+      },
+      "commentaryTypes": {
+        "full": "Commentaire complet",
+        "no_commentary": "Sans commentaire",
+        "home_team": "Commentaire de l'équipe à domicile"
+      }
+    },
+    "mirrors": {
+      "title": "Miroirs ({count})",
+      "add": "+ Ajouter un miroir",
+      "deleteConfirm": "Supprimer le miroir ?",
+      "activateConfirm": "Définir {domain} comme miroir PRINCIPAL ?\nCela enverra une alerte Telegram.",
+      "activate": "Activer",
+      "primary": "PRINCIPAL",
+      "standby": "Secours",
+      "lastCheckEmpty": "—",
+      "form": {
+        "domain": "Domaine",
+        "domainPlaceholder": "example.com",
+        "region": "Région",
+        "priority": "Priorité"
+      },
+      "table": {
+        "domain": "Domaine",
+        "region": "Région",
+        "priority": "Priorité",
+        "primary": "Principal",
+        "status": "Statut",
+        "lastCheck": "Dernière vérification"
+      },
+      "regions": {
+        "global": "Global",
+        "eu": "Europe",
+        "us": "Amériques",
+        "asia": "Asie",
+        "mena": "MENA"
+      },
+      "statuses": {
+        "healthy": "Sain",
+        "unreachable": "Injoignable",
+        "unknown": "Inconnu"
+      }
+    }
+  },
+  "languages": {
+    "en": "English",
+    "ru": "Русский",
+    "es": "Español",
+    "pt": "Português",
+    "ar": "العربية",
+    "fr": "Français",
+    "de": "Deutsch",
+    "zh": "中文",
+    "ja": "日本語",
+    "ko": "한국어"
+  }
+}

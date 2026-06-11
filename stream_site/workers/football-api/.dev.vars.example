@@ -1,0 +1,6 @@
+API_FOOTBALL_KEY=replace-with-your-api-football-key
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=replace-with-admin-password
+ADMIN_BEARER_TOKEN=replace-with-admin-bearer-token
+ADMIN_REQUIRE_ACCESS=false
+ADMIN_ACCESS_EMAILS=you@example.com

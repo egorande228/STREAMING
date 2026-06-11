@@ -1,0 +1,368 @@
+{
+  "meta": {
+    "title": "WC26 · 2026 ワールドカップ試合センター",
+    "description": "2026 ワールドカップの試合日程、スコア、グループ、試合詳細を一か所で確認できます。"
+  },
+  "nav": {
+    "home": "ホーム",
+    "schedule": "日程",
+    "groups": "グループ",
+    "search": "検索"
+  },
+  "ui": {
+    "home": "ホーム",
+    "close": "閉じる",
+    "scrollLeft": "左にスクロール",
+    "scrollRight": "右にスクロール",
+    "backToMatches": "試合一覧に戻る"
+  },
+  "ads": {
+    "label": "広告"
+  },
+  "home": {
+    "heroSubtitle": "アメリカ · カナダ · メキシコ — 日程、スコア、試合詳細を一か所で",
+    "liveNow": "試合中",
+    "todayMatches": "今日の試合",
+    "upcomingMatches": "まもなく開始",
+    "noLive": "現在進行中の試合はありません",
+    "groups": "グループ",
+    "inProgress": "{count, plural, one {# 試合進行中} other {# 試合進行中}}",
+    "noMatchesToday": "今日は試合がありません",
+    "noMatchesApi": "試合を読み込めませんでした。バックエンド API が起動しているか確認してください。",
+    "viewFullSchedule": "全日程を見る",
+    "roadToGlory": "栄光への道",
+    "heroTitleLine1": "すべての",
+    "heroTitleAccent": "World Cup 26",
+    "heroTitleLine3": "試合日を追う",
+    "heroBody": "全 104 試合、すべての情熱。日程、スコア、試合詳細をわかりやすくまとめたハブです。",
+    "matchCenter": "試合センター",
+    "matchDetails": "試合詳細",
+    "tournamentDates": "2026年6月11日 - 7月19日",
+    "featuredTitle": "注目の",
+    "featuredTitleAccent": "試合",
+    "followTitle": "世界中が注目しています。",
+    "followAccent": "あなたは？"
+  },
+  "schedule": {
+    "title": "全日程",
+    "comingSoon": "日程は近日公開予定です"
+  },
+  "match": {
+    "live": "LIVE",
+    "inPlay": "試合中",
+    "finished": "終了",
+    "fullTime": "試合終了",
+    "halfTime": "HT",
+    "scheduled": "まもなく開始",
+    "kickoff": "キックオフ",
+    "venue": "会場",
+    "watchNow": "試合センター",
+    "streams": "配信",
+    "selectStream": "配信を選択",
+    "language": "言語",
+    "quality": "画質",
+    "noStreams": "配信情報はまだ利用できません",
+    "tbd": "未定",
+    "versus": "vs",
+    "startingNow": "まもなく開始",
+    "notFound": "試合が見つからないか、利用できません。",
+    "stages": {
+      "group": "グループステージ",
+      "round_of_32": "ラウンド32",
+      "round_of_16": "ラウンド16",
+      "quarter": "準々決勝",
+      "semi": "準決勝",
+      "third_place": "3位決定戦",
+      "final": "決勝"
+    }
+  },
+  "matchStats": {
+    "overview": "概要",
+    "events": "イベント",
+    "lineups": "メンバー",
+    "venue": "会場",
+    "stage": "ステージ",
+    "kickoff": "キックオフ",
+    "headToHead": "対戦成績（{count} 試合）",
+    "wins": "{team} の勝利数",
+    "goals": "ゴール",
+    "draws": "{count} 引き分け",
+    "noMeetings": "過去の対戦記録はありません",
+    "recentForm": "最近の成績",
+    "noEvents": "まだ試合イベントはありません",
+    "lineupsUnavailable": "メンバーはまだ利用できません",
+    "substitutes": "控え選手"
+  },
+  "player": {
+    "noStreams": "配信情報は利用できません",
+    "language": "言語",
+    "source": "ソース",
+    "quality": "画質",
+    "auto": "自動"
+  },
+  "chat": {
+    "title": "試合チャット",
+    "placeholder": "メッセージを入力...",
+    "send": "送信",
+    "joinAs": "チャットに参加する名前を入力...",
+    "join": "参加",
+    "anonymous": "匿名",
+    "connecting": "接続中...",
+    "connected": "接続済み",
+    "disconnected": "切断されました",
+    "reconnecting": "再接続中..."
+  },
+  "news": {
+    "titlePrefix": "サッカー",
+    "titleAccent": "ニュース",
+    "readMore": "続きを読む",
+    "breadcrumb": "サッカーニュース",
+    "fullArticleNotice": "記事全文は元サイトで読むことができます。",
+    "readFullArticle": "記事全文を読む"
+  },
+  "groups": {
+    "title": "グループ順位表",
+    "group": "グループ",
+    "team": "チーム",
+    "played": "試",
+    "won": "勝",
+    "drawn": "分",
+    "lost": "敗",
+    "gf": "得",
+    "ga": "失",
+    "gd": "差",
+    "points": "勝点",
+    "qualified": "突破",
+    "notAvailable": "グループ情報はまだ利用できません",
+    "teamsTbd": "チーム未定",
+    "heroKicker": "大会グループ",
+    "heroDescription": "各グループ表、突破圏、そしてノックアウトステージ進出争いを追いかけましょう。"
+  },
+  "mirrors": {
+    "unavailable": "このミラーは利用できない可能性があります。",
+    "switchTo": "切り替え先："
+  },
+  "streamPage": {
+    "brand": "試合配信",
+    "backToMatch": "試合へ",
+    "mainSite": "ホーム",
+    "external": "続行",
+    "matchInfo": "試合",
+    "status": "ステータス",
+    "chat": "チャット",
+    "matchFinished": "試合終了",
+    "videoBeforeKickoff": "動画配信はキックオフ前に利用可能になります",
+    "telegramBot": "Telegram ボット",
+    "matchAlerts": "試合アラートと更新情報",
+    "openBot": "ボットを開く"
+  },
+  "footer": {
+    "mirrors": "ミラーサイト",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "contactUs": "お問い合わせ",
+    "disclaimer": "WC26 · 試合センター · すべての権利は各権利者に帰属します"
+  },
+  "admin": {
+    "brand": "WC2026 Admin",
+    "logout": "ログアウト",
+    "nav": {
+      "matches": "試合",
+      "streams": "配信",
+      "mirrors": "ミラー"
+    },
+    "common": {
+      "id": "ID",
+      "save": "保存",
+      "saving": "保存中...",
+      "cancel": "キャンセル",
+      "edit": "編集",
+      "delete": "削除",
+      "actions": "操作",
+      "closeForm": "フォームを閉じる",
+      "active": "有効",
+      "yes": "はい",
+      "no": "いいえ",
+      "languages": {
+        "en": "英語",
+        "ru": "ロシア語",
+        "es": "スペイン語",
+        "pt": "ポルトガル語",
+        "ar": "アラビア語",
+        "fr": "フランス語",
+        "de": "ドイツ語",
+        "zh": "中国語",
+        "ja": "日本語",
+        "ko": "韓国語"
+      }
+    },
+    "login": {
+      "title": "WC2026 Admin",
+      "username": "ユーザー名",
+      "password": "パスワード",
+      "submit": "ログイン",
+      "submitting": "ログイン中...",
+      "invalidCredentials": "認証情報が無効です",
+      "connectionError": "接続エラー"
+    },
+    "matches": {
+      "title": "試合 ({count})",
+      "add": "+ 試合を追加",
+      "edit": "試合を編集",
+      "create": "新しい試合",
+      "created": "試合を作成しました",
+      "updated": "試合を更新しました",
+      "deleteConfirm": "この試合を削除しますか？",
+      "invalidDateTime": "日付または時刻が無効です",
+      "saveError": "試合を保存できませんでした",
+      "updateStatusError": "試合ステータスを更新できませんでした",
+      "scorePushed": "スコアをライブへ反映しました",
+      "quickStatusMessage": "試合 #{id} → {status}",
+      "liveScoreTitle": "ライブスコア - 試合 #{id}",
+      "pushLive": "ライブ反映",
+      "start": "開始",
+      "halftime": "ハーフタイム",
+      "end": "終了",
+      "score": "スコア",
+      "tbd": "未定",
+      "form": {
+        "homeTeamId": "ホームチーム ID",
+        "awayTeamId": "アウェイチーム ID",
+        "groupIdOptional": "グループ ID（任意）",
+        "dateTime": "日時",
+        "venue": "会場",
+        "city": "都市",
+        "stage": "ステージ",
+        "status": "ステータス",
+        "homeScore": "ホームスコア",
+        "awayScore": "アウェイスコア",
+        "minute": "分",
+        "minuteOptional": "分（任意）",
+        "streamRedirectUrl": "配信サイトへのリダイレクト URL",
+        "streamRedirectPlaceholder": "https://example.com/watch/match"
+      },
+      "table": {
+        "home": "ホーム",
+        "away": "アウェイ",
+        "score": "スコア",
+        "date": "日時",
+        "stage": "ステージ",
+        "status": "ステータス"
+      },
+      "stages": {
+        "group": "グループステージ",
+        "round_of_32": "ラウンド32",
+        "round_of_16": "ラウンド16",
+        "quarter": "準々決勝",
+        "semi": "準決勝",
+        "third_place": "3位決定戦",
+        "final": "決勝"
+      },
+      "statuses": {
+        "scheduled": "予定",
+        "live": "ライブ",
+        "half_time": "ハーフタイム",
+        "finished": "終了",
+        "postponed": "延期"
+      }
+    },
+    "streams": {
+      "title": "配信 ({count})",
+      "add": "+ 配信を追加",
+      "edit": "配信を編集",
+      "create": "新しい配信",
+      "created": "配信を作成しました",
+      "updated": "配信を更新しました",
+      "loadError": "配信を読み込めませんでした",
+      "saveError": "配信を保存できませんでした",
+      "deleteError": "配信を削除できませんでした",
+      "deleteConfirm": "配信を削除しますか？",
+      "form": {
+        "matchId": "試合 ID",
+        "label": "ラベル",
+        "hlsUrl": "m3u8 URL",
+        "iframeUrl": "埋め込み iframe URL",
+        "sourceType": "ソースタイプ",
+        "quality": "画質",
+        "language": "言語",
+        "region": "地域",
+        "commentary": "実況",
+        "priority": "優先度"
+      },
+      "table": {
+        "match": "試合",
+        "label": "ラベル",
+        "type": "タイプ",
+        "quality": "画質",
+        "language": "言語",
+        "region": "地域",
+        "active": "有効",
+        "url": "URL"
+      },
+      "sourceTypes": {
+        "hls": "HLS",
+        "iframe": "Iframe / Telegram"
+      },
+      "regions": {
+        "global": "グローバル",
+        "eu": "ヨーロッパ",
+        "us": "アメリカ",
+        "asia": "アジア",
+        "mena": "中東・北アフリカ"
+      },
+      "commentaryTypes": {
+        "full": "フル実況",
+        "no_commentary": "実況なし",
+        "home_team": "ホームチーム実況"
+      }
+    },
+    "mirrors": {
+      "title": "ミラー ({count})",
+      "add": "+ ミラーを追加",
+      "deleteConfirm": "ミラーを削除しますか？",
+      "activateConfirm": "{domain} を主ミラーに設定しますか？\nTelegram アラートが送信されます。",
+      "activate": "有効化",
+      "primary": "メイン",
+      "standby": "待機",
+      "lastCheckEmpty": "—",
+      "form": {
+        "domain": "ドメイン",
+        "domainPlaceholder": "example.com",
+        "region": "地域",
+        "priority": "優先度"
+      },
+      "table": {
+        "domain": "ドメイン",
+        "region": "地域",
+        "priority": "優先度",
+        "primary": "メイン",
+        "status": "状態",
+        "lastCheck": "最終確認"
+      },
+      "regions": {
+        "global": "グローバル",
+        "eu": "ヨーロッパ",
+        "us": "アメリカ",
+        "asia": "アジア",
+        "mena": "中東・北アフリカ"
+      },
+      "statuses": {
+        "healthy": "正常",
+        "unreachable": "到達不可",
+        "unknown": "不明"
+      }
+    }
+  },
+  "languages": {
+    "en": "English",
+    "ru": "Русский",
+    "es": "Español",
+    "pt": "Português",
+    "ar": "العربية",
+    "fr": "Français",
+    "de": "Deutsch",
+    "zh": "中文",
+    "ja": "日本語",
+    "ko": "한국어"
+  }
+}

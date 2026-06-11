@@ -1,0 +1,218 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stream
+      POSTGRES_PASSWORD: stream
+      POSTGRES_DB: streamdb
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+      ENABLE_DEV_ADMIN_BOOTSTRAP: ${ENABLE_DEV_ADMIN_BOOTSTRAP:-true}
+      DEFAULT_MIRROR_DOMAIN: ${DEFAULT_MIRROR_DOMAIN:-}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ../backend/migrations/001_initial.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ../backend/migrations/002_mirrors_priority.sql:/docker-entrypoint-initdb.d/02_schema_ext.sql:ro
+      - ../backend/migrations/003_external_ids.sql:/docker-entrypoint-initdb.d/03_external_ids.sql:ro
+      - ../backend/migrations/010_perf_indexes.sql:/docker-entrypoint-initdb.d/10_perf_indexes.sql:ro
+      - ../backend/migrations/011_stream_keys.sql:/docker-entrypoint-initdb.d/11_stream_keys.sql:ro
+      - ../backend/migrations/012_stream_source_type.sql:/docker-entrypoint-initdb.d/12_stream_source_type.sql:ro
+      - ../backend/migrations/013_stats.sql:/docker-entrypoint-initdb.d/13_stats.sql:ro
+      - ../backend/migrations/014_mirrors_primary_unique.sql:/docker-entrypoint-initdb.d/14_mirrors_primary_unique.sql:ro
+      - ../scripts/seed-teams.sql:/docker-entrypoint-initdb.d/20_teams.sql:ro
+      - ../scripts/seed-admin.sh:/docker-entrypoint-initdb.d/21_admin.sh:ro
+      - ../scripts/seed-schedule.sql:/docker-entrypoint-initdb.d/22_schedule.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stream -d streamdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://stream:stream@postgres:5432/streamdb?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret}
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+      ENV: ${ENV:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  frontend_main:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        APP_WORKSPACE: "@stream-site/main"
+        APP_PATH: apps/main
+        BACKEND_URL: http://backend:8080
+        NEXT_PUBLIC_STREAM_SITE_URL: ${NEXT_PUBLIC_STREAM_SITE_URL:-http://localhost:3100}
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      BACKEND_URL: http://backend:8080
+      NEXT_PUBLIC_STREAM_SITE_URL: ${NEXT_PUBLIC_STREAM_SITE_URL:-http://localhost:3100}
+    depends_on:
+      backend:
+        condition: service_healthy
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  frontend_stream:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        APP_WORKSPACE: "@stream-site/stream"
+        APP_PATH: apps/stream
+        BACKEND_URL: http://backend:8080
+        HLS_PROXY_URL: http://hls_proxy:8089
+    restart: unless-stopped
+    environment:
+      PORT: "3100"
+      BACKEND_URL: http://backend:8080
+      HLS_PROXY_URL: http://hls_proxy:8089
+    depends_on:
+      backend:
+        condition: service_healthy
+      hls_proxy:
+        condition: service_healthy
+    ports:
+      - "3100:3100"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3100/en/stream/1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  rtmp:
+    image: alfg/nginx-rtmp
+    platform: linux/amd64
+    restart: unless-stopped
+    ports:
+      - "1935:1935"   # OBS pushes here: rtmp://server:1935/live
+      - "8088:80"     # internal HLS HTTP (proxied by nginx at /live/)
+    volumes:
+      - ./nginx-rtmp/nginx.conf:/etc/nginx/nginx.conf.template:ro
+      - hls_data:/tmp/hls
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/stat"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  hls_proxy:
+    image: ghcr.io/pcruz1905/hls-restream-proxy:latest
+    restart: unless-stopped
+    volumes:
+      - ./hls/channels.conf:/app/channels.conf:ro
+    ports:
+      - "8089:8089"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8089/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/cloudflare-ips.conf:/etc/nginx/cloudflare-ips.conf:ro
+      - ./hls/fixtures:/etc/nginx/hls-fixtures:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend_main
+      - hls_proxy
+      - rtmp
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/api/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+volumes:
+  pg_data:
+  redis_data:
+  hls_data:

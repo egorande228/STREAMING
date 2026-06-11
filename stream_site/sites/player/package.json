@@ -1,0 +1,8 @@
+{
+  "name": "kinglive-pages-player",
+  "private": true,
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test app.test.mjs build.test.mjs"
+  }
+}

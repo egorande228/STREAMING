@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="KingLive matchday hub for fixtures, scores and match details." />
+    <title>KingLive Matchday Hub</title>
+    <link rel="preload" href="./assets/world-cup-hero.png" as="image" />
+    <link rel="icon" type="image/svg+xml" href="./assets/kinglive-mark-flat.svg?v=20260515-flat" />
+    <link rel="stylesheet" href="./styles.css?v=20260520-new-banners" />
+    <script src="./config.js"></script>
+    <script defer src="./url-propagation.js"></script>
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="frame topbar-inner">
+        <a class="brand" href="./" aria-label="KingLive home">
+          <span class="brand-mark" aria-hidden="true">
+            <img src="./assets/kinglive-3d-logo.png?v=20260528-3d" alt="" />
+          </span>
+        </a>
+
+        <nav class="nav" aria-label="Primary">
+          <a class="active" href="./" id="nav-home">Home</a>
+          <a href="#schedule" id="nav-schedule">Schedule</a>
+          <a href="#news" id="nav-groups">News</a>
+        </nav>
+
+        <button class="locale" type="button" aria-label="Language">
+          <span>🇬🇧</span>
+          <span>EN</span>
+          <span aria-hidden="true">⌄</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="frame page-stack">
+      <section class="hero-card" aria-labelledby="hero-highlight">
+        <div class="broadcast-panel">
+          <div class="broadcast-copy">
+            <p class="section-kicker" id="hero-kicker">Road to glory</p>
+            <h1>
+              <span class="hero-line" id="hero-line-1">Follow every</span>
+              <span class="hero-highlight" id="hero-highlight">World Cup 26</span>
+              <span class="hero-line" id="hero-line-2">matchday</span>
+            </h1>
+            <p class="hero-text" id="hero-text">
+              KingLive keeps fixtures, live entry points, scores and match details in one sharp matchday hub.
+            </p>
+            <div class="hero-actions">
+              <a class="button primary" href="#schedule" id="hero-action-main">Match center</a>
+              <a class="button secondary" href="#news" id="hero-action-groups">News</a>
+            </div>
+          </div>
+
+          <div class="broadcast-board" aria-label="KingLive tournament board">
+            <div class="board-label">On air</div>
+            <div class="board-brand">KINGLIVE</div>
+            <div class="board-strip">
+              <span>Fixtures</span>
+              <span>Stats</span>
+              <span>Streams</span>
+            </div>
+            <div class="tournament-pill">
+              <span class="pill-mark">26</span>
+              <span>
+                <strong id="tournament-title">KingLive World Cup 26</strong>
+                <em id="tournament-dates">June 11 - July 19, 2026</em>
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="schedule-layout" id="schedule" aria-labelledby="schedule-title">
+        <div class="match-column">
+          <div class="section-heading">
+            <div>
+              <h2 id="schedule-title"><span id="schedule-title-prefix">Upcoming</span> <span id="schedule-title-accent">matches</span></h2>
+              <div class="heading-line"></div>
+            </div>
+            <button class="button secondary refresh-button" id="refresh-matches" type="button">Refresh now</button>
+          </div>
+
+          <div class="match-list" id="match-grid" aria-live="polite">
+            <article class="empty-card">Loading matches</article>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="news-panel" id="news" aria-labelledby="news-title">
+        <div class="section-heading compact">
+          <div>
+            <p class="section-kicker" id="news-kicker">Football pulse</p>
+            <h2 id="news-title"><span id="news-title-prefix">Latest</span> <span id="news-title-accent">news</span></h2>
+            <div class="heading-line"></div>
+          </div>
+          <div class="carousel-controls" aria-label="News carousel controls">
+            <button class="carousel-button" type="button" data-news-scroll="-1" aria-label="Previous news">‹</button>
+            <button class="carousel-button" type="button" data-news-scroll="1" aria-label="Next news">›</button>
+          </div>
+        </div>
+        <div class="news-viewport">
+          <div class="news-grid" id="news-grid" aria-live="polite">
+            <article class="empty-card">Loading football news</article>
+          </div>
+        </div>
+      </section>
+
+      <a class="sponsor-link" href="https://refpa3665.com/L?tag=d_5517121m_66329c_worldcuplive" target="_blank" rel="nofollow sponsored noopener">
+        <aside class="sponsor-slot sponsor-footer" aria-label="Sponsored">
+          <picture>
+            <source media="(max-width: 760px)" srcset="../banners/footer_343x200_mockup_original.png" />
+            <source media="(max-width: 1100px)" srcset="../banners/footer_728x160_mockup_original.png" />
+            <img src="../banners/footer_1180x180_mockup_original.png" width="1423" height="76" alt="Sponsored" loading="lazy" />
+          </picture>
+        </aside>
+      </a>
+
+      <section class="follow-band" id="groups">
+        <div>
+          <p class="section-kicker" id="follow-band-kicker">Legal notice</p>
+          <h2 id="follow-band-title">Independent informational website</h2>
+          <p class="follow-note" id="follow-band-disclaimer">
+            KingLive is operated independently and is not affiliated with, endorsed by, or operated by Melbet. Any trademarks, brand names, logos, advertisements or third-party materials displayed on this website remain the property of their respective owners.
+          </p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

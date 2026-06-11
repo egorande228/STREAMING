@@ -1,0 +1,368 @@
+{
+  "meta": {
+    "title": "WC26 · مركز مباريات كأس العالم 2026",
+    "description": "تابع جدول مباريات كأس العالم 2026 والنتائج والمجموعات وتفاصيل المباريات في مكان واحد."
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "schedule": "الجدول",
+    "groups": "المجموعات",
+    "search": "بحث"
+  },
+  "ui": {
+    "home": "الرئيسية",
+    "close": "إغلاق",
+    "scrollLeft": "التمرير إلى اليسار",
+    "scrollRight": "التمرير إلى اليمين",
+    "backToMatches": "العودة إلى المباريات"
+  },
+  "ads": {
+    "label": "إعلان"
+  },
+  "home": {
+    "heroSubtitle": "الولايات المتحدة · كندا · المكسيك — الجدول والنتائج وتفاصيل المباريات في مكان واحد",
+    "liveNow": "مباشر الآن",
+    "todayMatches": "مباريات اليوم",
+    "upcomingMatches": "القادمة",
+    "noLive": "لا توجد مباريات جارية الآن",
+    "groups": "المجموعات",
+    "inProgress": "{count, plural, one {مباراة واحدة جارية} other {# مباريات جارية}}",
+    "noMatchesToday": "لا توجد مباريات اليوم",
+    "noMatchesApi": "تعذر تحميل المباريات. تحقق من أن واجهة backend API تعمل.",
+    "viewFullSchedule": "عرض الجدول الكامل",
+    "roadToGlory": "الطريق إلى المجد",
+    "heroTitleLine1": "تابع كل",
+    "heroTitleAccent": "World Cup 26",
+    "heroTitleLine3": "يوم مباريات",
+    "heroBody": "جميع المباريات الـ104. كل الشغف. مركز واحد واضح للجدول والنتائج وتفاصيل المباريات.",
+    "matchCenter": "مركز المباراة",
+    "matchDetails": "تفاصيل المباراة",
+    "tournamentDates": "11 يونيو - 19 يوليو 2026",
+    "featuredTitle": "المباريات",
+    "featuredTitleAccent": "القادمة",
+    "followTitle": "العالم كله يتابع.",
+    "followAccent": "وأنت؟"
+  },
+  "schedule": {
+    "title": "الجدول الكامل",
+    "comingSoon": "سيكون الجدول متاحًا قريبًا"
+  },
+  "match": {
+    "live": "مباشر",
+    "inPlay": "المباراة جارية",
+    "finished": "نهاية",
+    "fullTime": "نهاية المباراة",
+    "halfTime": "استراحة",
+    "scheduled": "قريبًا",
+    "kickoff": "انطلاق",
+    "venue": "الملعب",
+    "watchNow": "مركز المباراة",
+    "streams": "التغطية",
+    "selectStream": "اختر التغطية",
+    "language": "اللغة",
+    "quality": "الجودة",
+    "noStreams": "تفاصيل التغطية غير متاحة بعد",
+    "tbd": "يحدد لاحقًا",
+    "versus": "ضد",
+    "startingNow": "يبدأ الآن",
+    "notFound": "المباراة غير موجودة أو غير متاحة.",
+    "stages": {
+      "group": "دور المجموعات",
+      "round_of_32": "دور الـ32",
+      "round_of_16": "دور الـ16",
+      "quarter": "ربع النهائي",
+      "semi": "نصف النهائي",
+      "third_place": "مباراة المركز الثالث",
+      "final": "النهائي"
+    }
+  },
+  "matchStats": {
+    "overview": "نظرة عامة",
+    "events": "الأحداث",
+    "lineups": "التشكيلات",
+    "venue": "الملعب",
+    "stage": "المرحلة",
+    "kickoff": "انطلاق",
+    "headToHead": "المواجهات المباشرة ({count})",
+    "wins": "انتصارات {team}",
+    "goals": "الأهداف",
+    "draws": "{count} تعادلات",
+    "noMeetings": "لا توجد مواجهات سابقة مسجلة",
+    "recentForm": "النتائج الأخيرة",
+    "noEvents": "لا توجد أحداث للمباراة بعد",
+    "lineupsUnavailable": "التشكيلات غير متاحة بعد",
+    "substitutes": "البدلاء"
+  },
+  "player": {
+    "noStreams": "تفاصيل التغطية غير متاحة",
+    "language": "اللغة",
+    "source": "المصدر",
+    "quality": "الجودة",
+    "auto": "تلقائي"
+  },
+  "chat": {
+    "title": "دردشة المباراة",
+    "placeholder": "اكتب رسالة...",
+    "send": "إرسال",
+    "joinAs": "أدخل اسمك للدردشة...",
+    "join": "انضم",
+    "anonymous": "مجهول",
+    "connecting": "جارٍ الاتصال...",
+    "connected": "تم الاتصال",
+    "disconnected": "تم قطع الاتصال",
+    "reconnecting": "جارٍ إعادة الاتصال..."
+  },
+  "news": {
+    "titlePrefix": "أخبار",
+    "titleAccent": "كرة القدم",
+    "readMore": "اقرأ المزيد",
+    "breadcrumb": "أخبار كرة القدم",
+    "fullArticleNotice": "النص الكامل للمقال متاح على الموقع الأصلي.",
+    "readFullArticle": "اقرأ المقال كاملًا"
+  },
+  "groups": {
+    "title": "ترتيب المجموعات",
+    "group": "المجموعة",
+    "team": "الفريق",
+    "played": "ل",
+    "won": "ف",
+    "drawn": "ت",
+    "lost": "خ",
+    "gf": "له",
+    "ga": "عليه",
+    "gd": "فارق",
+    "points": "نقاط",
+    "qualified": "متأهل",
+    "notAvailable": "المجموعات غير متاحة بعد",
+    "teamsTbd": "الفرق لم تتحدد بعد",
+    "heroKicker": "مجموعات البطولة",
+    "heroDescription": "تابع كل جدول مجموعة ومراكز التأهل والصراع نحو الأدوار الإقصائية."
+  },
+  "mirrors": {
+    "unavailable": "قد يكون هذا المرآة غير متاح.",
+    "switchTo": "التبديل إلى:"
+  },
+  "streamPage": {
+    "brand": "تغطية المباراة",
+    "backToMatch": "إلى المباراة",
+    "mainSite": "الرئيسية",
+    "external": "متابعة",
+    "matchInfo": "المباراة",
+    "status": "الحالة",
+    "chat": "الدردشة",
+    "matchFinished": "انتهت المباراة",
+    "videoBeforeKickoff": "ستتوفر التغطية المرئية قبل انطلاق المباراة",
+    "telegramBot": "بوت تيليغرام",
+    "matchAlerts": "تنبيهات المباراة والتحديثات",
+    "openBot": "افتح البوت"
+  },
+  "footer": {
+    "mirrors": "المواقع البديلة",
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp",
+    "contactUs": "تواصل معنا",
+    "disclaimer": "WC26 · مركز المباريات · جميع الحقوق محفوظة لأصحابها"
+  },
+  "admin": {
+    "brand": "WC2026 Admin",
+    "logout": "تسجيل الخروج",
+    "nav": {
+      "matches": "المباريات",
+      "streams": "البث",
+      "mirrors": "المرايا"
+    },
+    "common": {
+      "id": "ID",
+      "save": "حفظ",
+      "saving": "جارٍ الحفظ...",
+      "cancel": "إلغاء",
+      "edit": "تعديل",
+      "delete": "حذف",
+      "actions": "الإجراءات",
+      "closeForm": "إغلاق النموذج",
+      "active": "نشط",
+      "yes": "نعم",
+      "no": "لا",
+      "languages": {
+        "en": "الإنجليزية",
+        "ru": "الروسية",
+        "es": "الإسبانية",
+        "pt": "البرتغالية",
+        "ar": "العربية",
+        "fr": "الفرنسية",
+        "de": "الألمانية",
+        "zh": "الصينية",
+        "ja": "اليابانية",
+        "ko": "الكورية"
+      }
+    },
+    "login": {
+      "title": "WC2026 Admin",
+      "username": "اسم المستخدم",
+      "password": "كلمة المرور",
+      "submit": "دخول",
+      "submitting": "جارٍ تسجيل الدخول...",
+      "invalidCredentials": "بيانات الدخول غير صحيحة",
+      "connectionError": "خطأ في الاتصال"
+    },
+    "matches": {
+      "title": "المباريات ({count})",
+      "add": "+ إضافة مباراة",
+      "edit": "تعديل المباراة",
+      "create": "مباراة جديدة",
+      "created": "تم إنشاء المباراة",
+      "updated": "تم تحديث المباراة",
+      "deleteConfirm": "هل تريد حذف هذه المباراة؟",
+      "invalidDateTime": "التاريخ أو الوقت غير صالح",
+      "saveError": "تعذر حفظ المباراة",
+      "updateStatusError": "تعذر تحديث حالة المباراة",
+      "scorePushed": "تم دفع النتيجة إلى البث المباشر",
+      "quickStatusMessage": "المباراة #{id} → {status}",
+      "liveScoreTitle": "النتيجة المباشرة - المباراة #{id}",
+      "pushLive": "دفع إلى البث المباشر",
+      "start": "ابدأ",
+      "halftime": "استراحة",
+      "end": "إنهاء",
+      "score": "النتيجة",
+      "tbd": "يحدد لاحقًا",
+      "form": {
+        "homeTeamId": "معرف الفريق المضيف",
+        "awayTeamId": "معرف الفريق الضيف",
+        "groupIdOptional": "معرف المجموعة (اختياري)",
+        "dateTime": "التاريخ/الوقت",
+        "venue": "الملعب",
+        "city": "المدينة",
+        "stage": "المرحلة",
+        "status": "الحالة",
+        "homeScore": "نتيجة المضيف",
+        "awayScore": "نتيجة الضيف",
+        "minute": "الدقيقة",
+        "minuteOptional": "الدقيقة (اختياري)",
+        "streamRedirectUrl": "رابط التحويل إلى موقع البث",
+        "streamRedirectPlaceholder": "https://example.com/watch/match"
+      },
+      "table": {
+        "home": "المضيف",
+        "away": "الضيف",
+        "score": "النتيجة",
+        "date": "التاريخ",
+        "stage": "المرحلة",
+        "status": "الحالة"
+      },
+      "stages": {
+        "group": "دور المجموعات",
+        "round_of_32": "دور الـ32",
+        "round_of_16": "دور الـ16",
+        "quarter": "ربع النهائي",
+        "semi": "نصف النهائي",
+        "third_place": "مباراة المركز الثالث",
+        "final": "النهائي"
+      },
+      "statuses": {
+        "scheduled": "مجدولة",
+        "live": "مباشر",
+        "half_time": "استراحة",
+        "finished": "منتهية",
+        "postponed": "مؤجلة"
+      }
+    },
+    "streams": {
+      "title": "البث ({count})",
+      "add": "+ إضافة بث",
+      "edit": "تعديل البث",
+      "create": "بث جديد",
+      "created": "تم إنشاء البث",
+      "updated": "تم تحديث البث",
+      "loadError": "تعذر تحميل البث",
+      "saveError": "تعذر حفظ البث",
+      "deleteError": "تعذر حذف البث",
+      "deleteConfirm": "هل تريد حذف البث؟",
+      "form": {
+        "matchId": "معرف المباراة",
+        "label": "الاسم",
+        "hlsUrl": "رابط m3u8",
+        "iframeUrl": "رابط iframe المضمن",
+        "sourceType": "نوع المصدر",
+        "quality": "الجودة",
+        "language": "اللغة",
+        "region": "المنطقة",
+        "commentary": "التعليق",
+        "priority": "الأولوية"
+      },
+      "table": {
+        "match": "المباراة",
+        "label": "الاسم",
+        "type": "النوع",
+        "quality": "الجودة",
+        "language": "اللغة",
+        "region": "المنطقة",
+        "active": "نشط",
+        "url": "الرابط"
+      },
+      "sourceTypes": {
+        "hls": "HLS",
+        "iframe": "Iframe / Telegram"
+      },
+      "regions": {
+        "global": "عالمي",
+        "eu": "أوروبا",
+        "us": "الأمريكتان",
+        "asia": "آسيا",
+        "mena": "الشرق الأوسط وشمال أفريقيا"
+      },
+      "commentaryTypes": {
+        "full": "تعليق كامل",
+        "no_commentary": "بدون تعليق",
+        "home_team": "تعليق الفريق المضيف"
+      }
+    },
+    "mirrors": {
+      "title": "المرايا ({count})",
+      "add": "+ إضافة مرآة",
+      "deleteConfirm": "هل تريد حذف المرآة؟",
+      "activateConfirm": "هل تريد تعيين {domain} كمرآة أساسية؟\nسيتم إرسال تنبيه عبر Telegram.",
+      "activate": "تفعيل",
+      "primary": "أساسي",
+      "standby": "احتياطي",
+      "lastCheckEmpty": "—",
+      "form": {
+        "domain": "النطاق",
+        "domainPlaceholder": "example.com",
+        "region": "المنطقة",
+        "priority": "الأولوية"
+      },
+      "table": {
+        "domain": "النطاق",
+        "region": "المنطقة",
+        "priority": "الأولوية",
+        "primary": "الأساسي",
+        "status": "الحالة",
+        "lastCheck": "آخر فحص"
+      },
+      "regions": {
+        "global": "عالمي",
+        "eu": "أوروبا",
+        "us": "الأمريكتان",
+        "asia": "آسيا",
+        "mena": "الشرق الأوسط وشمال أفريقيا"
+      },
+      "statuses": {
+        "healthy": "سليم",
+        "unreachable": "غير متاح",
+        "unknown": "غير معروف"
+      }
+    }
+  },
+  "languages": {
+    "en": "English",
+    "ru": "Русский",
+    "es": "Español",
+    "pt": "Português",
+    "ar": "العربية",
+    "fr": "Français",
+    "de": "Deutsch",
+    "zh": "中文",
+    "ja": "日本語",
+    "ko": "한국어"
+  }
+}

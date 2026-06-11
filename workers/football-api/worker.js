@@ -165,8 +165,9 @@ async function routeApiFootballRequest(url, env, ttl) {
   const streamConfig = await readRuntimeStreamConfig(env);
   const matches = applyMatchOverrides(fixtures.map((fixture) => normalizeFixture(fixture, env, streamConfig)), env, streamConfig);
   const visibleMatches = url.pathname === '/api/matches' ? sortMatches(matches.filter(isTopLeagueMatch)) : matches;
+  const responseTtl = visibleMatches.length ? ttl : 30;
   return url.pathname === '/api/matches'
-    ? jsonResponse({ matches: visibleMatches, total: visibleMatches.length }, 200, ttl)
+    ? jsonResponse({ matches: visibleMatches, total: visibleMatches.length }, 200, responseTtl)
     : jsonResponse(visibleMatches[0] ?? { error: 'match_not_found' }, visibleMatches[0] ? 200 : 404, ttl);
 }
 
@@ -214,8 +215,9 @@ async function routeSportmonksFootballRequest(url, env, ttl, ctx = {}) {
   const fixtures = Array.isArray(data) ? data : data ? [data] : [];
   const matches = applyMatchOverrides(fixtures.map((fixture) => normalizeSportmonksFixture(fixture, env, streamConfig)), env, streamConfig);
   const visibleMatches = url.pathname === '/api/matches' ? sortMatches(filterSportmonksWorldCupMatches(matches, env)) : matches;
+  const responseTtl = visibleMatches.length ? ttl : 30;
   return url.pathname === '/api/matches'
-    ? jsonResponse({ matches: visibleMatches, total: visibleMatches.length, source: 'sportmonks' }, 200, ttl)
+    ? jsonResponse({ matches: visibleMatches, total: visibleMatches.length, source: 'sportmonks' }, 200, responseTtl)
     : jsonResponse(visibleMatches[0] ?? { error: 'match_not_found' }, visibleMatches[0] ? 200 : 404, ttl);
 }
 
@@ -331,9 +333,10 @@ async function routeNewsRequest(request, env = {}, ctx = {}) {
     lang: newsLang,
     news,
   };
-  const newsResponse = jsonResponse(body, 200, ttl);
+  const newsTtl = news.length ? ttl : 60;
+  const newsResponse = jsonResponse(body, 200, newsTtl);
 
-  if (cache && newsResponse.ok) {
+  if (cache && newsResponse.ok && news.length) {
     const cacheable = newsResponse.clone();
     if (ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, cacheable));
     else await cache.put(cacheKey, cacheable);
@@ -868,12 +871,16 @@ async function listKvKeys(env = {}, prefix = '') {
 
 async function recordMetric(env = {}, key, value = 1) {
   if (!env.STREAM_CONFIG_KV?.get || !env.STREAM_CONFIG_KV?.put) return false;
-  const metricsKey = todayMetricsKey();
-  const current = await readTodayMetrics(env);
-  if (typeof value === 'number') current[key] = Number(current[key] || 0) + value;
-  else current[key] = value;
-  await env.STREAM_CONFIG_KV.put(metricsKey, JSON.stringify(current), { expirationTtl: 3 * 24 * 60 * 60 });
-  return true;
+  try {
+    const metricsKey = todayMetricsKey();
+    const current = await readTodayMetrics(env);
+    if (typeof value === 'number') current[key] = Number(current[key] || 0) + value;
+    else current[key] = value;
+    await env.STREAM_CONFIG_KV.put(metricsKey, JSON.stringify(current), { expirationTtl: 3 * 24 * 60 * 60 });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function readTodayMetrics(env = {}) {

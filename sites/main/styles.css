@@ -1168,6 +1168,57 @@ html[dir="rtl"] .locale-menu {
   backdrop-filter: blur(12px);
 }
 
+.adblock-modal[hidden] {
+  display: none;
+}
+
+.adblock-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.adblock-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.adblock-dialog {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(92vw, 420px);
+  gap: 14px;
+  border: 1px solid rgba(245, 196, 0, 0.34);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.62);
+  padding: 22px;
+}
+
+.adblock-dialog h2,
+.adblock-dialog p {
+  margin: 0;
+}
+
+.adblock-dialog h2 {
+  color: var(--gold);
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.adblock-dialog p {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 760;
+  line-height: 1.45;
+}
+
 .match-detail {
   position: relative;
   z-index: 1;

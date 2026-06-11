@@ -534,6 +534,57 @@
     playStream(0);
   }
 
+  function isAdElementHidden(element) {
+    if (!element) return false;
+    const style = typeof window.getComputedStyle === 'function' ? window.getComputedStyle(element) : null;
+    if (style && (style.display === 'none' || style.visibility === 'hidden')) return true;
+    const height = Number(element.offsetHeight ?? element.clientHeight ?? 1);
+    const width = Number(element.offsetWidth ?? element.clientWidth ?? 1);
+    return height <= 0 || width <= 0 || element.hidden === true;
+  }
+
+  function showAdblockModal() {
+    if (!document.body || document.querySelector?.('.adblock-modal')) return;
+    const notice = document.createElement('div');
+    notice.className = 'adblock-modal';
+    notice.innerHTML = `
+      <div class="adblock-modal-backdrop" data-adblock-close></div>
+      <section class="adblock-dialog" role="dialog" aria-modal="true" aria-label="Ad blocker detected">
+        <h2>Ad blocker detected</h2>
+        <p>KingLive is supported by sponsor banners. Please disable your ad blocker for this site to keep streams and match updates available.</p>
+        <button class="button" type="button" data-adblock-close>Continue</button>
+      </section>
+    `;
+    notice.addEventListener('click', (event) => {
+      if (!event.target?.closest?.('[data-adblock-close]')) return;
+      notice.hidden = true;
+      if (typeof notice.remove === 'function') notice.remove();
+    });
+    document.body.appendChild(notice);
+  }
+
+  function detectAdblock() {
+    if (!document.body || typeof document.createElement !== 'function') return;
+    const probe = document.createElement('div');
+    probe.className = 'adsbox ad-banner ad-unit pub_300x250 text-ad';
+    probe.setAttribute?.('aria-hidden', 'true');
+    probe.textContent = 'Advertisement';
+    if (probe.style) {
+      probe.style.cssText = 'position:absolute;left:-10000px;top:-10000px;width:1px;height:1px;pointer-events:none;';
+    }
+    document.body.appendChild(probe);
+
+    const check = () => {
+      const adSlots = Array.from(document.querySelectorAll?.('[data-ad-slot], .ad-shell') || []);
+      const slotsBlocked = adSlots.length > 0 && adSlots.every((slot) => isAdElementHidden(slot));
+      const blocked = isAdElementHidden(probe) || slotsBlocked;
+      if (typeof probe.remove === 'function') probe.remove();
+      if (blocked) showAdblockModal();
+    };
+    if (typeof setTimeout === 'function') setTimeout(check, 80);
+    else check();
+  }
+
   function viewerHeartbeatPayload() {
     return JSON.stringify({
       client_id: viewerClientId,
@@ -634,6 +685,7 @@
     const key = adSlotKeys[slot.dataset.adSlot];
     if (key && adSlots[key]) slot.innerHTML = adSlots[key];
   });
+  detectAdblock();
 
   (async function boot() {
     renderTelegramPopup();

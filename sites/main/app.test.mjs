@@ -185,6 +185,112 @@ test('falls back to upcoming schedule when today has no matches', async () => {
   assert.equal(requests.some((url) => url.includes(`/api/matches?date=${tomorrowText}`)), true);
 });
 
+test('does not reuse empty daily match cache after API recovers', async () => {
+  let gridHtml = '';
+  let run = 0;
+  const storage = new Map();
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const localStorage = {
+    get length() {
+      return storage.size;
+    },
+    getItem(key) {
+      return storage.get(key) ?? null;
+    },
+    setItem(key, value) {
+      storage.set(key, String(value));
+    },
+    removeItem(key) {
+      storage.delete(key);
+    },
+    key(index) {
+      return Array.from(storage.keys())[index] ?? null;
+    },
+  };
+  const today = new Date().toISOString().slice(0, 10);
+  const recoveredMatch = {
+    id: 19609127,
+    scheduled_at: `${today}T19:00:00+00:00`,
+    status: 'scheduled',
+    stage: 'Group Stage',
+    league: { name: 'World Cup' },
+    home_team: { name_en: 'Canada' },
+    away_team: { name_en: 'Brazil' },
+  };
+
+  const createContext = () => ({
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      localStorage,
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        playerBase: 'https://player.kinglive.test',
+        sponsorUrl: 'https://refpa3665.com/L?tag=d_5517121m_66329c_worldcuplive',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch(url) {
+      const request = String(url);
+      if (request.endsWith('/stream.json') || request.endsWith('stream.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      }
+      const matches = run > 1 && request.includes(`/api/matches?date=${today}`) ? [recoveredMatch] : [];
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ matches }),
+      });
+    },
+  });
+
+  run = 1;
+  vm.runInNewContext(appSource, createContext());
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.doesNotMatch(gridHtml, /Canada vs Brazil/);
+
+  run = 2;
+  vm.runInNewContext(appSource, createContext());
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(gridHtml, /Canada vs Brazil/);
+});
+
 test('sends site locale with match API requests', async () => {
   let gridHtml = '';
   let modalHtml = '';
@@ -477,6 +583,106 @@ test('renders football news from the backend news endpoint', async () => {
     newsHtml,
     /news\.html\?url=https%3A%2F%2Fwww\.bbc\.com%2Fsport%2Ffootball%2Farticles%2Ftest/,
   );
+});
+
+test('does not reuse empty daily news cache after API recovers', async () => {
+  let newsHtml = '';
+  let run = 0;
+  const storage = new Map();
+  const newsGrid = {
+    get innerHTML() {
+      return newsHtml;
+    },
+    set innerHTML(value) {
+      newsHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const localStorage = {
+    get length() {
+      return storage.size;
+    },
+    getItem(key) {
+      return storage.get(key) ?? null;
+    },
+    setItem(key, value) {
+      storage.set(key, String(value));
+    },
+    removeItem(key) {
+      storage.delete(key);
+    },
+    key(index) {
+      return Array.from(storage.keys())[index] ?? null;
+    },
+  };
+
+  const createContext = () => ({
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      localStorage,
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        playerBase: 'https://player.kinglive.test',
+        newsApiUrl: 'https://kinglive-football-api.test/api/news?limit=1',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'news-grid' ? newsGrid : null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch() {
+      const news = run > 1
+        ? [
+            {
+              title: 'Recovered football news',
+              summary: 'The feed is back online.',
+              url: 'https://www.bbc.com/sport/football/articles/recovered',
+              published_at: 'Thu, 14 May 2026 09:33:49 GMT',
+              image_url: '',
+              source: 'BBC Sport',
+            },
+          ]
+        : [];
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ news }),
+      });
+    },
+  });
+
+  run = 1;
+  vm.runInNewContext(appSource, createContext());
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.doesNotMatch(newsHtml, /Recovered football news/);
+
+  run = 2;
+  vm.runInNewContext(appSource, createContext());
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(newsHtml, /Recovered football news/);
 });
 
 test('news carousel buttons move the horizontal news rail', async () => {
@@ -791,7 +997,7 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(gridHtml, /match=1540843/);
   assert.doesNotMatch(gridHtml, /match=1540844/);
   assert.doesNotMatch(gridHtml, /No stream yet/);
-  assert.equal(bodyChildren.length, 1);
+  assert.ok(bodyChildren.includes(modalRoot));
 
   listeners.get('click')({
     target: {
@@ -1090,4 +1296,109 @@ test('auto-opens deeplinked match and live popup refresh stops on close', async 
   });
   assert.equal(modalRoot.hidden, true);
   assert.equal(new URL(location.href).searchParams.has('match'), false);
+});
+
+test('shows dismissible adblock modal when ad probe is hidden', async () => {
+  const bodyChildren = [];
+  const listeners = new Map();
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const makeElement = (tagName) => ({
+    tagName,
+    className: '',
+    hidden: false,
+    innerHTML: '',
+    style: {},
+    dataset: {},
+    offsetHeight: 0,
+    clientHeight: 0,
+    remove() {},
+    addEventListener(type, handler) {
+      listeners.set(`element:${type}`, handler);
+    },
+    querySelector() {
+      return null;
+    },
+  });
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    setTimeout(callback) {
+      callback();
+      return 1;
+    },
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: '',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+      getComputedStyle() {
+        return { display: 'none', visibility: 'hidden' };
+      },
+    },
+    document: {
+      body: {
+        appendChild(element) {
+          bodyChildren.push(element);
+        },
+      },
+      createElement(tagName) {
+        if (!bodyChildren.length) return modalRoot;
+        return makeElement(tagName);
+      },
+      addEventListener(type, handler) {
+        listeners.set(`document:${type}`, handler);
+      },
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch() {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ matches: [] }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const adblockModal = bodyChildren.find((element) => String(element.className).includes('adblock-modal'));
+  assert.ok(adblockModal);
+  assert.match(adblockModal.innerHTML, /Ad blocker detected/);
+  assert.match(adblockModal.innerHTML, /KingLive is supported by sponsor banners/);
+
+  listeners.get('element:click')({
+    target: {
+      closest(selector) {
+        return selector === '[data-adblock-close]' ? {} : null;
+      },
+    },
+  });
+  assert.equal(adblockModal.hidden, true);
 });

@@ -608,6 +608,26 @@ test('returns empty match list when API key is not configured', async () => {
   assert.deepEqual(await response.json(), { matches: [], total: 0, source: 'not_configured' });
 });
 
+test('serves public API when metrics KV is unavailable', async () => {
+  const response = await routeRequest(
+    new Request('https://kinglive.test/api/matches'),
+    {
+      STREAM_CONFIG_KV: {
+        get() {
+          throw new Error('kv unavailable');
+        },
+        put() {
+          throw new Error('kv unavailable');
+        },
+      },
+    },
+    {},
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { matches: [], total: 0, source: 'not_configured' });
+});
+
 test('returns upstream API errors instead of masking them as empty matches', async () => {
   const previousFetch = globalThis.fetch;
   globalThis.fetch = async () =>

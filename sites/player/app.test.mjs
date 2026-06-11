@@ -7,6 +7,8 @@ const appSource = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
 
 async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorOverrides = {} }) {
   const appended = [];
+  const bodyChildren = [];
+  const elementListeners = new Map();
   let stageHtml = '';
   const controls = { hidden: false };
   const titleEl = { textContent: '' };
@@ -38,11 +40,25 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
       appended.push(element);
     },
   };
+  const makeElement = (tagName) => ({
+    tagName,
+    className: '',
+    hidden: false,
+    innerHTML: '',
+    style: {},
+    dataset: {},
+    offsetHeight: timers.adProbeBlocked ? 0 : 12,
+    clientHeight: timers.adProbeBlocked ? 0 : 12,
+    remove() {},
+    addEventListener(type, handler) {
+      elementListeners.set(type, handler);
+    },
+  });
 
   const context = {
     URL,
     URLSearchParams,
-    setTimeout,
+    setTimeout: timers.setTimeout || setTimeout,
     setInterval: timers.setInterval || setInterval,
     clearInterval: timers.clearInterval || clearInterval,
     window: {
@@ -56,6 +72,10 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
       },
       Hls: undefined,
       addEventListener: timers.addEventListener || (() => {}),
+      getComputedStyle: timers.getComputedStyle || (() => ({
+        display: timers.adProbeBlocked ? 'none' : 'block',
+        visibility: timers.adProbeBlocked ? 'hidden' : 'visible',
+      })),
       localStorage: {
         getItem(key) {
           return localStorageStore.has(key) ? localStorageStore.get(key) : null;
@@ -72,6 +92,11 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
       ...navigatorOverrides,
     },
     document: {
+      body: {
+        appendChild(element) {
+          bodyChildren.push(element);
+        },
+      },
       getElementById(id) {
         if (id === 'stage') return stage;
         if (id === 'controls') return controls;
@@ -85,6 +110,7 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
         return [];
       },
       createElement(tagName) {
+        if (tagName === 'div') return makeElement(tagName);
         return {
           tagName,
           canPlayType: () => '',
@@ -100,8 +126,10 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
 
   return {
     appended,
+    bodyChildren,
     controls,
     copyEmbed,
+    elementListeners,
     sourceSelect,
     stageHtml,
     tgPopup,
@@ -373,4 +401,57 @@ test('sends stable viewer heartbeat for an active match stream', async () => {
   listeners.get('pagehide')();
   assert.equal(beacons.length, 1);
   assert.equal(beacons[0].url, 'https://kinglive-football-api.test/api/viewers/1540843/heartbeat');
+});
+
+test('shows adblock modal without clearing the active player stage', async () => {
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    timers: {
+      adProbeBlocked: true,
+      setInterval() {
+        return 1;
+      },
+      clearInterval() {},
+      setTimeout(callback) {
+        callback();
+        return 1;
+      },
+    },
+    config: {
+      matchStreams: {
+        1540843: 'https://trusted.test/live.m3u8',
+      },
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Arsenal' },
+            away_team: { name_en: 'Atletico Madrid' },
+            streams: [],
+          }),
+      });
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(result.appended.length, 1);
+  assert.equal(result.appended[0].tagName, 'video');
+  const adblockModal = result.bodyChildren.find((element) => String(element.className).includes('adblock-modal'));
+  assert.ok(adblockModal);
+  assert.match(adblockModal.innerHTML, /Ad blocker detected/);
+
+  result.elementListeners.get('click')({
+    target: {
+      closest(selector) {
+        return selector === '[data-adblock-close]' ? {} : null;
+      },
+    },
+  });
+  assert.equal(adblockModal.hidden, true);
+  assert.equal(result.appended.length, 1);
 });

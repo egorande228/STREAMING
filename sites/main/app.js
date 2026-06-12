@@ -9,6 +9,7 @@
   const newsApiUrl = config.newsApiUrl || `${apiBase}/api/news?limit=6`;
   const defaultLocale = config.defaultLocale || 'en';
   const dailyCachePrefix = 'kinglive.daily.v2.no-cyrillic';
+  const newsStoryCachePrefix = 'kinglive.news.story.v1';
   const localeButton = typeof document.querySelector === 'function' ? document.querySelector('.locale') : null;
   const i18n = {
     en: {
@@ -423,6 +424,18 @@
           fetched_at: Date.now(),
         }),
       );
+    } catch {}
+  }
+
+  function writeNewsStoryCache(item) {
+    if (!item || hasRussianNews(item)) return;
+    const identifiers = [item.url, item.id].filter(Boolean);
+    if (!identifiers.length) return;
+    try {
+      const payload = JSON.stringify(item);
+      identifiers.forEach((identifier) => {
+        window.localStorage?.setItem(`${newsStoryCachePrefix}:${identifier}`, payload);
+      });
     } catch {}
   }
 
@@ -1511,6 +1524,7 @@
     }
 
     const cards = visibleItems.map((item) => {
+        writeNewsStoryCache(item);
         const image = item.image_url
           ? `<img src="${escapeHtml(item.image_url)}" alt="" loading="lazy" />`
           : '<span class="news-football-fallback" aria-hidden="true"><b>KL</b><span></span></span>';

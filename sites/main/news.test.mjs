@@ -76,3 +76,82 @@ test('renders a selected RSS news item on an internal story page', async () => {
   assert.doesNotMatch(articleHtml, /This page displays the complete story text provided by the RSS feed/);
   assert.doesNotMatch(articleHtml, /href="https:\/\/www\.bbc\.com/);
 });
+
+test('renders a selected story from client cache when it expired from the feed', async () => {
+  let articleHtml = '';
+  let title = '';
+  const requestedUrl = 'https://www.bbc.com/sport/football/articles/expired';
+  const cachedStory = {
+    id: 'expired-story-id',
+    title: 'Cached football headline',
+    summary: 'Cached summary',
+    full_text: 'Cached paragraph one.\n\nCached paragraph two.',
+    url: requestedUrl,
+    published_at: 'Fri, 12 Jun 2026 14:19:46 GMT',
+    image_url: '',
+    source: 'BBC Sport',
+  };
+  const storage = new Map([
+    [`kinglive.news.story.v1:${requestedUrl}`, JSON.stringify(cachedStory)],
+    [`kinglive.news.story.v1:${cachedStory.id}`, JSON.stringify(cachedStory)],
+  ]);
+  const article = {
+    get innerHTML() {
+      return articleHtml;
+    },
+    set innerHTML(value) {
+      articleHtml = value;
+    },
+  };
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    window: {
+      location: {
+        search: `?url=${encodeURIComponent(requestedUrl)}`,
+        href: `https://kinglive.test/news.html?url=${encodeURIComponent(requestedUrl)}`,
+      },
+      localStorage: {
+        getItem(key) {
+          return storage.get(key) || null;
+        },
+        setItem(key, value) {
+          storage.set(key, value);
+        },
+      },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        newsApiUrl: 'https://kinglive-football-api.test/api/news?limit=12',
+      },
+    },
+    document: {
+      get title() {
+        return title;
+      },
+      set title(value) {
+        title = value;
+      },
+      getElementById(id) {
+        return id === 'news-article' ? article : null;
+      },
+    },
+    fetch(url) {
+      assert.equal(String(url), 'https://kinglive-football-api.test/api/news?limit=12&lang=en');
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ news: [] }),
+      });
+    },
+  };
+
+  vm.runInNewContext(newsSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(title, /Cached football headline/);
+  assert.match(articleHtml, /Cached paragraph one\./);
+  assert.match(articleHtml, /Cached paragraph two\./);
+  assert.doesNotMatch(articleHtml, /News story not found/);
+});

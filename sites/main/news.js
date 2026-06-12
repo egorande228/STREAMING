@@ -3,6 +3,7 @@
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
   const newsApiUrl = withLimit(config.newsApiUrl || `${apiBase}/api/news?limit=12`, 12);
   const dailyCachePrefix = 'kinglive.daily.v2.no-cyrillic';
+  const newsStoryCachePrefix = 'kinglive.news.story.v1';
   const params = new URLSearchParams(window.location.search);
   const article = document.getElementById('news-article');
   const requestedUrl = params.get('url') || '';
@@ -127,6 +128,30 @@
           data,
         }),
       );
+    } catch {}
+  }
+
+  function readNewsStoryCache(identifier) {
+    if (!identifier) return null;
+    try {
+      const raw = window.localStorage?.getItem(`${newsStoryCachePrefix}:${identifier}`);
+      const item = raw ? JSON.parse(raw) : null;
+      if (!item || hasRussianNews(item)) return null;
+      return item;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeNewsStoryCache(item) {
+    if (!item || hasRussianNews(item)) return;
+    const identifiers = [item.url, item.id].filter(Boolean);
+    if (!identifiers.length) return;
+    try {
+      const payload = JSON.stringify(item);
+      identifiers.forEach((identifier) => {
+        window.localStorage?.setItem(`${newsStoryCachePrefix}:${identifier}`, payload);
+      });
     } catch {}
   }
 
@@ -421,6 +446,7 @@
     if (!article) return;
     const newsUrl = localizedNewsUrl();
     const scope = `news:${uiLocale}:${newsUrl}`;
+    const cachedStory = readNewsStoryCache(requestedUrl);
     try {
       let data = readDailyCache(scope);
       if (!data) {
@@ -430,13 +456,18 @@
         writeDailyCache(scope, data);
       }
       const news = Array.isArray(data.news) ? data.news : [];
-      const item = news.find((entry) => (entry.url === requestedUrl || entry.id === requestedUrl) && !hasRussianNews(entry));
+      news.forEach(writeNewsStoryCache);
+      const item = news.find((entry) => (entry.url === requestedUrl || entry.id === requestedUrl) && !hasRussianNews(entry)) || cachedStory;
       if (!item) {
         renderMissing();
         return;
       }
       renderStory(item);
     } catch {
+      if (cachedStory) {
+        renderStory(cachedStory);
+        return;
+      }
       renderMissing();
     }
   }

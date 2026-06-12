@@ -218,6 +218,14 @@ body {
   pointer-events: auto;
 }
 
+.iframe-click-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  background: transparent;
+  cursor: pointer;
+}
+
 .stage.stage-iframe {
   aspect-ratio: 16 / 9;
   min-height: 0;

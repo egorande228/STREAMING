@@ -298,6 +298,44 @@ test('sandboxes iframe streams to block popup and top navigation redirects', asy
   assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
 });
 
+test('uses stricter DAMI iframe sandbox and click shield to absorb ad redirects', async () => {
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    config: {
+      matchStreams: {
+        1540843: {
+          url: 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101',
+          source_type: 'iframe',
+          label: 'DAMI source',
+        },
+      },
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Korea Republic' },
+            away_team: { name_en: 'Czech Republic' },
+            streams: [],
+          }),
+      });
+    },
+  });
+
+  const iframe = result.appended.find((element) => element.tagName === 'iframe');
+  const shield = result.appended.find((element) => element.className === 'iframe-click-shield');
+  assert.ok(iframe);
+  assert.ok(shield);
+  assert.match(iframe.sandbox, /allow-scripts/);
+  assert.doesNotMatch(iframe.sandbox, /allow-same-origin/);
+  assert.doesNotMatch(iframe.sandbox, /allow-popups/);
+  assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
+});
+
 test('auto-plays the only active stream when no match query is present', async () => {
   const result = await runPlayer({
     href: 'https://player.test/',

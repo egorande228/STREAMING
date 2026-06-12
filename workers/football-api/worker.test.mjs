@@ -238,6 +238,54 @@ test('normalizes Sportmonks fixture into KingLive match JSON', () => {
   assert.deepEqual(match.league, { id: 732, name: 'FIFA World Cup', country: 'World' });
 });
 
+test('keeps future Sportmonks fixtures scheduled even when upstream state is live', () => {
+  const futureKickoff = new Date(Date.now() + 30 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+  const match = normalizeSportmonksFixture({
+    id: 1540843,
+    name: 'Korea Republic vs Czech Republic',
+    starting_at: futureKickoff,
+    state: { short_name: '1st' },
+    league: { id: 732, name: 'FIFA World Cup', country: { name: 'World' } },
+    participants: [
+      { id: 1, name: 'Korea Republic', short_code: 'KOR', meta: { location: 'home' } },
+      { id: 2, name: 'Czech Republic', short_code: 'CZE', meta: { location: 'away' } },
+    ],
+    scores: [],
+    periods: [{ type_id: 1, minutes: 1, ticking: true }],
+  });
+
+  assert.equal(match.status, 'scheduled');
+  assert.equal(match.minute, undefined);
+});
+
+test('keeps future override fixtures scheduled even when override status is live', () => {
+  const futureKickoff = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  const match = normalizeSportmonksFixture(
+    {
+      id: 1540843,
+      name: 'Korea Republic vs Czech Republic',
+      starting_at: futureKickoff.replace('T', ' ').slice(0, 19),
+      state: { short_name: 'NS' },
+      league: { id: 732, name: 'FIFA World Cup', country: { name: 'World' } },
+      participants: [
+        { id: 1, name: 'Korea Republic', short_code: 'KOR', meta: { location: 'home' } },
+        { id: 2, name: 'Czech Republic', short_code: 'CZE', meta: { location: 'away' } },
+      ],
+      scores: [],
+      periods: [],
+    },
+    {
+      MATCH_OVERRIDE_ID: '1540843',
+      MATCH_OVERRIDE_SCHEDULED_AT: futureKickoff,
+      MATCH_OVERRIDE_STATUS: 'live',
+      MATCH_OVERRIDE_MINUTE: '1',
+    },
+  );
+
+  assert.equal(match.status, 'scheduled');
+  assert.equal(match.minute, undefined);
+});
+
 test('normalizes Sportmonks match details with events, team statistics, lineups, and facts', () => {
   const details = normalizeSportmonksMatchDetails(
     42,

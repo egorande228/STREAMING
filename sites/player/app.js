@@ -479,25 +479,50 @@
     destroyHls();
     if (stage.classList) stage.classList.add('stage-iframe');
     stage.innerHTML = '';
+    const isDami = isDamiEmbedUrl(stream.url);
     const iframe = document.createElement('iframe');
     iframe.src = stream.url;
     iframe.title = stream.title || stream.label || 'Stream player';
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
     iframe.allowFullscreen = true;
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
+    iframe.setAttribute('sandbox', isDami ? 'allow-scripts allow-forms allow-presentation' : 'allow-scripts allow-same-origin allow-forms allow-presentation');
     iframe.referrerPolicy = stream.referrer_policy || stream.referrerPolicy || 'no-referrer-when-downgrade';
     stage.appendChild(iframe);
     const shield = document.createElement('div');
     shield.className = 'third-party-shield';
     shield.setAttribute('aria-hidden', 'true');
     stage.appendChild(shield);
-    if (!isDamiEmbedUrl(stream.url)) {
+    if (isDami) {
+      stage.appendChild(createIframeClickShield(stream));
+    } else {
       const adCover = document.createElement('div');
       adCover.className = 'iframe-ad-cover';
       adCover.setAttribute('aria-hidden', 'true');
       stage.appendChild(adCover);
     }
     attachTelegramPopupToStage();
+  }
+
+  function createIframeClickShield(stream) {
+    const shield = document.createElement('div');
+    shield.className = 'iframe-click-shield';
+    shield.setAttribute('aria-hidden', 'true');
+    let remainingClicks = iframeShieldClicks(stream);
+    shield.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      remainingClicks -= 1;
+      if (remainingClicks <= 0) shield.remove();
+    });
+    return shield;
+  }
+
+  function iframeShieldClicks(stream) {
+    const streamValue = Number(stream.click_shield_clicks ?? stream.clickShieldClicks);
+    if (Number.isFinite(streamValue) && streamValue > 0) return Math.min(5, Math.floor(streamValue));
+    const configuredValue = Number(config.iframeClickShieldClicks);
+    if (Number.isFinite(configuredValue) && configuredValue > 0) return Math.min(5, Math.floor(configuredValue));
+    return 2;
   }
 
   function isDamiEmbedUrl(value) {

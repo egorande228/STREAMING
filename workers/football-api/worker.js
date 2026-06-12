@@ -1315,6 +1315,7 @@ export function normalizeFixture(item, env = {}, streamConfig = null) {
   const teams = item.teams ?? {};
   const goals = item.goals ?? {};
   const status = fixture.status ?? {};
+  const normalizedStatus = keepScheduledBeforeKickoff(normalizeStatus(status.short), fixture.date);
 
   return applyMatchOverride({
     id: fixture.id,
@@ -1328,10 +1329,10 @@ export function normalizeFixture(item, env = {}, streamConfig = null) {
     venue: fixture.venue?.name || '',
     city: fixture.venue?.city || '',
     scheduled_at: fixture.date,
-    status: normalizeStatus(status.short),
+    status: normalizedStatus,
     home_score: goals.home ?? 0,
     away_score: goals.away ?? 0,
-    minute: typeof status.elapsed === 'number' ? status.elapsed : undefined,
+    minute: isMatchInProgress(normalizedStatus) && typeof status.elapsed === 'number' ? status.elapsed : undefined,
     home_team: normalizeTeam(teams.home),
     away_team: normalizeTeam(teams.away),
     streams: streamsForMatch(fixture.id, env, streamConfig),
@@ -1346,6 +1347,8 @@ export function normalizeSportmonksFixture(item, env = {}, streamConfig = null) 
   const stage = item?.stage ?? {};
   const venue = item?.venue ?? {};
   const scores = extractSportmonksScore(item?.scores);
+  const scheduledAt = normalizeSportmonksDate(item?.starting_at);
+  const normalizedStatus = keepScheduledBeforeKickoff(normalizeSportmonksStatus(item?.state), scheduledAt);
 
   return applyMatchOverride({
     id: item?.id,
@@ -1358,11 +1361,11 @@ export function normalizeSportmonksFixture(item, env = {}, streamConfig = null) 
     stage: stage.name || item?.round?.name || league.name || 'Football',
     venue: venue.name || '',
     city: venue.city_name || venue.city || '',
-    scheduled_at: normalizeSportmonksDate(item?.starting_at),
-    status: normalizeSportmonksStatus(item?.state),
+    scheduled_at: scheduledAt,
+    status: normalizedStatus,
     home_score: scores.home,
     away_score: scores.away,
-    minute: extractSportmonksMinute(item),
+    minute: isMatchInProgress(normalizedStatus) ? extractSportmonksMinute(item) : undefined,
     home_team: normalizeSportmonksTeam(homeTeam),
     away_team: normalizeSportmonksTeam(awayTeam),
     streams: streamsForMatch(item?.id, env, streamConfig),
@@ -1432,14 +1435,20 @@ function applyMatchOverrides(matches = [], env = {}, streamConfig = null) {
 function applyMatchOverride(match = {}, env = {}, streamConfig = null) {
   const override = createOverrideMatch(env, streamConfig);
   if (!override || String(match?.id) !== String(override.id)) return match;
+  const scheduledAt = env.MATCH_OVERRIDE_SCHEDULED_AT || match.scheduled_at || override.scheduled_at;
+  const status = keepScheduledBeforeKickoff(env.MATCH_OVERRIDE_STATUS || match.status, scheduledAt);
   return {
     ...match,
     stage: env.MATCH_OVERRIDE_STAGE || match.stage,
     venue: env.MATCH_OVERRIDE_VENUE || match.venue,
     city: env.MATCH_OVERRIDE_CITY || match.city,
-    scheduled_at: env.MATCH_OVERRIDE_SCHEDULED_AT || match.scheduled_at || override.scheduled_at,
-    status: env.MATCH_OVERRIDE_STATUS || match.status,
-    minute: Number.isFinite(Number(env.MATCH_OVERRIDE_MINUTE)) ? Number(env.MATCH_OVERRIDE_MINUTE) : match.minute,
+    scheduled_at: scheduledAt,
+    status,
+    minute: isMatchInProgress(status) && Number.isFinite(Number(env.MATCH_OVERRIDE_MINUTE))
+      ? Number(env.MATCH_OVERRIDE_MINUTE)
+      : isMatchInProgress(status)
+        ? match.minute
+        : undefined,
     home_team: override.home_team,
     away_team: override.away_team,
     streams: streamsForMatch(override.id, env, streamConfig),
@@ -1451,6 +1460,8 @@ function createOverrideMatch(env = {}, streamConfig = null) {
   if (!Number.isFinite(matchId) || matchId <= 0) return null;
   const home = env.MATCH_OVERRIDE_HOME || 'VALENCIA';
   const away = env.MATCH_OVERRIDE_AWAY || 'BARCELONA';
+  const scheduledAt = env.MATCH_OVERRIDE_SCHEDULED_AT || new Date().toISOString();
+  const status = keepScheduledBeforeKickoff(env.MATCH_OVERRIDE_STATUS || 'scheduled', scheduledAt);
   return {
     id: matchId,
     external_id: matchId,
@@ -1462,11 +1473,11 @@ function createOverrideMatch(env = {}, streamConfig = null) {
     stage: env.MATCH_OVERRIDE_STAGE || 'Live match',
     venue: env.MATCH_OVERRIDE_VENUE || '',
     city: env.MATCH_OVERRIDE_CITY || '',
-    scheduled_at: env.MATCH_OVERRIDE_SCHEDULED_AT || new Date().toISOString(),
-    status: env.MATCH_OVERRIDE_STATUS || 'live',
+    scheduled_at: scheduledAt,
+    status,
     home_score: Number.isFinite(Number(env.MATCH_OVERRIDE_HOME_SCORE)) ? Number(env.MATCH_OVERRIDE_HOME_SCORE) : 0,
     away_score: Number.isFinite(Number(env.MATCH_OVERRIDE_AWAY_SCORE)) ? Number(env.MATCH_OVERRIDE_AWAY_SCORE) : 0,
-    minute: Number.isFinite(Number(env.MATCH_OVERRIDE_MINUTE)) ? Number(env.MATCH_OVERRIDE_MINUTE) : 1,
+    minute: isMatchInProgress(status) && Number.isFinite(Number(env.MATCH_OVERRIDE_MINUTE)) ? Number(env.MATCH_OVERRIDE_MINUTE) : undefined,
     home_team: makeOverrideTeam(home, env.MATCH_OVERRIDE_HOME_ID, env.MATCH_OVERRIDE_HOME_LOGO),
     away_team: makeOverrideTeam(away, env.MATCH_OVERRIDE_AWAY_ID, env.MATCH_OVERRIDE_AWAY_LOGO),
     streams: streamsForMatch(matchId, env, streamConfig),
@@ -2520,6 +2531,17 @@ function normalizeSportmonksStatus(state = {}) {
   if (['postponed', 'cancelled', 'canceled', 'abandoned', 'suspended'].includes(raw)) return 'postponed';
   if (['1st', '2nd', 'et', 'inplay', 'live', '1h', '2h'].includes(raw)) return 'live';
   return 'scheduled';
+}
+
+function keepScheduledBeforeKickoff(status, scheduledAt) {
+  if (!isMatchInProgress(status)) return status;
+  const kickoff = Date.parse(scheduledAt || '');
+  if (!Number.isFinite(kickoff)) return status;
+  return Date.now() < kickoff ? 'scheduled' : status;
+}
+
+function isMatchInProgress(status) {
+  return status === 'live' || status === 'half_time';
 }
 
 function filterSportmonksWorldCupMatches(matches = [], env = {}) {

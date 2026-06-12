@@ -178,9 +178,9 @@ test('plays a match stream configured in config.js', async () => {
     },
   });
 
-  assert.equal(result.appended.length, 1);
-  assert.equal(result.appended[0].tagName, 'video');
-  assert.equal(result.appended[0].src, 'https://trusted.test/live.m3u8');
+  const video = result.appended.find((element) => element.tagName === 'video');
+  assert.ok(video);
+  assert.equal(video.src, 'https://trusted.test/live.m3u8');
   assert.equal(result.title, 'Configured stream');
   assert.equal(result.copyEmbed.hidden, true);
 });
@@ -213,8 +213,9 @@ test('plays a match stream configured in streams.json', async () => {
     },
   });
 
-  assert.equal(result.appended.length, 1);
-  assert.equal(result.appended[0].src, 'https://trusted.test/from-json.m3u8');
+  const video = result.appended.find((element) => element.tagName === 'video');
+  assert.ok(video);
+  assert.equal(video.src, 'https://trusted.test/from-json.m3u8');
   assert.equal(result.title, 'JSON stream');
   assert.equal(result.copyEmbed.hidden, false);
 });
@@ -256,7 +257,7 @@ test('merges configured player streams with match API streams', async () => {
     },
   });
 
-  assert.equal(result.appended.length, 1);
+  assert.ok(result.appended.find((element) => element.tagName === 'video'));
   assert.match(result.sourceSelect.innerHTML, /Manual stream/);
   assert.match(result.sourceSelect.innerHTML, /DAMI tv s1/);
   assert.equal(result.sourceSelect.hidden, false);
@@ -296,6 +297,41 @@ test('sandboxes iframe streams to block popup and top navigation redirects', asy
   assert.match(iframe.sandbox, /allow-same-origin/);
   assert.doesNotMatch(iframe.sandbox, /allow-popups/);
   assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
+});
+
+test('renders KingLive text overlays above iframe streams', async () => {
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    config: {
+      matchStreams: {
+        1540843: {
+          url: 'https://third-party.test/embed',
+          source_type: 'iframe',
+          label: 'Third-party iframe',
+        },
+      },
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Arsenal' },
+            away_team: { name_en: 'Atletico Madrid' },
+            streams: [],
+          }),
+      });
+    },
+  });
+
+  const overlays = result.appended.filter((element) => String(element.className).includes('player-brand-overlay'));
+  assert.equal(overlays.length, 2);
+  assert.equal(overlays[0].textContent, 'KINGLIVE');
+  assert.equal(overlays[1].textContent, 'KINGLIVE');
+  assert.equal(overlays.every((element) => element['aria-hidden'] === 'true'), true);
 });
 
 test('keeps DAMI resolver working while click shield blocks ad redirects', async () => {
@@ -365,8 +401,9 @@ test('auto-plays the only active stream when no match query is present', async (
     },
   });
 
-  assert.equal(result.appended.length, 1);
-  assert.equal(result.appended[0].src, 'https://trusted.test/only-active.m3u8');
+  const video = result.appended.find((element) => element.tagName === 'video');
+  assert.ok(video);
+  assert.equal(video.src, 'https://trusted.test/only-active.m3u8');
   assert.equal(result.title, 'Only active');
 });
 
@@ -562,8 +599,7 @@ test('shows adblock modal without clearing the active player stage', async () =>
   });
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.equal(result.appended.length, 1);
-  assert.equal(result.appended[0].tagName, 'video');
+  assert.ok(result.appended.find((element) => element.tagName === 'video'));
   const adblockModal = result.bodyChildren.find((element) => String(element.className).includes('adblock-modal'));
   assert.ok(adblockModal);
   assert.match(adblockModal.innerHTML, /Ad blocker detected/);
@@ -576,5 +612,5 @@ test('shows adblock modal without clearing the active player stage', async () =>
     },
   });
   assert.equal(adblockModal.hidden, true);
-  assert.equal(result.appended.length, 1);
+  assert.ok(result.appended.find((element) => element.tagName === 'video'));
 });

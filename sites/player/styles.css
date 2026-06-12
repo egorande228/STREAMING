@@ -226,6 +226,44 @@ body {
   cursor: pointer;
 }
 
+.player-brand-overlay {
+  position: absolute;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(246, 196, 0, 0.46);
+  background: rgba(0, 0, 0, 0.42);
+  color: #ffd43d;
+  font-weight: 1000;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  pointer-events: none;
+  text-shadow: 0 2px 10px rgba(246, 196, 0, 0.28), 0 2px 0 rgba(0, 0, 0, 0.9);
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.player-brand-overlay-top {
+  top: clamp(18px, 5vw, 56px);
+  right: clamp(18px, 6vw, 72px);
+  min-width: clamp(170px, 21vw, 320px);
+  height: clamp(46px, 6vw, 80px);
+  padding: 0 clamp(18px, 3vw, 36px);
+  font-size: clamp(22px, 3.2vw, 44px);
+}
+
+.player-brand-overlay-bottom {
+  left: 50%;
+  bottom: clamp(14px, 4vw, 48px);
+  width: min(48vw, 560px);
+  min-width: min(420px, calc(100% - 32px));
+  height: clamp(48px, 7vw, 92px);
+  padding: 0 clamp(20px, 4vw, 56px);
+  font-size: clamp(26px, 4.2vw, 58px);
+  transform: translateX(-50%);
+}
+
 .stage.stage-iframe {
   aspect-ratio: 16 / 9;
   min-height: 0;
@@ -528,7 +566,7 @@ select:focus-visible,
   left: 14px;
   right: auto;
   bottom: 14px;
-  z-index: 6;
+  z-index: 9;
 }
 
 .tg-popup-card {
@@ -644,6 +682,22 @@ select:focus-visible,
     top: 64px;
     width: 65%;
     height: calc(62% - 64px);
+  }
+
+  .player-brand-overlay-top {
+    top: 18px;
+    right: 16px;
+    min-width: 142px;
+    height: 42px;
+    font-size: 20px;
+  }
+
+  .player-brand-overlay-bottom {
+    bottom: 16px;
+    width: min(72vw, 360px);
+    min-width: 0;
+    height: 44px;
+    font-size: 22px;
   }
 
   .controls {

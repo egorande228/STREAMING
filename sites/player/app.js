@@ -500,7 +500,18 @@
       adCover.setAttribute('aria-hidden', 'true');
       stage.appendChild(adCover);
     }
+    attachPlayerBrandOverlays();
     attachTelegramPopupToStage();
+  }
+
+  function attachPlayerBrandOverlays() {
+    ['top', 'bottom'].forEach((position) => {
+      const overlay = document.createElement('div');
+      overlay.className = `player-brand-overlay player-brand-overlay-${position}`;
+      overlay.textContent = 'KINGLIVE';
+      overlay.setAttribute('aria-hidden', 'true');
+      stage.appendChild(overlay);
+    });
   }
 
   function createIframeClickShield(stream) {
@@ -546,6 +557,7 @@
     video.muted = /dami-tv\.pro/i.test(stream.url || '');
     video.poster = params.get('poster') || '';
     stage.appendChild(video);
+    attachPlayerBrandOverlays();
     attachTelegramPopupToStage();
 
     const preferHlsJs = /dami-tv\.pro/i.test(stream.url || '');

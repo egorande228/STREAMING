@@ -16,6 +16,7 @@
       .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
       .admin-table th, .admin-table td { border-bottom: 1px solid #222c37; padding: 10px 8px; text-align: left; vertical-align: top; }
       .admin-actions { display: flex; gap: 8px; }
+      .admin-actions.wrap { flex-wrap: wrap; }
       .admin-metrics { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 12px; }
       .admin-metric { border: 1px solid #222c37; border-radius: 8px; background: #111a24; padding: 12px; }
       .admin-metric span { display: block; color: #9aa7b7; font-size: 11px; font-weight: 800; text-transform: uppercase; }
@@ -165,6 +166,61 @@
       </section>
 
       <section class="admin-card">
+        <h2 style="margin-top:0">Match Status Override</h2>
+        <form id="status-form" class="admin-grid">
+          <label>
+            <div>Match ID</div>
+            <input id="status-match-id" class="admin-input" type="number" min="1" required />
+          </label>
+          <label>
+            <div>Status</div>
+            <select id="status-value" class="admin-select">
+              <option value="scheduled">scheduled</option>
+              <option value="live">live</option>
+              <option value="half_time">half_time</option>
+              <option value="finished">finished</option>
+              <option value="postponed">postponed</option>
+            </select>
+          </label>
+          <label>
+            <div>Minute</div>
+            <input id="status-minute" class="admin-input" type="number" min="0" placeholder="Optional" />
+          </label>
+          <label>
+            <div>Home score</div>
+            <input id="status-home-score" class="admin-input" type="number" min="0" placeholder="Optional" />
+          </label>
+          <label>
+            <div>Away score</div>
+            <input id="status-away-score" class="admin-input" type="number" min="0" placeholder="Optional" />
+          </label>
+          <label>
+            <div>Scheduled at (UTC)</div>
+            <input id="status-scheduled-at" class="admin-input" type="datetime-local" />
+          </label>
+          <label class="full">
+            <div>Note</div>
+            <input id="status-note" class="admin-input" placeholder="Why this override exists" />
+          </label>
+          <div class="full admin-actions wrap" style="margin-top:6px;">
+            <button class="button primary" type="submit">Save status</button>
+            <button class="button secondary" type="button" id="reset-status">Reset</button>
+            <button class="button secondary" type="button" id="reload-statuses">Reload statuses</button>
+          </div>
+        </form>
+        <div style="overflow:auto; margin-top:10px;">
+          <table class="admin-table">
+            <thead>
+              <tr><th>Match</th><th>Status</th><th>Minute</th><th>Score</th><th>Scheduled</th><th>Updated</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="status-body">
+              <tr><td colspan="7">No data</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="admin-card">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
           <h2 style="margin:0">Streams</h2>
           <button id="reload-streams" class="button secondary" type="button">Reload</button>
@@ -173,11 +229,11 @@
           <table class="admin-table">
             <thead>
               <tr>
-                <th>ID</th><th>Match</th><th>Type</th><th>Label</th><th>URL</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
+                <th>ID</th><th>Origin</th><th>Match</th><th>Type</th><th>Label</th><th>URL</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
               </tr>
             </thead>
             <tbody id="streams-body">
-              <tr><td colspan="10">No data</td></tr>
+              <tr><td colspan="11">No data</td></tr>
             </tbody>
           </table>
         </div>

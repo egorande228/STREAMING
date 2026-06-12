@@ -100,6 +100,94 @@ test('renders same-day matches beyond the first six API results', async () => {
   assert.match(gridHtml, /Arsenal vs Atletico Madrid/);
 });
 
+test('keeps scheduled status visible when a future match already has streams', async () => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const today = new Date().toISOString().slice(0, 10);
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch(url) {
+      const request = String(url);
+      if (request.includes('/streams/active')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ match_ids: ['19609154'], streams: { 19609154: [{ url: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia&ch=533' }] } }),
+        });
+      }
+      if (request.endsWith('/stream.json') || request.endsWith('stream.json')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      }
+      const matches = request.includes(`date=${today}`)
+        ? [
+            {
+              id: 19609154,
+              scheduled_at: `${today}T19:00:00+00:00`,
+              status: 'scheduled',
+              stage: 'Group Stage',
+              home_team: { name_en: 'Canada' },
+              away_team: { name_en: 'Bosnia and Herzegovina' },
+              streams: [{ url: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia&ch=533', source_type: 'iframe', is_active: true }],
+            },
+          ]
+        : [];
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ matches }) });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /Canada vs Bosnia and Herzegovina/);
+  assert.match(gridHtml, /Open player/);
+  assert.match(gridHtml, /scheduled/);
+  assert.doesNotMatch(gridHtml, />live</);
+  assert.doesNotMatch(gridHtml, /match-status live/);
+});
+
 test('falls back to upcoming schedule when today has no matches', async () => {
   let gridHtml = '';
   const matchGrid = {

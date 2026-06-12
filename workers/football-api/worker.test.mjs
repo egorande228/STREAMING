@@ -1862,6 +1862,174 @@ test('authenticates admin login and performs stream CRUD in KV', async () => {
   assert.equal(remove.status, 200);
 });
 
+test('admin match status overrides are stored in KV and applied to match responses', async () => {
+  const previousFetch = globalThis.fetch;
+  const kvData = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value) {
+      kvData.set(key, value);
+    },
+  };
+  const env = {
+    ADMIN_USERNAME: 'admin',
+    ADMIN_PASSWORD: 'secret',
+    ADMIN_BEARER_TOKEN: 'test-token',
+    SPORTMONKS_TOKEN: 'sportmonks-token',
+    STREAM_CONFIG_KV: kv,
+  };
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    if (requestUrl.includes('api.sportmonks.com')) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 42,
+            name: 'Canada vs Bosnia and Herzegovina',
+            starting_at: '2026-06-12 19:00:00',
+            state: { short_name: 'NS' },
+            league: { id: 732, name: 'World Cup', country: { name: 'World' } },
+            participants: [
+              { id: 1, name: 'Canada', short_code: 'CAN', meta: { location: 'home' } },
+              { id: 2, name: 'Bosnia and Herzegovina', short_code: 'BIH', meta: { location: 'away' } },
+            ],
+            scores: [],
+            periods: [],
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (requestUrl.includes('/papi/api/streams')) {
+      return new Response(JSON.stringify({ success: true, streams: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ data: [] }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const save = await routeRequest(
+      new Request('https://kinglive.test/api/admin/match-overrides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-token' },
+        body: JSON.stringify({ match_id: 42, status: 'finished', home_score: 2, away_score: 1 }),
+      }),
+      env,
+      {},
+    );
+    assert.equal(save.status, 200);
+
+    const list = await routeRequest(
+      new Request('https://kinglive.test/api/admin/match-overrides', {
+        headers: { Authorization: 'Bearer test-token' },
+      }),
+      env,
+      {},
+    );
+    assert.equal(list.status, 200);
+    const listBody = await list.json();
+    assert.equal(listBody.overrides[0].status, 'finished');
+
+    const matchResponse = await routeRequest(new Request('https://kinglive.test/api/matches/42'), env, {});
+    assert.equal(matchResponse.status, 200);
+    const match = await matchResponse.json();
+    assert.equal(match.status, 'finished');
+    assert.equal(match.home_score, 2);
+    assert.equal(match.away_score, 1);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('admin streams list includes DAMI auto streams as read-only rows', async () => {
+  const previousFetch = globalThis.fetch;
+  const kvData = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value) {
+      kvData.set(key, value);
+    },
+  };
+  const env = {
+    ADMIN_USERNAME: 'admin',
+    ADMIN_PASSWORD: 'secret',
+    ADMIN_BEARER_TOKEN: 'test-token',
+    SPORTMONKS_TOKEN: 'sportmonks-token',
+    STREAM_CONFIG_KV: kv,
+  };
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    if (requestUrl.includes('api.sportmonks.com')) {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 42,
+              name: 'Canada vs Bosnia and Herzegovina',
+              starting_at: '2026-06-12 19:00:00',
+              state: { short_name: 'NS' },
+              league: { id: 732, name: 'World Cup', country: { name: 'World' } },
+              participants: [
+                { id: 1, name: 'Canada', short_code: 'CAN', meta: { location: 'home' } },
+                { id: 2, name: 'Bosnia and Herzegovina', short_code: 'BIH', meta: { location: 'away' } },
+              ],
+              scores: [],
+              periods: [],
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (requestUrl.includes('/papi/api/streams')) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          streams: [
+            {
+              category: 'football',
+              streams: [
+                {
+                  id: 'canada-vs-bosnia-herzegovina-2461104',
+                  name: 'Canada vs Bosnia and Herzegovina',
+                  teams: {
+                    home: { name: 'Canada' },
+                    away: { name: 'Bosnia and Herzegovina' },
+                  },
+                  sources: [{ source: 'tv', id: 's1', embed: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia-herzegovina-2461104&ch=533' }],
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    return new Response(JSON.stringify({ data: [] }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const list = await routeRequest(
+      new Request('https://kinglive.test/api/admin/streams', {
+        headers: { Authorization: 'Bearer test-token' },
+      }),
+      env,
+      {},
+    );
+    assert.equal(list.status, 200);
+    const body = await list.json();
+    assert.equal(body.auto_total, 1);
+    assert.equal(body.streams[0].origin, 'dami');
+    assert.equal(body.streams[0].editable, false);
+    assert.equal(body.streams[0].match_id, 42);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test('stores match chat messages in KV and rate limits posts', async () => {
   const kvData = new Map();
   const kv = {

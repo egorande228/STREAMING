@@ -17,6 +17,7 @@ const GOOGLE_NEWS_FEEDS = {
   mn: 'https://news.google.com/rss/search?q=football&hl=mn&gl=MN&ceid=MN:mn',
 };
 const STREAM_CONFIG_KV_KEY = 'match_streams_json';
+const MATCH_OVERRIDES_KV_KEY = 'match_overrides_json';
 const CACHE_VERSION_KV_KEY = 'api_cache_version';
 const DAMI_STREAMS_KV_KEY = 'dami:streams:v1';
 const DAMI_STREAMS_TTL_SECONDS = 60;
@@ -212,7 +213,8 @@ async function routeApiFootballRequest(url, env, ttl) {
 
   const fixtures = Array.isArray(payload.response) ? payload.response : [];
   const streamConfig = await readRuntimeStreamConfig(env);
-  const matches = applyMatchOverrides(fixtures.map((fixture) => normalizeFixture(fixture, env, streamConfig)), env, streamConfig);
+  const matchOverrides = await readRuntimeMatchOverrides(env);
+  const matches = applyMatchOverrides(fixtures.map((fixture) => normalizeFixture(fixture, env, streamConfig, matchOverrides)), env, streamConfig, matchOverrides);
   const visibleMatches = url.pathname === '/api/matches' ? sortMatches(matches.filter(isTopLeagueMatch)) : matches;
   const responseTtl = visibleMatches.length ? ttl : 30;
   return url.pathname === '/api/matches'
@@ -260,10 +262,11 @@ async function routeSportmonksFootballRequest(url, env, ttl, ctx = {}) {
   }
 
   const streamConfig = await readRuntimeStreamConfig(env);
+  const matchOverrides = await readRuntimeMatchOverrides(env);
   const data = fixturePayload.body?.data;
   const fixtures = Array.isArray(data) ? data : data ? [data] : [];
   const matches = await applyDamiAutoStreams(
-    applyMatchOverrides(fixtures.map((fixture) => normalizeSportmonksFixture(fixture, env, streamConfig)), env, streamConfig),
+    applyMatchOverrides(fixtures.map((fixture) => normalizeSportmonksFixture(fixture, env, streamConfig, matchOverrides)), env, streamConfig, matchOverrides),
     env,
   );
   const visibleMatches = url.pathname === '/api/matches' ? sortMatches(filterSportmonksWorldCupMatches(matches, env)) : matches;
@@ -421,8 +424,20 @@ async function routeAdminRequest(request, env = {}, ctx = {}) {
   }
 
   if (url.pathname === '/api/admin/streams') {
-    if (request.method === 'GET') return routeAdminStreamsList(env);
+    if (request.method === 'GET') return routeAdminStreamsList(env, ctx);
     if (request.method === 'POST') return routeAdminStreamsCreate(request, env);
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
+  if (url.pathname === '/api/admin/match-overrides') {
+    if (request.method === 'GET') return routeAdminMatchOverridesList(env);
+    if (request.method === 'POST') return routeAdminMatchOverridesUpsert(request, env);
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
+  const overrideMatchId = Number(url.pathname.match(/^\/api\/admin\/match-overrides\/(\d+)$/)?.[1]);
+  if (overrideMatchId > 0) {
+    if (request.method === 'DELETE') return routeAdminMatchOverridesDelete(env, overrideMatchId);
     return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
   }
 
@@ -510,7 +525,7 @@ function summarizeRefreshPayload(provider, status, payload) {
   const streams = matches.flatMap((match) => Array.isArray(match?.streams) ? match.streams : []);
   const damiMatchedMatches = matches.filter((match) => {
     const matchStreams = Array.isArray(match?.streams) ? match.streams : [];
-    return matchStreams.some((stream) => /(^|\.)dami-tv\.pro\//i.test(String(stream?.url || '')));
+    return matchStreams.some((stream) => isDamiStreamUrl(stream?.url));
   }).length;
   return {
     provider,
@@ -594,13 +609,82 @@ async function routeAdminLogin(request, env) {
   return jsonResponse({ token: adminToken }, 200, 0);
 }
 
-async function routeAdminStreamsList(env) {
+async function routeAdminStreamsList(env, ctx = {}) {
   const config = await readRuntimeStreamConfig(env);
   const streams = flattenStreamConfig(config).map((stream) => ({
     ...stream,
+    origin: 'manual',
+    editable: true,
     is_live_now: isStreamActiveNow(stream),
   }));
-  return jsonResponse({ streams, total: streams.length }, 200, 0);
+  const autoStreams = await readAdminAutoStreams(env, ctx);
+  const allStreams = [...streams, ...autoStreams];
+  return jsonResponse({ streams: allStreams, total: allStreams.length, manual_total: streams.length, auto_total: autoStreams.length }, 200, 0);
+}
+
+async function routeAdminMatchOverridesList(env) {
+  const overrides = await readRuntimeMatchOverrides(env);
+  return jsonResponse({ overrides: Object.values(overrides), total: Object.keys(overrides).length }, 200, 0);
+}
+
+async function routeAdminMatchOverridesUpsert(request, env) {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: 'match_override_kv_not_configured' }, 503, 0);
+  }
+  const body = await readJsonBody(request);
+  const override = normalizeAdminMatchOverridePayload(body);
+  if (!override) return jsonResponse({ error: 'invalid_match_override_payload' }, 400, 0);
+  const overrides = await readRuntimeMatchOverrides(env);
+  overrides[String(override.match_id)] = override;
+  await writeRuntimeMatchOverrides(env, overrides);
+  const cacheVersion = await bumpCacheVersion(env);
+  return jsonResponse({ ok: true, override, cache_version: cacheVersion }, 200, 0);
+}
+
+async function routeAdminMatchOverridesDelete(env, matchId) {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: 'match_override_kv_not_configured' }, 503, 0);
+  }
+  const overrides = await readRuntimeMatchOverrides(env);
+  delete overrides[String(matchId)];
+  await writeRuntimeMatchOverrides(env, overrides);
+  const cacheVersion = await bumpCacheVersion(env);
+  return jsonResponse({ ok: true, match_id: matchId, cache_version: cacheVersion }, 200, 0);
+}
+
+async function readAdminAutoStreams(env = {}, ctx = {}) {
+  if (!env.SPORTMONKS_TOKEN && !env.API_FOOTBALL_KEY) return [];
+  const date = new Date().toISOString().slice(0, 10);
+  const url = new URL(`/api/matches?date=${date}`, 'https://kinglive.admin');
+  const ttl = resolveCacheTtl(url);
+  const response = env.SPORTMONKS_TOKEN
+    ? await routeSportmonksFootballRequest(url, env, ttl, ctx)
+    : await routeApiFootballRequest(url, env, ttl);
+  if (!response.ok) return [];
+  const payload = await response.json().catch(() => null);
+  const matches = Array.isArray(payload?.matches) ? payload.matches : [];
+  return matches.flatMap((match) => {
+    const streams = Array.isArray(match?.streams) ? match.streams : [];
+    return streams
+      .filter((stream) => isDamiStreamUrl(stream?.url))
+      .map((stream, index) => ({
+        ...stream,
+        id: `dami-${match.id}-${stream.id || index}`,
+        match_id: Number(match.id),
+        origin: 'dami',
+        editable: false,
+        is_live_now: isStreamActiveNow(stream),
+      }));
+  });
+}
+
+function isDamiStreamUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return url.hostname === 'dami-tv.pro' || url.hostname.endsWith('.dami-tv.pro');
+  } catch {
+    return false;
+  }
 }
 
 async function routePublicStreamsRequest(env) {
@@ -783,6 +867,28 @@ async function writeRuntimeStreamConfig(env = {}, config = {}) {
   return true;
 }
 
+async function readRuntimeMatchOverrides(env = {}) {
+  if (!env.STREAM_CONFIG_KV?.get) return {};
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(MATCH_OVERRIDES_KV_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .map(([key, value]) => [key, normalizeAdminMatchOverridePayload(value)])
+        .filter(([, value]) => value),
+    );
+  } catch {
+    return {};
+  }
+}
+
+async function writeRuntimeMatchOverrides(env = {}, overrides = {}) {
+  if (!env.STREAM_CONFIG_KV?.put) return false;
+  await env.STREAM_CONFIG_KV.put(MATCH_OVERRIDES_KV_KEY, JSON.stringify(overrides));
+  return true;
+}
+
 function applyStreamOverride(config = {}, env = {}) {
   const matchId = Number(env.STREAM_OVERRIDE_MATCH_ID);
   const url = String(env.STREAM_OVERRIDE_URL || '').trim();
@@ -887,6 +993,29 @@ function normalizeAdminStreamPayload(payload, streamId) {
     is_active: payload?.is_active !== false,
     starts_at: normalizeOptionalDateTime(payload?.starts_at),
     ends_at: normalizeOptionalDateTime(payload?.ends_at),
+  };
+}
+
+function normalizeAdminMatchOverridePayload(payload) {
+  const matchId = Number(payload?.match_id);
+  if (!Number.isFinite(matchId) || matchId <= 0) return null;
+  const status = String(payload?.status || '').trim().toLowerCase();
+  if (!['scheduled', 'live', 'half_time', 'finished', 'postponed'].includes(status)) return null;
+  const hasMinute = payload?.minute !== null && payload?.minute !== undefined && payload?.minute !== '';
+  const hasHomeScore = payload?.home_score !== null && payload?.home_score !== undefined && payload?.home_score !== '';
+  const hasAwayScore = payload?.away_score !== null && payload?.away_score !== undefined && payload?.away_score !== '';
+  const minute = Number(payload?.minute);
+  const homeScore = Number(payload?.home_score);
+  const awayScore = Number(payload?.away_score);
+  return {
+    match_id: matchId,
+    status,
+    minute: hasMinute && Number.isFinite(minute) && minute >= 0 ? Math.floor(minute) : null,
+    home_score: hasHomeScore && Number.isFinite(homeScore) && homeScore >= 0 ? Math.floor(homeScore) : null,
+    away_score: hasAwayScore && Number.isFinite(awayScore) && awayScore >= 0 ? Math.floor(awayScore) : null,
+    scheduled_at: normalizeOptionalDateTime(payload?.scheduled_at),
+    note: String(payload?.note || '').trim().slice(0, 200),
+    updated_at: new Date().toISOString(),
   };
 }
 
@@ -1309,7 +1438,7 @@ function hasFootballApiErrors(errors) {
   return Boolean(errors);
 }
 
-export function normalizeFixture(item, env = {}, streamConfig = null) {
+export function normalizeFixture(item, env = {}, streamConfig = null, matchOverrides = {}) {
   const fixture = item.fixture ?? {};
   const league = item.league ?? {};
   const teams = item.teams ?? {};
@@ -1336,10 +1465,10 @@ export function normalizeFixture(item, env = {}, streamConfig = null) {
     home_team: normalizeTeam(teams.home),
     away_team: normalizeTeam(teams.away),
     streams: streamsForMatch(fixture.id, env, streamConfig),
-  }, env, streamConfig);
+  }, env, streamConfig, matchOverrides);
 }
 
-export function normalizeSportmonksFixture(item, env = {}, streamConfig = null) {
+export function normalizeSportmonksFixture(item, env = {}, streamConfig = null, matchOverrides = {}) {
   const participants = Array.isArray(item?.participants) ? item.participants : [];
   const homeTeam = participants.find((team) => team?.meta?.location === 'home') || participants[0] || {};
   const awayTeam = participants.find((team) => team?.meta?.location === 'away') || participants[1] || {};
@@ -1369,7 +1498,7 @@ export function normalizeSportmonksFixture(item, env = {}, streamConfig = null) 
     home_team: normalizeSportmonksTeam(homeTeam),
     away_team: normalizeSportmonksTeam(awayTeam),
     streams: streamsForMatch(item?.id, env, streamConfig),
-  }, env, streamConfig);
+  }, env, streamConfig, matchOverrides);
 }
 
 export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [], odds = [], detailFixtures = {}) {
@@ -1414,15 +1543,15 @@ function sportmonksTeamSideById(fixture = {}) {
   ]);
 }
 
-function applyMatchOverrides(matches = [], env = {}, streamConfig = null) {
-  const override = createOverrideMatch(env, streamConfig);
+function applyMatchOverrides(matches = [], env = {}, streamConfig = null, matchOverrides = {}) {
+  const override = createOverrideMatch(env, streamConfig, matchOverrides);
   if (!override) return matches;
 
   const next = [];
   let replaced = false;
   matches.forEach((match) => {
     if (String(match?.id) === String(override.id)) {
-      next.push(applyMatchOverride(match, env, streamConfig));
+      next.push(applyMatchOverride(match, env, streamConfig, matchOverrides));
       replaced = true;
       return;
     }
@@ -1432,11 +1561,13 @@ function applyMatchOverrides(matches = [], env = {}, streamConfig = null) {
   return next;
 }
 
-function applyMatchOverride(match = {}, env = {}, streamConfig = null) {
-  const override = createOverrideMatch(env, streamConfig);
-  if (!override || String(match?.id) !== String(override.id)) return match;
-  const scheduledAt = env.MATCH_OVERRIDE_SCHEDULED_AT || match.scheduled_at || override.scheduled_at;
-  const status = keepScheduledBeforeKickoff(env.MATCH_OVERRIDE_STATUS || match.status, scheduledAt);
+function applyMatchOverride(match = {}, env = {}, streamConfig = null, matchOverrides = {}) {
+  const override = createOverrideMatch(env, streamConfig, matchOverrides);
+  const storedOverride = matchOverrides?.[String(match?.id)] || null;
+  if ((!override || String(match?.id) !== String(override.id)) && !storedOverride) return match;
+  const envOverrideApplies = override && String(match?.id) === String(override.id);
+  const scheduledAt = storedOverride?.scheduled_at || (envOverrideApplies ? env.MATCH_OVERRIDE_SCHEDULED_AT : '') || match.scheduled_at || override?.scheduled_at;
+  const status = keepScheduledBeforeKickoff(storedOverride?.status || (envOverrideApplies ? env.MATCH_OVERRIDE_STATUS : '') || match.status, scheduledAt);
   return {
     ...match,
     stage: env.MATCH_OVERRIDE_STAGE || match.stage,
@@ -1444,14 +1575,18 @@ function applyMatchOverride(match = {}, env = {}, streamConfig = null) {
     city: env.MATCH_OVERRIDE_CITY || match.city,
     scheduled_at: scheduledAt,
     status,
-    minute: isMatchInProgress(status) && Number.isFinite(Number(env.MATCH_OVERRIDE_MINUTE))
-      ? Number(env.MATCH_OVERRIDE_MINUTE)
-      : isMatchInProgress(status)
-        ? match.minute
-        : undefined,
-    home_team: override.home_team,
-    away_team: override.away_team,
-    streams: streamsForMatch(override.id, env, streamConfig),
+    home_score: storedOverride?.home_score != null && Number.isFinite(Number(storedOverride.home_score)) ? Number(storedOverride.home_score) : match.home_score,
+    away_score: storedOverride?.away_score != null && Number.isFinite(Number(storedOverride.away_score)) ? Number(storedOverride.away_score) : match.away_score,
+    minute: isMatchInProgress(status) && storedOverride?.minute != null && Number.isFinite(Number(storedOverride.minute))
+      ? Number(storedOverride.minute)
+      : isMatchInProgress(status) && envOverrideApplies && Number.isFinite(Number(env.MATCH_OVERRIDE_MINUTE))
+        ? Number(env.MATCH_OVERRIDE_MINUTE)
+        : isMatchInProgress(status)
+          ? match.minute
+          : undefined,
+    home_team: envOverrideApplies ? override.home_team : match.home_team,
+    away_team: envOverrideApplies ? override.away_team : match.away_team,
+    streams: envOverrideApplies ? streamsForMatch(override.id, env, streamConfig) : match.streams,
   };
 }
 

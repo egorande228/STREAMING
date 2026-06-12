@@ -12,6 +12,7 @@
   const monitoringBody = $('monitoring-body');
   const monitoringMeta = $('monitoring-meta');
   const refreshResult = $('refresh-result');
+  const statusBody = $('status-body');
 
   function token() {
     try {
@@ -62,6 +63,7 @@
       setAuthLabel();
       await loadMonitoring();
       await loadStreams();
+      await loadStatuses();
     } catch (error) {
       saveErr.textContent = String(error.message || error);
     }
@@ -70,8 +72,9 @@
   function logout() {
     setToken('');
     setAuthLabel();
-    streamsBody.innerHTML = '<tr><td colspan="8">Logged out</td></tr>';
+    streamsBody.innerHTML = '<tr><td colspan="11">Logged out</td></tr>';
     if (monitoringBody) monitoringBody.innerHTML = '<tr><td colspan="3">Logged out</td></tr>';
+    if (statusBody) statusBody.innerHTML = '<tr><td colspan="7">Logged out</td></tr>';
   }
 
   function streamFromForm() {
@@ -152,22 +155,24 @@
 
   async function loadStreams() {
     if (!token()) {
-      streamsBody.innerHTML = '<tr><td colspan="10">Login first</td></tr>';
+      streamsBody.innerHTML = '<tr><td colspan="11">Login first</td></tr>';
       return;
     }
     try {
       const payload = await adminFetch('/api/admin/streams');
       const streams = Array.isArray(payload.streams) ? payload.streams : [];
       if (!streams.length) {
-        streamsBody.innerHTML = '<tr><td colspan="10">No streams</td></tr>';
+        streamsBody.innerHTML = '<tr><td colspan="11">No streams</td></tr>';
         return;
       }
       streamsBody.innerHTML = streams
         .map((stream) => {
           const url = escapeHtml(stream.url || '');
+          const editable = stream.editable !== false && stream.origin !== 'dami';
           return `
             <tr>
               <td>${escapeHtml(stream.id)}</td>
+              <td>${escapeHtml(stream.origin || 'manual')}</td>
               <td>${escapeHtml(stream.match_id)}</td>
               <td>${escapeHtml(stream.source_type || '')}</td>
               <td>${escapeHtml(stream.label || '')}</td>
@@ -178,8 +183,8 @@
               <td>${stream.is_live_now ? 'true' : 'false'}</td>
               <td>
                 <div class="admin-actions">
-                  <button class="button secondary" type="button" data-edit="${escapeHtml(stream.id)}">Edit</button>
-                  <button class="button secondary" type="button" data-del="${escapeHtml(stream.id)}">Delete</button>
+                  ${editable ? `<button class="button secondary" type="button" data-edit="${escapeHtml(stream.id)}">Edit</button>` : '<span class="mono">auto</span>'}
+                  ${editable ? `<button class="button secondary" type="button" data-del="${escapeHtml(stream.id)}">Delete</button>` : ''}
                 </div>
               </td>
             </tr>
@@ -201,8 +206,122 @@
         });
       });
     } catch (error) {
-      streamsBody.innerHTML = `<tr><td colspan="10">${escapeHtml(String(error.message || error))}</td></tr>`;
+      streamsBody.innerHTML = `<tr><td colspan="11">${escapeHtml(String(error.message || error))}</td></tr>`;
     }
+  }
+
+  function statusFromForm() {
+    const minute = $('status-minute')?.value;
+    const homeScore = $('status-home-score')?.value;
+    const awayScore = $('status-away-score')?.value;
+    return {
+      match_id: Number($('status-match-id').value),
+      status: $('status-value').value,
+      minute: minute === '' ? null : Number(minute),
+      home_score: homeScore === '' ? null : Number(homeScore),
+      away_score: awayScore === '' ? null : Number(awayScore),
+      scheduled_at: normalizeAdminDateTime($('status-scheduled-at').value),
+      note: $('status-note').value.trim(),
+    };
+  }
+
+  function fillStatusForm(override) {
+    $('status-match-id').value = String(override.match_id || '');
+    $('status-value').value = override.status || 'scheduled';
+    $('status-minute').value = override.minute == null ? '' : String(override.minute);
+    $('status-home-score').value = override.home_score == null ? '' : String(override.home_score);
+    $('status-away-score').value = override.away_score == null ? '' : String(override.away_score);
+    $('status-scheduled-at').value = formatAdminDateTime(override.scheduled_at);
+    $('status-note').value = override.note || '';
+  }
+
+  function resetStatusForm() {
+    $('status-form').reset();
+    $('status-value').value = 'scheduled';
+  }
+
+  async function saveStatus(event) {
+    event.preventDefault();
+    saveMsg.textContent = '';
+    saveErr.textContent = '';
+    try {
+      await adminFetch('/api/admin/match-overrides', {
+        method: 'POST',
+        body: JSON.stringify(statusFromForm()),
+      });
+      saveMsg.textContent = 'Status override saved';
+      resetStatusForm();
+      await loadStatuses();
+      await runRefresh('matches');
+    } catch (error) {
+      saveErr.textContent = String(error.message || error);
+    }
+  }
+
+  async function deleteStatus(matchId) {
+    if (!window.confirm(`Delete status override for match #${matchId}?`)) return;
+    saveMsg.textContent = '';
+    saveErr.textContent = '';
+    try {
+      await adminFetch(`/api/admin/match-overrides/${matchId}`, { method: 'DELETE' });
+      saveMsg.textContent = 'Status override deleted';
+      await loadStatuses();
+      await runRefresh('matches');
+    } catch (error) {
+      saveErr.textContent = String(error.message || error);
+    }
+  }
+
+  async function loadStatuses() {
+    if (!statusBody) return;
+    if (!token()) {
+      statusBody.innerHTML = '<tr><td colspan="7">Login first</td></tr>';
+      return;
+    }
+    try {
+      const payload = await adminFetch('/api/admin/match-overrides');
+      const overrides = Array.isArray(payload.overrides) ? payload.overrides : [];
+      if (!overrides.length) {
+        statusBody.innerHTML = '<tr><td colspan="7">No overrides</td></tr>';
+        return;
+      }
+      statusBody.innerHTML = overrides.map((override) => `
+        <tr>
+          <td>${escapeHtml(override.match_id)}</td>
+          <td>${escapeHtml(override.status || '')}</td>
+          <td>${escapeHtml(override.minute ?? '')}</td>
+          <td>${escapeHtml(scoreLabel(override))}</td>
+          <td class="mono">${escapeHtml(override.scheduled_at || '')}</td>
+          <td class="mono">${escapeHtml(override.updated_at || '')}</td>
+          <td>
+            <div class="admin-actions">
+              <button class="button secondary" type="button" data-status-edit="${escapeHtml(override.match_id)}">Edit</button>
+              <button class="button secondary" type="button" data-status-del="${escapeHtml(override.match_id)}">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+      statusBody.querySelectorAll('[data-status-edit]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const matchId = Number(button.getAttribute('data-status-edit'));
+          const override = overrides.find((item) => Number(item.match_id) === matchId);
+          if (override) fillStatusForm(override);
+        });
+      });
+      statusBody.querySelectorAll('[data-status-del]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const matchId = Number(button.getAttribute('data-status-del'));
+          if (matchId > 0) deleteStatus(matchId);
+        });
+      });
+    } catch (error) {
+      statusBody.innerHTML = `<tr><td colspan="7">${escapeHtml(String(error.message || error))}</td></tr>`;
+    }
+  }
+
+  function scoreLabel(override) {
+    if (override.home_score == null && override.away_score == null) return '';
+    return `${override.home_score ?? 0} : ${override.away_score ?? 0}`;
   }
 
   async function loadMonitoring() {
@@ -272,6 +391,7 @@
       saveMsg.textContent = `Refresh ${scope} complete`;
       await loadMonitoring();
       await loadStreams();
+      await loadStatuses();
     } catch (error) {
       if (refreshResult) refreshResult.textContent = String(error.message || error);
       saveErr.textContent = String(error.message || error);
@@ -311,9 +431,12 @@
   $('login-button').addEventListener('click', login);
   $('logout-button').addEventListener('click', logout);
   $('stream-form').addEventListener('submit', saveStream);
+  if ($('status-form')) $('status-form').addEventListener('submit', saveStatus);
   $('reload-streams').addEventListener('click', loadStreams);
   $('reload-monitoring').addEventListener('click', loadMonitoring);
+  if ($('reload-statuses')) $('reload-statuses').addEventListener('click', loadStatuses);
   $('reset-form').addEventListener('click', resetForm);
+  if ($('reset-status')) $('reset-status').addEventListener('click', resetStatusForm);
   if ($('refresh-date')) $('refresh-date').value = new Date().toISOString().slice(0, 10);
   document.querySelectorAll('[data-refresh-scope]').forEach((button) => {
     button.addEventListener('click', () => runRefresh(button.getAttribute('data-refresh-scope')));
@@ -322,4 +445,5 @@
   setAuthLabel();
   loadMonitoring();
   loadStreams();
+  loadStatuses();
 })();

@@ -1602,8 +1602,7 @@
         const away = teamName(match.away_team);
         const title = `${home} vs ${away}`;
         const status = String(match.status || 'scheduled');
-        const hasStream = streamEnabledForMatch(match) && shouldShowPlayerButtons(match);
-        const displayStatus = hasStream && status !== 'finished' ? 'live' : status;
+        const displayStatus = status;
         const isLive = displayStatus === 'live' || displayStatus === 'half_time';
         const isFinished = status === 'finished';
         const badgeClass = statusBadgeClass(displayStatus);
@@ -1768,8 +1767,7 @@
     const away = teamName(match.away_team);
     const title = `${home} vs ${away}`;
     const status = String(match.status || 'scheduled');
-    const hasStream = streamEnabledForMatch(match) && shouldShowPlayerButtons(match);
-    const displayStatus = hasStream && status !== 'finished' ? 'live' : status;
+    const displayStatus = status;
     const isLive = displayStatus === 'live' || displayStatus === 'half_time';
     const badgeClass = statusBadgeClass(displayStatus);
     const isLiveStatus = displayStatus === 'live' || displayStatus === 'half_time';

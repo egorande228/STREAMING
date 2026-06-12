@@ -443,13 +443,10 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
   ]);
 });
 
-test('uses Canada Bosnia fallback odds when Sportmonks returns no usable odds', () => {
+test('does not use non-MelBet fallback odds when Sportmonks returns no usable odds', () => {
   const details = normalizeSportmonksMatchDetails(19609154, {}, [], []);
 
-  assert.equal(details.odds.bookmaker, 'Betfair');
-  assert.equal(details.odds.market, 'Fulltime Result');
-  assert.equal(details.odds.outcomes.draw.value, '3.50');
-  assert.equal(details.odds.markets.length, 1);
+  assert.equal(details.odds, null);
 });
 
 test('identifies only top league matches as displayable', () => {

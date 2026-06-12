@@ -24,25 +24,6 @@ const DAMI_STREAMS_KV_KEY = 'dami:streams:v1';
 const DAMI_STREAMS_TTL_SECONDS = 60;
 const DAMI_STREAMS_API_URL = 'https://dami-tv.pro/papi/api/streams';
 const DAMI_STREAMS_FALLBACK_API_URL = 'https://damitv.b-cdn.net/papi/api/streams';
-const MATCH_ODDS_FALLBACKS = new Map([
-  [19609154, {
-    bookmaker: 'Betfair',
-    market: 'Fulltime Result',
-    updated_at: '2026-06-12T09:00:00Z',
-    outcomes: {
-      draw: { label: 'Draw', value: '3.50' },
-    },
-    markets: [
-      {
-        key: 'fulltime',
-        label: 'Fulltime Result',
-        outcomes: {
-          draw: { label: 'Draw', value: '3.50' },
-        },
-      },
-    ],
-  }],
-]);
 const DAMI_TEAM_CODE_ALIASES = {
   ARG: 'argentina',
   AUS: 'australia',
@@ -314,7 +295,7 @@ async function routeSportmonksSplitDetailRequest(url, env, ttl, ctx, matchId, se
   if (section === 'odds') {
     const payload = await fetchCachedSportmonksJson(buildSportmonksOddsUrl(matchId, url), env, ttl, ctx);
     if (!payload.ok) return jsonResponse({ error: 'sportmonks_api_error', status: payload.status }, 502, 30);
-    return jsonResponse({ match_id: matchId, odds: normalizeSportmonksOddsForMatch(matchId, sportmonksDataList(payload.body)) }, 200, ttl);
+    return jsonResponse({ match_id: matchId, odds: normalizeSportmonksOdds(sportmonksDataList(payload.body)) }, 200, ttl);
   }
 
   const include = section === 'lineups' ? SPORTMONKS_LINEUPS_INCLUDES : SPORTMONKS_EVENTS_INCLUDES;
@@ -1557,7 +1538,7 @@ export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [
     away_form: [],
     team_stats: teamStats,
     facts: normalizeSportmonksFacts(facts),
-    odds: normalizeSportmonksOddsForMatch(matchId, odds),
+    odds: normalizeSportmonksOdds(odds),
   };
 }
 
@@ -2515,10 +2496,6 @@ function normalizeSportmonksOdds(odds = []) {
     outcomes: markets[0].outcomes,
     markets,
   };
-}
-
-function normalizeSportmonksOddsForMatch(matchId, odds = []) {
-  return normalizeSportmonksOdds(odds) || MATCH_ODDS_FALLBACKS.get(Number(matchId)) || null;
 }
 
 function normalizedOddValue(odd = {}) {

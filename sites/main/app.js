@@ -1,7 +1,7 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
-  const apiVersion = 'sportmonks-facts-v9-canada-bosnia-odds';
+  const apiVersion = 'sportmonks-facts-v10-melbet-only-odds';
   const scheduleLookaheadDays = 14;
   const playerBase = String(config.playerBase || '../player').replace(/\/$/, '');
   const streamConfigUrl = config.streamConfigUrl || './stream.json';
@@ -1342,9 +1342,7 @@
           `;
         }).filter(Boolean).join('');
     if (!body) return '';
-    const bookmaker = cleanText(odds.bookmaker, 'MelBet');
-    const title = bookmaker.toLowerCase() === 'melbet' ? t('melbetOdds') : `${bookmaker} odds`;
-    return renderDetailAccordion(title, `<div class="melbet-odds">${body}</div>`, 'odds-accordion', { open: true });
+    return renderDetailAccordion(t('melbetOdds'), `<div class="melbet-odds">${body}</div>`, 'odds-accordion', { open: true });
   }
 
   function melbetMarketItems(market, outcomes, homeName, awayName) {

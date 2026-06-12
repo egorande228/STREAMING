@@ -1832,12 +1832,12 @@ function unixSecondsToIso(value) {
 }
 
 function damiSourceLabel(source = {}, index = 0, language = '') {
-  const sourceName = String(source.source || source.name || source.channelName || source.label || '').trim();
   const sourceId = String(source.id || '').trim();
-  const suffix = [sourceName, sourceId].filter(Boolean).join(' ');
-  if (suffix) return `DAMI ${suffix}`;
+  if (sourceId) return sourceId.toUpperCase();
+  const sourceName = String(source.source || source.name || source.channelName || source.label || '').trim();
+  if (sourceName) return sourceName.toUpperCase();
   if (language && language !== 'und') return damiLanguageLabel(language);
-  return `DAMI source ${index + 1}`;
+  return `S${index + 1}`;
 }
 
 function damiEmbedUrlForChannel(damiMatch = {}, channel = '') {

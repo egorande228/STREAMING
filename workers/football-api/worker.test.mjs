@@ -1385,7 +1385,7 @@ test('attaches every DAMI source to the matching Sportmonks fixture', async () =
     );
     assert.deepEqual(
       match.streams.map((stream) => stream.label),
-      ['DAMI tv s1', 'DAMI tv s2', 'DAMI alt s3'],
+      ['S1', 'S2', 'S3'],
     );
   } finally {
     globalThis.fetch = previousFetch;

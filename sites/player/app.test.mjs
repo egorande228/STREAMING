@@ -298,7 +298,7 @@ test('sandboxes iframe streams to block popup and top navigation redirects', asy
   assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
 });
 
-test('uses stricter DAMI iframe sandbox and click shield to absorb ad redirects', async () => {
+test('keeps DAMI resolver working while click shield blocks ad redirects', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',
     config: {
@@ -331,7 +331,7 @@ test('uses stricter DAMI iframe sandbox and click shield to absorb ad redirects'
   assert.ok(iframe);
   assert.ok(shield);
   assert.match(iframe.sandbox, /allow-scripts/);
-  assert.doesNotMatch(iframe.sandbox, /allow-same-origin/);
+  assert.match(iframe.sandbox, /allow-same-origin/);
   assert.doesNotMatch(iframe.sandbox, /allow-popups/);
   assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
 });

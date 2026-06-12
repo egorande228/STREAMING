@@ -485,7 +485,7 @@
     iframe.title = stream.title || stream.label || 'Stream player';
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
     iframe.allowFullscreen = true;
-    iframe.setAttribute('sandbox', isDami ? 'allow-scripts allow-forms allow-presentation' : 'allow-scripts allow-same-origin allow-forms allow-presentation');
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
     iframe.referrerPolicy = stream.referrer_policy || stream.referrerPolicy || 'no-referrer-when-downgrade';
     stage.appendChild(iframe);
     const shield = document.createElement('div');

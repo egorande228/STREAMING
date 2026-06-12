@@ -109,8 +109,16 @@ const TOP_LEAGUE_PRIORITY = new Map([
 ]);
 
 export default {
-  fetch(request, env, ctx) {
-    return routeRequest(request, env, ctx);
+  async fetch(request, env, ctx) {
+    try {
+      return await routeRequest(request, env, ctx);
+    } catch (error) {
+      const url = new URL(request.url);
+      const adminMessage = url.pathname.startsWith('/api/admin')
+        ? String(error?.message || error || 'internal_error').slice(0, 300)
+        : 'internal_error';
+      return jsonResponse({ error: 'internal_error', message: adminMessage }, 500, 0);
+    }
   },
 };
 

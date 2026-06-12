@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import {
+import worker, {
   buildFootballApiUrl,
   buildSportmonksApiUrl,
   jsonResponse,
@@ -1860,6 +1860,46 @@ test('authenticates admin login and performs stream CRUD in KV', async () => {
     {},
   );
   assert.equal(remove.status, 200);
+});
+
+test('worker returns CORS JSON when admin KV writes fail', async () => {
+  const env = {
+    ADMIN_USERNAME: 'admin',
+    ADMIN_PASSWORD: 'secret',
+    ADMIN_BEARER_TOKEN: 'test-token',
+    STREAM_CONFIG_KV: {
+      async get() {
+        return null;
+      },
+      async put() {
+        throw new Error('KV write limit reached');
+      },
+    },
+  };
+
+  const response = await worker.fetch(
+    new Request('https://kinglive.test/api/admin/streams', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer test-token',
+      },
+      body: JSON.stringify({
+        match_id: 42,
+        url: 'https://stream.test/live.m3u8',
+        source_type: 'hls',
+        label: 'Main stream',
+      }),
+    }),
+    env,
+    {},
+  );
+
+  assert.equal(response.status, 500);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), '*');
+  const body = await response.json();
+  assert.equal(body.error, 'internal_error');
+  assert.match(body.message, /KV write limit reached/);
 });
 
 test('admin match status overrides are stored in KV and applied to match responses', async () => {

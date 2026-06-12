@@ -5,11 +5,16 @@ import vm from 'node:vm';
 
 const appSource = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
 const indexHtml = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+const adminSource = readFileSync(new URL('./admin.js', import.meta.url), 'utf8');
 const apiVersion = appSource.match(/const apiVersion = '([^']+)'/)?.[1] || '';
 
 test('does not render a public refresh matches button', () => {
   assert.doesNotMatch(indexHtml, /id="refresh-matches"/);
   assert.doesNotMatch(indexHtml, /Refresh now/);
+});
+
+test('admin API errors prefer server message details', () => {
+  assert.match(adminSource, /payload\.message \|\| payload\.error/);
 });
 
 test('renders same-day matches beyond the first six API results', async () => {

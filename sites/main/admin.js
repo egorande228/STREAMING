@@ -43,7 +43,7 @@
       },
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
+    if (!response.ok) throw new Error(payload.message || payload.error || `Request failed (${response.status})`);
     return payload;
   }
 

@@ -223,6 +223,11 @@ body {
   min-height: 0;
 }
 
+.stage.stage-iframe .iframe-ad-cover {
+  display: none;
+  pointer-events: none;
+}
+
 .empty-state {
   max-width: 560px;
   padding: 28px;

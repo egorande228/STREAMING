@@ -8,6 +8,9 @@ enabled = true
 [vars]
 ADMIN_REQUIRE_ACCESS = "false"
 ADMIN_ACCESS_EMAILS = "lolikusikus228@outlook.com"
+DAMI_AUTO_STREAMS = "true"
+DAMI_LANGUAGE_CHANNELS = ""
+DAMI_EXTRA_LANGUAGE_CHANNELS = "ar:966"
 
 [[kv_namespaces]]
 binding = "STREAM_CONFIG_KV"

@@ -7,11 +7,11 @@
   const chatApiBase = String(config.chatApiBase || (apiBase ? `${apiBase}/api/chat` : '')).replace(/\/$/, '');
   const viewerHeartbeatBase = apiBase ? `${apiBase}/api/viewers` : '';
   const chatPollMs = Math.max(3000, Number(config.chatPollMs) || 5000);
+  const preferredLang = params.get('lang') || config.defaultLang || 'en';
+  const preferredRegion = params.get('region') || config.defaultRegion || 'global';
   const chatPromo = {
-    intervalMs: Math.max(60000, Number(config.chatPromo?.intervalMs) || 5 * 60 * 1000),
-    messages: Array.isArray(config.chatPromo?.messages)
-      ? config.chatPromo.messages.map((item) => String(item || '').trim()).filter(Boolean)
-      : [],
+    intervalMs: Math.max(60000, Number(config.chatPromo?.intervalMs) || 10 * 60 * 1000),
+    messages: getChatPromoMessages(config.chatPromo, preferredLang),
   };
   const stage = document.getElementById('stage');
   const controls = document.getElementById('controls');
@@ -45,8 +45,6 @@
   let currentStreams = [];
   let hls;
 
-  const preferredLang = params.get('lang') || config.defaultLang || 'en';
-  const preferredRegion = params.get('region') || config.defaultRegion || 'global';
   const isAdmin = params.get('admin') === '1';
   const chatClientId = getChatClientId();
   const viewerClientId = getViewerClientId();
@@ -84,6 +82,16 @@
     } catch {
       return `${Date.now()}`;
     }
+  }
+
+  function getChatPromoMessages(promoConfig, lang) {
+    const normalizedLang = String(lang || '').toLowerCase();
+    const messagesByLang = promoConfig?.messagesByLang || {};
+    const localizedMessages = Array.isArray(messagesByLang[normalizedLang]) ? messagesByLang[normalizedLang] : null;
+    const fallbackMessages = Array.isArray(promoConfig?.messages) ? promoConfig.messages : [];
+    return (localizedMessages || fallbackMessages)
+      .map((item) => String(item || '').trim())
+      .filter(Boolean);
   }
 
   function setupChat(matchId) {
@@ -195,7 +203,7 @@
               <span class="chat-author">${escapeHtml(message.author || 'Guest')}</span>
               <time>${escapeHtml(time)}</time>
             </div>
-            <div class="chat-text">${escapeHtml(message.message || '')}</div>
+            <div class="chat-text">${renderChatText(message.message || '')}</div>
           </article>
         `;
       })
@@ -205,6 +213,12 @@
 
   function renderChatError(message) {
     if (chatMessages) chatMessages.innerHTML = `<p class="chat-error">${escapeHtml(message)}</p>`;
+  }
+
+  function renderChatText(value) {
+    return escapeHtml(value).replace(/https?:\/\/[^\s<]+/g, (url) => {
+      return `<a href="${url}" target="_blank" rel="nofollow noopener">${url}</a>`;
+    });
   }
 
   function setChatStatus(value) {
@@ -338,6 +352,8 @@
 
   function inferType(src, explicitType) {
     if (explicitType === 'hls' || explicitType === 'iframe') return explicitType;
+    if (explicitType === 'dami-channel') return explicitType;
+    if (/^dami-channel:\/?\/?\d+$/i.test(src)) return 'dami-channel';
     if (/\.m3u8(\?|$)/i.test(src)) return 'hls';
     return 'iframe';
   }
@@ -457,18 +473,28 @@
     iframe.title = stream.title || stream.label || 'Stream player';
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
     iframe.allowFullscreen = true;
-    iframe.referrerPolicy = stream.referrer_policy || stream.referrerPolicy || 'strict-origin';
-    iframe.sandbox = 'allow-forms allow-presentation allow-same-origin allow-scripts';
+    iframe.referrerPolicy = stream.referrer_policy || stream.referrerPolicy || 'no-referrer-when-downgrade';
     stage.appendChild(iframe);
     const shield = document.createElement('div');
     shield.className = 'third-party-shield';
     shield.setAttribute('aria-hidden', 'true');
     stage.appendChild(shield);
-    const adCover = document.createElement('div');
-    adCover.className = 'iframe-ad-cover';
-    adCover.setAttribute('aria-hidden', 'true');
-    stage.appendChild(adCover);
+    if (!isDamiEmbedUrl(stream.url)) {
+      const adCover = document.createElement('div');
+      adCover.className = 'iframe-ad-cover';
+      adCover.setAttribute('aria-hidden', 'true');
+      stage.appendChild(adCover);
+    }
     attachTelegramPopupToStage();
+  }
+
+  function isDamiEmbedUrl(value) {
+    try {
+      const url = new URL(String(value || ''), window.location.href);
+      return /(^|\.)dami-tv\.pro$/i.test(url.hostname) && url.pathname.startsWith('/embed');
+    } catch {
+      return false;
+    }
   }
 
   function renderHls(stream) {
@@ -479,11 +505,14 @@
     video.controls = true;
     video.autoplay = true;
     video.playsInline = true;
+    video.crossOrigin = 'anonymous';
+    video.muted = /dami-tv\.pro/i.test(stream.url || '');
     video.poster = params.get('poster') || '';
     stage.appendChild(video);
     attachTelegramPopupToStage();
 
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    const preferHlsJs = /dami-tv\.pro/i.test(stream.url || '');
+    if (!preferHlsJs && video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = stream.url;
       video.play().catch(() => {});
       return;
@@ -510,12 +539,44 @@
     video.src = stream.url;
   }
 
-  function playStream(index) {
+  function damiChannelId(stream) {
+    const match = String(stream.url || '').match(/^dami-channel:\/?\/?(\d+)$/i);
+    return match ? match[1] : '';
+  }
+
+  async function resolveDamiChannel(stream) {
+    const channelId = damiChannelId(stream);
+    if (!channelId) throw new Error('Missing DAMI channel id');
+    const response = await fetch(`https://dami-tv.pro/papi/tv/resolve/${channelId}?t=`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`DAMI resolve returned ${response.status}`);
+    const data = await response.json();
+    const resolvedUrl = data.stream || data.url || '';
+    if (!resolvedUrl) throw new Error('DAMI resolve returned no stream');
+    return {
+      ...stream,
+      source_type: 'hls',
+      url: resolvedUrl.startsWith('http') ? resolvedUrl : `https://dami-tv.pro${resolvedUrl}`,
+    };
+  }
+
+  async function playStream(index) {
     const stream = currentStreams[index];
     if (!stream) return;
     titleEl.textContent = stream.title || stream.label || params.get('title') || 'Stream';
-    if (stream.source_type === 'iframe') renderIframe(stream);
-    else renderHls(stream);
+    if (stream.source_type === 'iframe') {
+      renderIframe(stream);
+      return;
+    }
+    if (stream.source_type === 'dami-channel') {
+      stage.innerHTML = '<div class="player-empty">Loading stream...</div>';
+      try {
+        renderHls(await resolveDamiChannel(stream));
+      } catch {
+        clearPlayer();
+      }
+      return;
+    }
+    renderHls(stream);
   }
 
   function setStreams(streams, title) {
@@ -532,6 +593,27 @@
     titleEl.textContent = title || params.get('title') || 'Stream';
     controls.hidden = false;
     playStream(0);
+  }
+
+  function loadDirectStream() {
+    const directUrl = String(params.get('src') || '').trim();
+    if (!directUrl) return false;
+    const directType = String(params.get('type') || '').trim() || inferType(directUrl);
+    setStreams(
+      [
+        {
+          id: params.get('source') || 'direct',
+          url: directUrl,
+          source_type: directType,
+          label: params.get('title') || 'English iframe',
+          language_code: preferredLang,
+          priority: 100,
+          is_active: true,
+        },
+      ],
+      params.get('title') || 'Stream',
+    );
+    return true;
   }
 
   function isAdElementHidden(element) {
@@ -690,6 +772,9 @@
   (async function boot() {
     renderTelegramPopup();
     try {
+      const directMatchId = params.get('match') || params.get('id') || '';
+      if (directMatchId) setupChat(directMatchId);
+      if (loadDirectStream()) return;
       matchStreams = await loadStreamConfig();
       const activeMatches = activeStreamMatchIds();
       const matchId = params.get('match') || params.get('id') || (activeMatches.length === 1 ? activeMatches[0] : '');

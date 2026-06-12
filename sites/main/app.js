@@ -1,7 +1,7 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
-  const apiVersion = 'sportmonks-facts-v2';
+  const apiVersion = 'sportmonks-facts-v8-today-player-buttons';
   const scheduleLookaheadDays = 14;
   const playerBase = String(config.playerBase || '../player').replace(/\/$/, '');
   const streamConfigUrl = config.streamConfigUrl || './stream.json';
@@ -726,7 +726,98 @@
       if (value) url.searchParams.set(key, value);
     });
     if (!url.searchParams.has('lang')) url.searchParams.set('lang', defaultLocale);
+    url.searchParams.set('v', '20260611-chat-live');
     return url.toString();
+  }
+
+  function streamLanguageLabel(stream = {}, index = 0) {
+    const code = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
+    const labels = {
+      ar: 'Arabic',
+      en: 'English',
+      es: 'Spanish',
+      fr: 'French',
+      mn: 'Mongolian',
+      ru: 'Russian',
+    };
+    return labels[code] || cleanText(stream.label, `${t('watchStream')} ${index + 1}`);
+  }
+
+  function inferStreamType(src = '') {
+    if (/^dami-channel:\/?\/?\d+$/i.test(src)) return 'dami-channel';
+    if (/\.m3u8(\?|$)/i.test(src)) return 'hls';
+    return 'iframe';
+  }
+
+  function streamsForMatch(match = {}) {
+    return Array.isArray(match.streams)
+      ? match.streams.filter((stream) => stream && stream.url && stream.is_active !== false && stream.isActive !== false)
+      : [];
+  }
+
+  function displayStreamsForMatch(match = {}) {
+    const byLanguage = new Map();
+    const withoutLanguage = [];
+    streamsForMatch(match).forEach((stream, index) => {
+      const language = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
+      const priority = Number.isFinite(Number(stream.priority)) ? Number(stream.priority) : 100 - index;
+      const normalized = { ...stream, priority };
+      if (!language) {
+        withoutLanguage.push(normalized);
+        return;
+      }
+      const current = byLanguage.get(language);
+      if (!current || priority > Number(current.priority || 0)) byLanguage.set(language, normalized);
+    });
+    return [...byLanguage.values(), ...withoutLanguage].sort((left, right) => Number(right.priority || 0) - Number(left.priority || 0));
+  }
+
+  function localDateKey(value) {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '';
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function matchLocalDateKey(match = {}) {
+    const parsed = new Date(match.scheduled_at || match.scheduledAt || '');
+    return localDateKey(parsed);
+  }
+
+  function shouldShowPlayerButtons(match = {}) {
+    return matchLocalDateKey(match) === localDateKey(new Date());
+  }
+
+  function renderStreamButtons(match, title, options = {}) {
+    if (!shouldShowPlayerButtons(match)) return '';
+    const streams = displayStreamsForMatch(match);
+    const groupClass = options.groupClass || 'stream-options';
+    const buttonClass = options.buttonClass || '';
+    if (streams.length) {
+      return `
+        <div class="${escapeHtml(groupClass)}" aria-label="${escapeHtml(t('watchStream'))}">
+          ${streams
+            .map((stream, index) => {
+              const lang = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
+              const source = stream.id || stream.label || stream.source_type || stream.sourceType || '';
+              const href = playerUrl({
+                match: match.id,
+                title,
+                lang,
+                source,
+                src: stream.url,
+                type: stream.source_type || stream.sourceType || inferStreamType(stream.url),
+              });
+              return `<a class="stream-button ${escapeHtml(buttonClass)}" href="${href}">${escapeHtml(streamLanguageLabel(stream, index))}</a>`;
+            })
+            .join('')}
+        </div>
+      `;
+    }
+    if (!streamEnabledForMatch(match)) return '';
+    return `<a class="stream-button ${escapeHtml(buttonClass)}" href="${playerUrl({ match: match.id, title })}">${escapeHtml(t('watchStream'))}</a>`;
   }
 
   function setupActiveNav() {
@@ -1516,13 +1607,12 @@
         const away = teamName(match.away_team);
         const title = `${home} vs ${away}`;
         const status = String(match.status || 'scheduled');
-        const hasStream = streamEnabledForMatch(match);
+        const hasStream = streamEnabledForMatch(match) && shouldShowPlayerButtons(match);
         const displayStatus = hasStream && status !== 'finished' ? 'live' : status;
         const isLive = displayStatus === 'live' || displayStatus === 'half_time';
         const isFinished = status === 'finished';
         const badgeClass = statusBadgeClass(displayStatus);
         const centerLabel = isFinished ? `${match.home_score ?? 0} : ${match.away_score ?? 0}` : 'vs';
-        const href = hasStream ? playerUrl({ match: match.id, title }) : '';
         return `
           <article class="match-card" data-match-id="${escapeHtml(match.id)}" role="button" tabindex="0">
             <div class="match-time">
@@ -1540,7 +1630,7 @@
             </div>
             <div class="match-actions">
               <div class="match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</div>
-              ${href ? `<a class="stream-button match-stream-button" href="${href}">${escapeHtml(t('watchStream'))}</a>` : ''}
+              ${renderStreamButtons(match, title, { groupClass: 'match-stream-buttons', buttonClass: 'match-stream-button' })}
             </div>
           </article>
         `;
@@ -1683,11 +1773,10 @@
     const away = teamName(match.away_team);
     const title = `${home} vs ${away}`;
     const status = String(match.status || 'scheduled');
-    const hasStream = streamEnabledForMatch(match);
+    const hasStream = streamEnabledForMatch(match) && shouldShowPlayerButtons(match);
     const displayStatus = hasStream && status !== 'finished' ? 'live' : status;
     const isLive = displayStatus === 'live' || displayStatus === 'half_time';
     const badgeClass = statusBadgeClass(displayStatus);
-    const href = hasStream ? playerUrl({ match: match.id, title }) : '';
     const isLiveStatus = displayStatus === 'live' || displayStatus === 'half_time';
     const matchStats = await fetchMatchStatsPayload(match.id, {
       force: options.force,
@@ -1745,11 +1834,7 @@
         <div class="detail-footer">
           <div class="match-meta">${escapeHtml(t('updatedAt'))}: ${escapeHtml(formatDate(new Date().toISOString()))}</div>
           <div class="detail-actions">
-            ${
-              href
-                ? `<a class="stream-button detail-stream" href="${href}">${escapeHtml(t('watchStream'))}</a>`
-                : ''
-            }
+            ${renderStreamButtons(match, title, { groupClass: 'detail-streams', buttonClass: 'detail-stream' })}
           </div>
         </div>
         ${sponsorLink(`

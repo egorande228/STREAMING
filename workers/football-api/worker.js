@@ -17,6 +17,50 @@ const GOOGLE_NEWS_FEEDS = {
   mn: 'https://news.google.com/rss/search?q=football&hl=mn&gl=MN&ceid=MN:mn',
 };
 const STREAM_CONFIG_KV_KEY = 'match_streams_json';
+const DAMI_STREAMS_API_URL = 'https://damitv.b-cdn.net/papi/api/streams';
+const DAMI_TEAM_CODE_ALIASES = {
+  ARG: 'argentina',
+  AUS: 'australia',
+  BEL: 'belgium',
+  BIH: 'bosnia herzegovina',
+  BRA: 'brazil',
+  CAN: 'canada',
+  CMR: 'cameroon',
+  COL: 'colombia',
+  CRC: 'costa rica',
+  CRO: 'croatia',
+  CZE: 'czech',
+  DEN: 'denmark',
+  ECU: 'ecuador',
+  EGY: 'egypt',
+  ENG: 'england',
+  ESP: 'spain',
+  FRA: 'france',
+  GER: 'germany',
+  GHA: 'ghana',
+  IRN: 'iran',
+  ITA: 'italy',
+  JPN: 'japan',
+  KOR: 'korea',
+  MAR: 'morocco',
+  MEX: 'mexico',
+  NED: 'netherlands',
+  NGA: 'nigeria',
+  POL: 'poland',
+  POR: 'portugal',
+  QAT: 'qatar',
+  RSA: 'south africa',
+  KSA: 'saudi arabia',
+  SEN: 'senegal',
+  SRB: 'serbia',
+  SUI: 'switzerland',
+  SWE: 'sweden',
+  TUN: 'tunisia',
+  TUR: 'turkey',
+  UKR: 'ukraine',
+  URU: 'uruguay',
+  USA: 'usa',
+};
 const SPORTMONKS_SUPPORTED_LOCALES = new Set(['ar', 'ckb', 'de', 'el', 'es', 'fa', 'fr', 'hu', 'it', 'ja', 'kmr', 'ru', 'ua', 'zh']);
 const NEWS_SUPPORTED_LOCALES = new Set(['en', 'es', 'fr', 'ar', 'mn']);
 const CHAT_MAX_MESSAGES = 100;
@@ -213,7 +257,10 @@ async function routeSportmonksFootballRequest(url, env, ttl, ctx = {}) {
   const streamConfig = await readRuntimeStreamConfig(env);
   const data = fixturePayload.body?.data;
   const fixtures = Array.isArray(data) ? data : data ? [data] : [];
-  const matches = applyMatchOverrides(fixtures.map((fixture) => normalizeSportmonksFixture(fixture, env, streamConfig)), env, streamConfig);
+  const matches = await applyDamiAutoStreams(
+    applyMatchOverrides(fixtures.map((fixture) => normalizeSportmonksFixture(fixture, env, streamConfig)), env, streamConfig),
+    env,
+  );
   const visibleMatches = url.pathname === '/api/matches' ? sortMatches(filterSportmonksWorldCupMatches(matches, env)) : matches;
   const responseTtl = visibleMatches.length ? ttl : 30;
   return url.pathname === '/api/matches'
@@ -1351,6 +1398,198 @@ function streamsForMatch(matchId, env = {}, streamConfig = null) {
   return streams
     .map((stream, index) => normalizeStream(stream, matchId, index))
     .filter((stream) => isStreamActiveNow(stream));
+}
+
+async function applyDamiAutoStreams(matches = [], env = {}) {
+  if (env.DAMI_AUTO_STREAMS === 'false') return matches;
+  if (!Array.isArray(matches) || !matches.length) return matches;
+  let damiStreams = [];
+  try {
+    damiStreams = await fetchDamiStreams();
+  } catch {
+    return matches;
+  }
+  if (!damiStreams.length) return matches;
+  return matches.map((match) => {
+    if (match?.status === 'finished') return match;
+    const manualStreams = Array.isArray(match?.streams) ? match.streams : [];
+    const autoStreams = damiStreamsForMatch(match, damiStreams, env);
+    const mergedStreams = mergeStreamsByLanguageAndUrl(manualStreams, autoStreams);
+    return mergedStreams.length ? { ...match, streams: mergedStreams } : match;
+  });
+}
+
+async function fetchDamiStreams() {
+  const response = await fetch(DAMI_STREAMS_API_URL, {
+    headers: {
+      Accept: 'application/json',
+      'User-Agent': 'KingLive/1.0 (+https://kinglive.live)',
+    },
+  });
+  if (!response.ok) return [];
+  const payload = await response.json();
+  const categories = Array.isArray(payload?.streams) ? payload.streams : [];
+  return categories.flatMap((category) => Array.isArray(category?.streams) ? category.streams : []);
+}
+
+function damiStreamsForMatch(match = {}, damiStreams = [], env = {}) {
+  const damiMatch = damiStreams.find((stream) => isDamiMatchForFixture(stream, match));
+  if (!damiMatch) return [];
+  const streams = [];
+  const sources = Array.isArray(damiMatch.sources) ? damiMatch.sources : [];
+  sources.forEach((source, index) => {
+    const url = String(source?.embed || '').trim();
+    const channel = damiChannelFromUrl(url);
+    if (!channel) return;
+    const language = damiLanguageForSource(source, channel, env);
+    if (!language) return;
+    streams.push({
+      id: hashToPositiveInt(`${match.id}:dami:${language}:${channel}`),
+      url,
+      source_type: 'iframe',
+      label: damiLanguageLabel(language),
+      language_code: language,
+      region: 'global',
+      quality: '720p',
+      priority: 90 - index,
+      commentary_type: 'full',
+      is_active: true,
+      starts_at: null,
+      ends_at: null,
+    });
+  });
+  parseDamiExtraLanguageChannels(env.DAMI_EXTRA_LANGUAGE_CHANNELS).forEach((extra, index) => {
+    const url = damiEmbedUrlForChannel(damiMatch, extra.channel);
+    if (!url || streams.some((stream) => stream.url === url)) return;
+    streams.push({
+      id: hashToPositiveInt(`${match.id}:dami:${extra.language}:${extra.channel}`),
+      url,
+      source_type: 'iframe',
+      label: damiLanguageLabel(extra.language),
+      language_code: extra.language,
+      region: 'global',
+      quality: '720p',
+      priority: 80 - index,
+      commentary_type: 'full',
+      is_active: true,
+      starts_at: null,
+      ends_at: null,
+    });
+  });
+  if (!streams.length && damiMatch.iframe) {
+    streams.push({
+      id: hashToPositiveInt(`${match.id}:dami:iframe`),
+      url: String(damiMatch.iframe),
+      source_type: 'iframe',
+      label: 'DAMI stream',
+      language_code: 'en',
+      region: 'global',
+      quality: '720p',
+      priority: 50,
+      commentary_type: 'full',
+      is_active: true,
+      starts_at: null,
+      ends_at: null,
+    });
+  }
+  return streams;
+}
+
+function damiEmbedUrlForChannel(damiMatch = {}, channel = '') {
+  if (!/^\d+$/.test(String(channel || ''))) return '';
+  const base = String(damiMatch.embed || damiMatch.iframe || '').trim();
+  if (!base) return '';
+  try {
+    const url = new URL(base);
+    url.searchParams.set('ch', String(channel));
+    return url.toString();
+  } catch {
+    return '';
+  }
+}
+
+function isDamiMatchForFixture(damiStream = {}, match = {}) {
+  const home = normalizeMatchToken(teamNameForDami(match.home_team));
+  const away = normalizeMatchToken(teamNameForDami(match.away_team));
+  const haystack = normalizeMatchToken([
+    damiStream.name,
+    damiStream.id,
+    damiStream.teams?.home?.name,
+    damiStream.teams?.away?.name,
+  ].filter(Boolean).join(' '));
+  return Boolean(home && away && haystack.includes(home) && haystack.includes(away));
+}
+
+function teamNameForDami(team = {}) {
+  const code = String(team?.code || '').trim().toUpperCase();
+  return DAMI_TEAM_CODE_ALIASES[code] || team?.name_en || team?.name || code || '';
+}
+
+function normalizeMatchToken(value = '') {
+  return String(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\brepublic\b/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function damiChannelFromUrl(url = '') {
+  try {
+    const parsed = new URL(url);
+    const channel = parsed.searchParams.get('ch') || parsed.searchParams.get('channel');
+    return /^\d+$/.test(channel || '') ? channel : '';
+  } catch {
+    return '';
+  }
+}
+
+function damiLanguageForSource(source = {}, channel = '', env = {}) {
+  const configured = parseDamiLanguageChannels(env.DAMI_LANGUAGE_CHANNELS);
+  if (configured[channel]) return configured[channel];
+  const name = String(source.name || source.channelName || source.label || '').toLowerCase();
+  if (/(arab|arabic|عرب|bein|ssc|alkass|الكاس)/i.test(name) || ['966', '967'].includes(channel)) return 'ar';
+  if (/(spanish|espanol|español|tudn|azteca|univision|telemundo)/i.test(name) || ['935', '844'].includes(channel)) return 'es';
+  if (/(english|uk|usa|fox|itv|tsn|rte)/i.test(name) || ['350', '54', '39', '111', '113', '114', '365'].includes(channel)) return 'en';
+  return '';
+}
+
+function parseDamiLanguageChannels(raw = '') {
+  return String(raw || '').split(',').reduce((map, item) => {
+    const [language, channel] = item.split(':').map((part) => String(part || '').trim().toLowerCase());
+    if (language && /^\d+$/.test(channel || '')) map[channel] = language;
+    return map;
+  }, {});
+}
+
+function parseDamiExtraLanguageChannels(raw = '') {
+  return String(raw || '').split(',').reduce((items, item) => {
+    const [language, channel] = item.split(':').map((part) => String(part || '').trim().toLowerCase());
+    if (language && /^\d+$/.test(channel || '')) items.push({ language, channel });
+    return items;
+  }, []);
+}
+
+function damiLanguageLabel(language = '') {
+  const labels = {
+    ar: 'Arabic stream',
+    en: 'English stream',
+    es: 'Spanish stream',
+    fr: 'French stream',
+    mn: 'Mongolian stream',
+  };
+  return labels[language] || 'DAMI stream';
+}
+
+function mergeStreamsByLanguageAndUrl(manualStreams = [], autoStreams = []) {
+  const seen = new Set();
+  return [...manualStreams, ...autoStreams].filter((stream) => {
+    const key = `${stream.language_code || ''}:${stream.url || ''}`;
+    if (!stream?.url || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function readStreamConfig(raw) {

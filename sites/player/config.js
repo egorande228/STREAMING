@@ -35,10 +35,17 @@ window.KINGLIVE_PLAYER_CONFIG = {
   chatApiBase: `${unifiedApiBase}/api/chat`,
   chatPollMs: 5000,
   chatPromo: {
-    intervalMs: 5 * 60 * 1000,
+    intervalMs: 10 * 60 * 1000,
     messages: [
-      'Live stream updates: https://t.me/wolrdcuplive',
+      'Join our Telegram: https://t.me/worldcuplive_international',
     ],
+    messagesByLang: {
+      ar: ['انضم إلى تليجرام: https://t.me/worldcup2026arabworld'],
+      en: ['Join our Telegram: https://t.me/worldcuplive_international'],
+      es: ['Join our Telegram: https://t.me/worldcuplive_international'],
+      fr: ['Rejoignez notre Telegram: https://t.me/worldcuplive_french'],
+      mn: ['Telegram-д нэгдээрэй: https://t.me/worldcuplive_mongolia'],
+    },
   },
   streamConfigUrl: './streams.json',
   defaultLang: 'en',
@@ -48,7 +55,7 @@ window.KINGLIVE_PLAYER_CONFIG = {
     title: 'World Cup Telegram',
     message: 'Join our Telegram channels for match updates and live stream alerts.',
     buttonLabel: 'Open Telegram',
-    urls: ['https://t.me/wolrdcuplive'],
+    urls: ['https://t.me/worldcuplive_international'],
     delayMs: 0,
   },
   adSlots: {

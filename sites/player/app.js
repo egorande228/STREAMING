@@ -27,6 +27,7 @@
   const chatStatus = document.getElementById('chat-status');
   const adSlots = config.adSlots || {};
   const tgPopupConfig = config.tgPopup || {};
+  const allowDirectStreamParams = config.allowDirectStreamParams === true;
   let matchStreams = config.matchStreams || {};
   let tgPopupDismissed = false;
   let chatMatchId = '';
@@ -473,6 +474,7 @@
     iframe.title = stream.title || stream.label || 'Stream player';
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
     iframe.allowFullscreen = true;
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
     iframe.referrerPolicy = stream.referrer_policy || stream.referrerPolicy || 'no-referrer-when-downgrade';
     stage.appendChild(iframe);
     const shield = document.createElement('div');
@@ -774,7 +776,7 @@
     try {
       const directMatchId = params.get('match') || params.get('id') || '';
       if (directMatchId) setupChat(directMatchId);
-      if (loadDirectStream()) return;
+      if (allowDirectStreamParams && loadDirectStream()) return;
       matchStreams = await loadStreamConfig();
       const activeMatches = activeStreamMatchIds();
       const matchId = params.get('match') || params.get('id') || (activeMatches.length === 1 ? activeMatches[0] : '');

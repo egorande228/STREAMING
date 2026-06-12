@@ -50,6 +50,9 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
     offsetHeight: timers.adProbeBlocked ? 0 : 12,
     clientHeight: timers.adProbeBlocked ? 0 : 12,
     remove() {},
+    setAttribute(name, value) {
+      this[name] = String(value);
+    },
     addEventListener(type, handler) {
       elementListeners.set(type, handler);
     },
@@ -115,6 +118,9 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
           tagName,
           canPlayType: () => '',
           play: () => Promise.resolve(),
+          setAttribute(name, value) {
+            this[name] = String(value);
+          },
         };
       },
     },
@@ -211,6 +217,42 @@ test('plays a match stream configured in streams.json', async () => {
   assert.equal(result.appended[0].src, 'https://trusted.test/from-json.m3u8');
   assert.equal(result.title, 'JSON stream');
   assert.equal(result.copyEmbed.hidden, false);
+});
+
+test('sandboxes iframe streams to block popup and top navigation redirects', async () => {
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    config: {
+      matchStreams: {
+        1540843: {
+          url: 'https://third-party.test/embed',
+          source_type: 'iframe',
+          label: 'Third-party iframe',
+        },
+      },
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Arsenal' },
+            away_team: { name_en: 'Atletico Madrid' },
+            streams: [],
+          }),
+      });
+    },
+  });
+
+  const iframe = result.appended.find((element) => element.tagName === 'iframe');
+  assert.ok(iframe);
+  assert.match(iframe.sandbox, /allow-scripts/);
+  assert.match(iframe.sandbox, /allow-same-origin/);
+  assert.doesNotMatch(iframe.sandbox, /allow-popups/);
+  assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
 });
 
 test('auto-plays the only active stream when no match query is present', async () => {

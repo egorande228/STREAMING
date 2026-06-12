@@ -115,6 +115,7 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
           localStorageStore.set(key, String(value));
         },
       },
+      videojs: timers.videojs,
     },
     navigator: {
       clipboard: {
@@ -252,6 +253,50 @@ test('plays a match stream configured in streams.json', async () => {
   assert.equal(video.src, 'https://trusted.test/from-json.m3u8');
   assert.equal(result.title, 'JSON stream');
   assert.equal(result.copyEmbed.hidden, false);
+});
+
+test('uses Video.js only for streams explicitly marked as videojs', async () => {
+  let videoJsCalled = false;
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    config: {
+      matchStreams: {
+        1540843: {
+          url: 'https://stream.test/live.m3u8',
+          source_type: 'videojs',
+          label: 'Video.js option',
+        },
+      },
+    },
+    timers: {
+      videojs: (element, options) => {
+        videoJsCalled = true;
+        assert.equal(element.tagName, 'video');
+        assert.equal(options.sources[0].src, 'https://stream.test/live.m3u8');
+        return {
+          ready(handler) {
+            handler();
+          },
+          play() {
+            return Promise.resolve();
+          },
+          dispose() {},
+        };
+      },
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ home_team: { name_en: 'A' }, away_team: { name_en: 'B' } }),
+      });
+    },
+  });
+
+  assert.equal(videoJsCalled, true);
+  assert.ok(result.appended.find((element) => element.className.includes('video-js')));
 });
 
 test('merges configured player streams with match API streams', async () => {

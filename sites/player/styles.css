@@ -189,7 +189,8 @@ body {
 }
 
 .stage video,
-.stage iframe {
+.stage iframe,
+.stage .video-js {
   display: block;
   height: 100%;
   width: 100%;
@@ -334,10 +335,13 @@ body.stage-pseudo-fullscreen-active {
 
 .stage:fullscreen video,
 .stage:fullscreen iframe,
+.stage:fullscreen .video-js,
 .stage:-webkit-full-screen video,
 .stage:-webkit-full-screen iframe,
+.stage:-webkit-full-screen .video-js,
 .stage.stage-pseudo-fullscreen video,
-.stage.stage-pseudo-fullscreen iframe {
+.stage.stage-pseudo-fullscreen iframe,
+.stage.stage-pseudo-fullscreen .video-js {
   width: 100%;
   height: 100%;
   object-fit: contain;

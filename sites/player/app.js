@@ -45,6 +45,7 @@
   };
   let currentStreams = [];
   let hls;
+  let videoJsPlayer = null;
 
   const isAdmin = params.get('admin') === '1';
   const chatClientId = getChatClientId();
@@ -352,7 +353,7 @@
   }
 
   function inferType(src, explicitType) {
-    if (explicitType === 'hls' || explicitType === 'iframe') return explicitType;
+    if (explicitType === 'hls' || explicitType === 'iframe' || explicitType === 'videojs') return explicitType;
     if (explicitType === 'dami-channel') return explicitType;
     if (/^dami-channel:\/?\/?\d+$/i.test(src)) return 'dami-channel';
     if (/\.m3u8(\?|$)/i.test(src)) return 'hls';
@@ -475,8 +476,16 @@
     }
   }
 
+  function destroyVideoJs() {
+    if (videoJsPlayer && typeof videoJsPlayer.dispose === 'function') {
+      videoJsPlayer.dispose();
+    }
+    videoJsPlayer = null;
+  }
+
   function renderIframe(stream) {
     destroyHls();
+    destroyVideoJs();
     if (stage.classList) stage.classList.add('stage-iframe');
     stage.innerHTML = '';
     const isDami = isDamiEmbedUrl(stream.url);
@@ -603,6 +612,7 @@
 
   function renderHls(stream) {
     destroyHls();
+    destroyVideoJs();
     if (stage.classList) stage.classList.remove('stage-iframe');
     stage.innerHTML = '';
     const video = document.createElement('video');
@@ -645,6 +655,48 @@
     video.src = stream.url;
   }
 
+  function renderVideoJs(stream) {
+    destroyHls();
+    destroyVideoJs();
+    if (stage.classList) stage.classList.remove('stage-iframe');
+    stage.innerHTML = '';
+    const video = document.createElement('video');
+    video.className = 'video-js vjs-default-skin vjs-big-play-centered';
+    video.controls = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    video.crossOrigin = 'anonymous';
+    video.muted = /dami-tv\.pro/i.test(stream.url || '');
+    video.poster = params.get('poster') || '';
+    stage.appendChild(video);
+    attachPlayerBrandOverlays();
+    attachPlayerFullscreenButton();
+    attachTelegramPopupToStage();
+
+    if (window.videojs) {
+      videoJsPlayer = window.videojs(video, {
+        autoplay: true,
+        controls: true,
+        fluid: false,
+        responsive: true,
+        liveui: true,
+        muted: video.muted,
+        sources: [{ src: stream.url, type: 'application/x-mpegURL' }],
+      });
+      if (videoJsPlayer && typeof videoJsPlayer.ready === 'function') {
+        videoJsPlayer.ready(() => {
+          const playResult = typeof videoJsPlayer.play === 'function' ? videoJsPlayer.play() : null;
+          if (playResult && typeof playResult.catch === 'function') playResult.catch(() => {});
+        });
+      }
+      return;
+    }
+
+    video.src = stream.url;
+    video.play().catch(() => {});
+  }
+
   function damiChannelId(stream) {
     const match = String(stream.url || '').match(/^dami-channel:\/?\/?(\d+)$/i);
     return match ? match[1] : '';
@@ -680,6 +732,10 @@
       } catch {
         clearPlayer();
       }
+      return;
+    }
+    if (stream.source_type === 'videojs') {
+      renderVideoJs(stream);
       return;
     }
     renderHls(stream);

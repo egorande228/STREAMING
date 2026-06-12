@@ -143,6 +143,28 @@
       </section>
 
       <section class="admin-card">
+        <h2 style="margin-top:0">API Refresh</h2>
+        <div class="admin-grid">
+          <label>
+            <div>Date</div>
+            <input id="refresh-date" class="admin-input" type="date" />
+          </label>
+          <label>
+            <div>Match ID</div>
+            <input id="refresh-match-id" class="admin-input" type="number" min="1" placeholder="Optional" />
+          </label>
+        </div>
+        <div class="admin-actions" style="flex-wrap:wrap; margin-top:12px;">
+          <button class="button secondary" type="button" data-refresh-scope="all">Refresh all</button>
+          <button class="button secondary" type="button" data-refresh-scope="matches">Refresh today</button>
+          <button class="button secondary" type="button" data-refresh-scope="match">Refresh match</button>
+          <button class="button secondary" type="button" data-refresh-scope="stats">Refresh stats</button>
+          <button class="button secondary" type="button" data-refresh-scope="dami">Refresh DAMI</button>
+        </div>
+        <pre id="refresh-result" class="mono" style="white-space:pre-wrap; overflow:auto; max-height:220px; margin-top:12px;">No refresh yet</pre>
+      </section>
+
+      <section class="admin-card">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
           <h2 style="margin:0">Streams</h2>
           <button id="reload-streams" class="button secondary" type="button">Reload</button>

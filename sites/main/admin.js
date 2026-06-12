@@ -11,6 +11,7 @@
   const monitoringMetrics = $('monitoring-metrics');
   const monitoringBody = $('monitoring-body');
   const monitoringMeta = $('monitoring-meta');
+  const refreshResult = $('refresh-result');
 
   function token() {
     try {
@@ -222,6 +223,7 @@
         ['Cache hits', metrics.cache_hits || 0],
         ['Upstream calls', metrics.upstream_calls || 0],
         ['Last Sportmonks update', metrics.last_sportmonks_update || 'n/a'],
+        ['Last DAMI update', metrics.last_dami_update || 'n/a'],
       ].map(([label, value]) => `
         <div class="admin-metric">
           <span>${escapeHtml(label)}</span>
@@ -247,6 +249,32 @@
       if (monitoringMeta) monitoringMeta.textContent = `Generated: ${payload.generated_at || ''}`;
     } catch (error) {
       monitoringBody.innerHTML = `<tr><td colspan="3">${escapeHtml(String(error.message || error))}</td></tr>`;
+    }
+  }
+
+  async function runRefresh(scope) {
+    saveMsg.textContent = '';
+    saveErr.textContent = '';
+    if (refreshResult) refreshResult.textContent = 'Refreshing...';
+    try {
+      const matchId = Number($('refresh-match-id')?.value || 0);
+      const date = $('refresh-date')?.value || new Date().toISOString().slice(0, 10);
+      const payload = {
+        scope,
+        date,
+        ...(matchId > 0 ? { match_id: matchId } : {}),
+      };
+      const result = await adminFetch('/api/admin/refresh', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (refreshResult) refreshResult.textContent = JSON.stringify(result, null, 2);
+      saveMsg.textContent = `Refresh ${scope} complete`;
+      await loadMonitoring();
+      await loadStreams();
+    } catch (error) {
+      if (refreshResult) refreshResult.textContent = String(error.message || error);
+      saveErr.textContent = String(error.message || error);
     }
   }
 
@@ -286,6 +314,10 @@
   $('reload-streams').addEventListener('click', loadStreams);
   $('reload-monitoring').addEventListener('click', loadMonitoring);
   $('reset-form').addEventListener('click', resetForm);
+  if ($('refresh-date')) $('refresh-date').value = new Date().toISOString().slice(0, 10);
+  document.querySelectorAll('[data-refresh-scope]').forEach((button) => {
+    button.addEventListener('click', () => runRefresh(button.getAttribute('data-refresh-scope')));
+  });
 
   setAuthLabel();
   loadMonitoring();

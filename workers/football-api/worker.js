@@ -17,7 +17,11 @@ const GOOGLE_NEWS_FEEDS = {
   mn: 'https://news.google.com/rss/search?q=football&hl=mn&gl=MN&ceid=MN:mn',
 };
 const STREAM_CONFIG_KV_KEY = 'match_streams_json';
-const DAMI_STREAMS_API_URL = 'https://damitv.b-cdn.net/papi/api/streams';
+const CACHE_VERSION_KV_KEY = 'api_cache_version';
+const DAMI_STREAMS_KV_KEY = 'dami:streams:v1';
+const DAMI_STREAMS_TTL_SECONDS = 60;
+const DAMI_STREAMS_API_URL = 'https://dami-tv.pro/papi/api/streams';
+const DAMI_STREAMS_FALLBACK_API_URL = 'https://damitv.b-cdn.net/papi/api/streams';
 const DAMI_TEAM_CODE_ALIASES = {
   ARG: 'argentina',
   AUS: 'australia',
@@ -119,7 +123,7 @@ export async function routeRequest(request, env = {}, ctx = {}) {
     return routeViewerHeartbeatRequest(request, env, Number(viewerHeartbeatMatch[1]));
   }
   if (url.pathname.startsWith('/api/admin')) {
-    return routeAdminRequest(request, env);
+    return routeAdminRequest(request, env, ctx);
   }
   if (url.pathname === '/api/streams/active') {
     if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
@@ -149,7 +153,8 @@ export async function routeRequest(request, env = {}, ctx = {}) {
 
   const provider = env.SPORTMONKS_TOKEN ? 'sportmonks' : 'api-football';
   const ttl = resolveCacheTtl(url);
-  const cacheKey = new Request(normalizeCacheUrl(url, provider).toString(), request);
+  const cacheVersion = await readCacheVersion(env);
+  const cacheKey = new Request(normalizeCacheUrl(url, provider, cacheVersion).toString(), request);
   const cache = globalThis.caches?.default;
   const cached = cache ? await cache.match(cacheKey) : null;
   if (cached) {
@@ -306,7 +311,8 @@ async function fetchSportmonksJson(apiUrl, env = {}) {
 
 async function fetchCachedSportmonksJson(apiUrl, env = {}, ttl = 0, ctx = {}) {
   const cache = globalThis.caches?.default;
-  const cacheKey = cache && ttl > 0 ? new Request(normalizeSportmonksSubrequestCacheUrl(apiUrl).toString()) : null;
+  const cacheVersion = await readCacheVersion(env);
+  const cacheKey = cache && ttl > 0 ? new Request(normalizeSportmonksSubrequestCacheUrl(apiUrl, cacheVersion).toString()) : null;
   if (cacheKey) {
     const cached = await cache.match(cacheKey);
     if (cached) {
@@ -392,7 +398,7 @@ async function routeNewsRequest(request, env = {}, ctx = {}) {
   return newsResponse;
 }
 
-async function routeAdminRequest(request, env = {}) {
+async function routeAdminRequest(request, env = {}, ctx = {}) {
   const url = new URL(request.url);
   if (url.pathname === '/api/admin/login') {
     if (request.method !== 'POST') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
@@ -406,6 +412,11 @@ async function routeAdminRequest(request, env = {}) {
 
   if (url.pathname === '/api/admin/monitoring') {
     if (request.method === 'GET') return routeAdminMonitoring(env);
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
+  if (url.pathname === '/api/admin/refresh') {
+    if (request.method === 'POST') return routeAdminRefresh(request, env, ctx);
     return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
   }
 
@@ -423,6 +434,95 @@ async function routeAdminRequest(request, env = {}) {
   }
 
   return jsonResponse({ error: 'not_found' }, 404, 0);
+}
+
+async function routeAdminRefresh(request, env = {}, ctx = {}) {
+  const body = await readJsonBody(request);
+  const scope = normalizeRefreshScope(body?.scope);
+  if (!scope) return jsonResponse({ error: 'invalid_refresh_scope' }, 400, 0);
+
+  const matchId = Number(body?.match_id);
+  const date = normalizeRefreshDate(body?.date) || new Date().toISOString().slice(0, 10);
+  const cacheVersion = await bumpCacheVersion(env);
+  if (scope === 'all' || scope === 'dami') {
+    await deleteKvKey(env, DAMI_STREAMS_KV_KEY);
+  }
+
+  const preview = await refreshPreview(scope, { matchId, date }, env, ctx);
+  const metrics = await readTodayMetrics(env);
+  return jsonResponse(
+    {
+      ok: true,
+      scope,
+      match_id: Number.isFinite(matchId) && matchId > 0 ? matchId : null,
+      date,
+      cache_version: cacheVersion,
+      metrics: {
+        upstream_calls: metrics.upstream_calls || 0,
+        cache_hits: metrics.cache_hits || 0,
+        dami_cache_hits: metrics.dami_cache_hits || 0,
+        last_sportmonks_update: metrics.last_sportmonks_update || '',
+        last_dami_update: metrics.last_dami_update || '',
+      },
+      preview,
+    },
+    200,
+    0,
+  );
+}
+
+function normalizeRefreshScope(value) {
+  const scope = String(value || 'all').trim().toLowerCase();
+  return ['all', 'matches', 'match', 'stats', 'dami'].includes(scope) ? scope : '';
+}
+
+function normalizeRefreshDate(value) {
+  const text = String(value || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : '';
+}
+
+async function refreshPreview(scope, options = {}, env = {}, ctx = {}) {
+  const provider = env.SPORTMONKS_TOKEN ? 'sportmonks' : env.API_FOOTBALL_KEY ? 'api-football' : '';
+  if (scope === 'dami') {
+    const streams = await fetchDamiStreams(env, { force: true });
+    return { provider: 'dami', total_streams: streams.length };
+  }
+  if (!provider) return { provider: 'not_configured' };
+
+  let path = `/api/matches?date=${encodeURIComponent(options.date)}`;
+  if ((scope === 'match' || scope === 'stats') && (!Number.isFinite(options.matchId) || options.matchId <= 0)) {
+    return { provider, error: 'match_id_required' };
+  }
+  if (scope === 'match') path = `/api/matches/${options.matchId}?live=1`;
+  if (scope === 'stats') path = `/api/matches/${options.matchId}/stats?live=1`;
+
+  const url = new URL(path, 'https://kinglive.admin');
+  const ttl = resolveCacheTtl(url);
+  const response = provider === 'sportmonks'
+    ? await routeSportmonksFootballRequest(url, env, ttl, ctx)
+    : await routeApiFootballRequest(url, env, ttl);
+  const payload = await response.clone().json().catch(() => null);
+  return summarizeRefreshPayload(provider, response.status, payload);
+}
+
+function summarizeRefreshPayload(provider, status, payload) {
+  const matches = Array.isArray(payload?.matches) ? payload.matches : payload?.id ? [payload] : [];
+  const streams = matches.flatMap((match) => Array.isArray(match?.streams) ? match.streams : []);
+  const damiMatchedMatches = matches.filter((match) => {
+    const matchStreams = Array.isArray(match?.streams) ? match.streams : [];
+    return matchStreams.some((stream) => /(^|\.)dami-tv\.pro\//i.test(String(stream?.url || '')));
+  }).length;
+  return {
+    provider,
+    status,
+    total_matches: matches.length,
+    total_streams: streams.length,
+    dami_matched_matches: damiMatchedMatches,
+    dami_unmatched_matches: Math.max(0, matches.length - damiMatchedMatches),
+    match_ids: matches.map((match) => match.id).filter(Boolean).slice(0, 20),
+    stats_events: Array.isArray(payload?.events) ? payload.events.length : undefined,
+    stats_team_rows: Array.isArray(payload?.team_stats) ? payload.team_stats.length : undefined,
+  };
 }
 
 async function routeViewerHeartbeatRequest(request, env = {}, matchId) {
@@ -935,7 +1035,9 @@ async function readTodayMetrics(env = {}) {
     api_calls: 0,
     cache_hits: 0,
     upstream_calls: 0,
+    dami_cache_hits: 0,
     last_sportmonks_update: '',
+    last_dami_update: '',
   };
   if (!env.STREAM_CONFIG_KV?.get) return defaults;
   try {
@@ -949,6 +1051,34 @@ async function readTodayMetrics(env = {}) {
 
 function todayMetricsKey() {
   return `metrics:${new Date().toISOString().slice(0, 10)}`;
+}
+
+async function readCacheVersion(env = {}) {
+  if (!env.STREAM_CONFIG_KV?.get) return '0';
+  try {
+    return String((await env.STREAM_CONFIG_KV.get(CACHE_VERSION_KV_KEY)) || '0');
+  } catch {
+    return '0';
+  }
+}
+
+async function bumpCacheVersion(env = {}) {
+  const version = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  if (!env.STREAM_CONFIG_KV?.put) return version;
+  try {
+    await env.STREAM_CONFIG_KV.put(CACHE_VERSION_KV_KEY, version);
+  } catch {}
+  return version;
+}
+
+async function deleteKvKey(env = {}, key) {
+  if (!env.STREAM_CONFIG_KV?.delete) return false;
+  try {
+    await env.STREAM_CONFIG_KV.delete(key);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function safeKeyPart(value) {
@@ -1405,7 +1535,7 @@ async function applyDamiAutoStreams(matches = [], env = {}) {
   if (!Array.isArray(matches) || !matches.length) return matches;
   let damiStreams = [];
   try {
-    damiStreams = await fetchDamiStreams();
+    damiStreams = await fetchDamiStreams(env);
   } catch {
     return matches;
   }
@@ -1419,17 +1549,64 @@ async function applyDamiAutoStreams(matches = [], env = {}) {
   });
 }
 
-async function fetchDamiStreams() {
-  const response = await fetch(DAMI_STREAMS_API_URL, {
-    headers: {
-      Accept: 'application/json',
-      'User-Agent': 'KingLive/1.0 (+https://kinglive.live)',
-    },
-  });
-  if (!response.ok) return [];
-  const payload = await response.json();
-  const categories = Array.isArray(payload?.streams) ? payload.streams : [];
-  return categories.flatMap((category) => Array.isArray(category?.streams) ? category.streams : []);
+async function fetchDamiStreams(env = {}, options = {}) {
+  if (!options.force) {
+    const cached = await readCachedDamiStreams(env);
+    if (cached) {
+      await recordMetric(env, 'dami_cache_hits');
+      return cached;
+    }
+  }
+
+  const configuredUrl = String(env.DAMI_STREAMS_API_URL || '').trim();
+  const urls = [configuredUrl, DAMI_STREAMS_API_URL, DAMI_STREAMS_FALLBACK_API_URL].filter(Boolean);
+  const uniqueUrls = [...new Set(urls)];
+  for (const url of uniqueUrls) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'KingLive/1.0 (+https://kinglive.live)',
+        },
+      });
+      if (!response.ok) continue;
+      const payload = await response.json();
+      const categories = Array.isArray(payload?.streams) ? payload.streams : [];
+      const streams = categories.flatMap((category) => Array.isArray(category?.streams) ? category.streams : []);
+      await writeCachedDamiStreams(env, streams);
+      await recordMetric(env, 'last_dami_update', new Date().toISOString());
+      return streams;
+    } catch {}
+  }
+  return [];
+}
+
+async function readCachedDamiStreams(env = {}) {
+  if (!env.STREAM_CONFIG_KV?.get) return null;
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(DAMI_STREAMS_KV_KEY);
+    if (!raw) return null;
+    const payload = JSON.parse(raw);
+    const fetchedAt = Date.parse(payload?.fetched_at || '');
+    if (!Number.isFinite(fetchedAt) || Date.now() - fetchedAt > DAMI_STREAMS_TTL_SECONDS * 1000) return null;
+    return Array.isArray(payload?.streams) ? payload.streams : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeCachedDamiStreams(env = {}, streams = []) {
+  if (!env.STREAM_CONFIG_KV?.put) return false;
+  try {
+    await env.STREAM_CONFIG_KV.put(
+      DAMI_STREAMS_KV_KEY,
+      JSON.stringify({ fetched_at: new Date().toISOString(), streams: Array.isArray(streams) ? streams : [] }),
+      { expirationTtl: DAMI_STREAMS_TTL_SECONDS },
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function damiStreamsForMatch(match = {}, damiStreams = [], env = {}) {
@@ -1437,25 +1614,25 @@ function damiStreamsForMatch(match = {}, damiStreams = [], env = {}) {
   if (!damiMatch) return [];
   const streams = [];
   const sources = Array.isArray(damiMatch.sources) ? damiMatch.sources : [];
+  const window = damiStreamWindow(damiMatch);
   sources.forEach((source, index) => {
     const url = String(source?.embed || '').trim();
+    if (!url) return;
     const channel = damiChannelFromUrl(url);
-    if (!channel) return;
-    const language = damiLanguageForSource(source, channel, env);
-    if (!language) return;
+    const language = damiLanguageForSource(source, channel, env) || 'und';
     streams.push({
-      id: hashToPositiveInt(`${match.id}:dami:${language}:${channel}`),
+      id: hashToPositiveInt(`${match.id}:dami:${index}:${url}`),
       url,
       source_type: 'iframe',
-      label: damiLanguageLabel(language),
+      label: damiSourceLabel(source, index, language),
       language_code: language,
       region: 'global',
       quality: '720p',
       priority: 90 - index,
       commentary_type: 'full',
       is_active: true,
-      starts_at: null,
-      ends_at: null,
+      starts_at: window.starts_at,
+      ends_at: window.ends_at,
     });
   });
   parseDamiExtraLanguageChannels(env.DAMI_EXTRA_LANGUAGE_CHANNELS).forEach((extra, index) => {
@@ -1472,8 +1649,8 @@ function damiStreamsForMatch(match = {}, damiStreams = [], env = {}) {
       priority: 80 - index,
       commentary_type: 'full',
       is_active: true,
-      starts_at: null,
-      ends_at: null,
+      starts_at: window.starts_at,
+      ends_at: window.ends_at,
     });
   });
   if (!streams.length && damiMatch.iframe) {
@@ -1488,11 +1665,33 @@ function damiStreamsForMatch(match = {}, damiStreams = [], env = {}) {
       priority: 50,
       commentary_type: 'full',
       is_active: true,
-      starts_at: null,
-      ends_at: null,
+      starts_at: window.starts_at,
+      ends_at: window.ends_at,
     });
   }
   return streams;
+}
+
+function damiStreamWindow(damiMatch = {}) {
+  return {
+    starts_at: unixSecondsToIso(damiMatch.starts_at),
+    ends_at: unixSecondsToIso(damiMatch.ends_at),
+  };
+}
+
+function unixSecondsToIso(value) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return new Date(seconds * 1000).toISOString();
+}
+
+function damiSourceLabel(source = {}, index = 0, language = '') {
+  const sourceName = String(source.source || source.name || source.channelName || source.label || '').trim();
+  const sourceId = String(source.id || '').trim();
+  const suffix = [sourceName, sourceId].filter(Boolean).join(' ');
+  if (suffix) return `DAMI ${suffix}`;
+  if (language && language !== 'und') return damiLanguageLabel(language);
+  return `DAMI source ${index + 1}`;
 }
 
 function damiEmbedUrlForChannel(damiMatch = {}, channel = '') {
@@ -1509,6 +1708,7 @@ function damiEmbedUrlForChannel(damiMatch = {}, channel = '') {
 }
 
 function isDamiMatchForFixture(damiStream = {}, match = {}) {
+  if (!isDamiTimeCompatible(damiStream, match)) return false;
   const home = normalizeMatchToken(teamNameForDami(match.home_team));
   const away = normalizeMatchToken(teamNameForDami(match.away_team));
   const haystack = normalizeMatchToken([
@@ -1518,6 +1718,16 @@ function isDamiMatchForFixture(damiStream = {}, match = {}) {
     damiStream.teams?.away?.name,
   ].filter(Boolean).join(' '));
   return Boolean(home && away && haystack.includes(home) && haystack.includes(away));
+}
+
+function isDamiTimeCompatible(damiStream = {}, match = {}) {
+  const kickoff = Date.parse(match?.scheduled_at || '');
+  const startsAt = Number(damiStream.starts_at) * 1000;
+  const endsAt = Number(damiStream.ends_at) * 1000;
+  if (!Number.isFinite(kickoff)) return true;
+  if (!Number.isFinite(startsAt) || startsAt <= 0 || !Number.isFinite(endsAt) || endsAt <= 0) return true;
+  const toleranceMs = 2 * 60 * 60 * 1000;
+  return kickoff >= startsAt - toleranceMs && kickoff <= endsAt + toleranceMs;
 }
 
 function teamNameForDami(team = {}) {
@@ -2370,6 +2580,7 @@ export function resolveCacheTtl(url) {
   if (url.pathname === '/api/streams/active') return 30;
   if (url.pathname === '/api/news') return secondsUntilNextUtcDay();
   if (status === 'live' || status === 'half_time') return 30;
+  if (url.pathname === '/api/matches' && url.searchParams.get('date') === new Date().toISOString().slice(0, 10)) return 30;
   if (/^\/api\/matches\/\d+\/(events|lineups)$/.test(url.pathname) && isLiveStatsRequest(url)) return 30;
   if (/^\/api\/matches\/\d+\/(events|lineups|facts)$/.test(url.pathname)) return 1800;
   if (/^\/api\/matches\/\d+\/odds$/.test(url.pathname)) return 300;
@@ -2386,17 +2597,19 @@ function isLiveStatsRequest(url) {
   return live === '1' || live === 'true';
 }
 
-function normalizeCacheUrl(url, provider = '') {
+function normalizeCacheUrl(url, provider = '', cacheVersion = '') {
   const normalized = new URL(url);
   if (provider) normalized.searchParams.set('__provider', provider);
+  if (cacheVersion) normalized.searchParams.set('__cache_version', cacheVersion);
   normalized.searchParams.sort();
   return normalized;
 }
 
-function normalizeSportmonksSubrequestCacheUrl(apiUrl) {
+function normalizeSportmonksSubrequestCacheUrl(apiUrl, cacheVersion = '') {
   const normalized = new URL(apiUrl);
   normalized.searchParams.delete('api_token');
   normalized.searchParams.set('__sportmonks_subrequest', '1');
+  if (cacheVersion) normalized.searchParams.set('__cache_version', cacheVersion);
   normalized.searchParams.sort();
   return normalized;
 }

@@ -458,6 +458,16 @@
     });
   }
 
+  function mergeStreams(streamGroups) {
+    const seen = new Set();
+    return streamGroups.flatMap((streams) => (Array.isArray(streams) ? streams : [])).filter((stream) => {
+      const url = String(stream?.url || '').trim();
+      if (!url || seen.has(url)) return false;
+      seen.add(url);
+      return true;
+    });
+  }
+
   function destroyHls() {
     if (hls) {
       hls.destroy();
@@ -735,7 +745,7 @@
 
     const home = match?.home_team?.name_en || 'TBD';
     const away = match?.away_team?.name_en || 'TBD';
-    const streams = configuredStreams.length ? configuredStreams : match?.streams || [];
+    const streams = mergeStreams([configuredStreams, match?.streams || []]);
     setStreams(streams, `${home} vs ${away}`);
     if (currentStreams.length) startViewerHeartbeat(matchId);
   }

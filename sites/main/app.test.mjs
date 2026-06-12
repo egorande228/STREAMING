@@ -4,6 +4,13 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 
 const appSource = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
+const indexHtml = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+const apiVersion = appSource.match(/const apiVersion = '([^']+)'/)?.[1] || '';
+
+test('does not render a public refresh matches button', () => {
+  assert.doesNotMatch(indexHtml, /id="refresh-matches"/);
+  assert.doesNotMatch(indexHtml, /Refresh now/);
+});
 
 test('renders same-day matches beyond the first six API results', async () => {
   let gridHtml = '';
@@ -512,7 +519,7 @@ test('sends site locale with match API requests', async () => {
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(requests.some((url) => url.includes(`/api/matches?date=${today}`) && url.includes('lang=fr')), true);
-  assert.equal(requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/stats?v=sportmonks-facts-v2&lang=fr'), true);
+  assert.equal(requests.some((url) => url === `https://kinglive-football-api.test/api/matches/1540843/stats?v=${apiVersion}&lang=fr`), true);
   assert.equal(
     requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/prematch?home=1&away=2&lang=fr'),
     true,
@@ -1184,7 +1191,7 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /match=1540843/);
   assert.match(modalHtml, /https:\/\/logo\.test\/ars\.png/);
   assert.equal(
-    requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843/stats?v=sportmonks-facts-v2&live=1&lang=en'),
+    requests.some((url) => url === `https://kinglive-football-api.test/api/matches/1540843/stats?v=${apiVersion}&live=1&lang=en`),
     true,
   );
 
@@ -1388,7 +1395,7 @@ test('auto-opens deeplinked match and live popup refresh stops on close', async 
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(
-    requests.some((url) => url === 'https://kinglive-football-api.test/api/matches/1540843?live=1&v=sportmonks-facts-v2&lang=en'),
+    requests.some((url) => url === `https://kinglive-football-api.test/api/matches/1540843?live=1&v=${apiVersion}&lang=en`),
     true,
   );
   assert.match(modalHtml, /FT/);

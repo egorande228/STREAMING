@@ -65,7 +65,6 @@
       footballNews: 'Football news',
       matchDetails: 'Match details',
       closeMatchDetails: 'Close match details',
-      refreshNow: 'Refresh now',
       kickoff: 'Kickoff',
       venue: 'Venue',
       city: 'City',
@@ -135,7 +134,6 @@
       footballNews: 'Noticias de fútbol',
       matchDetails: 'Detalles del partido',
       closeMatchDetails: 'Cerrar detalles del partido',
-      refreshNow: 'Actualizar',
       kickoff: 'Inicio',
       venue: 'Estadio',
       city: 'Ciudad',
@@ -204,7 +202,6 @@
       footballNews: 'Actualités football',
       matchDetails: 'Détails du match',
       closeMatchDetails: 'Fermer les détails du match',
-      refreshNow: 'Actualiser',
       kickoff: 'Coup d’envoi',
       venue: 'Stade',
       city: 'Ville',
@@ -273,7 +270,6 @@
       footballNews: 'أخبار كرة القدم',
       matchDetails: 'تفاصيل المباراة',
       closeMatchDetails: 'إغلاق تفاصيل المباراة',
-      refreshNow: 'تحديث',
       kickoff: 'البداية',
       venue: 'الملعب',
       city: 'المدينة',
@@ -342,7 +338,6 @@
       footballNews: 'Хөлбөмбөгийн мэдээ',
       matchDetails: 'Тоглолтын дэлгэрэнгүй',
       closeMatchDetails: 'Тоглолтын дэлгэрэнгүйг хаах',
-      refreshNow: 'Шинэчлэх',
       kickoff: 'Эхлэх цаг',
       venue: 'Цэнгэлдэх',
       city: 'Хот',
@@ -474,7 +469,8 @@
     return next.toISOString().slice(0, 10);
   }
 
-  function matchCacheMaxAge(matches) {
+  function matchCacheMaxAge(matches, date) {
+    if (date === new Date().toISOString().slice(0, 10)) return 45_000;
     const live = Array.isArray(matches) && matches.some((item) => item?.status === 'live' || item?.status === 'half_time');
     return live ? 45_000 : 24 * 60 * 60 * 1000;
   }
@@ -503,7 +499,7 @@
     const url = localizedApiUrl('/api/matches', { date, v: apiVersion });
     const data = await fetchJsonDaily(scope, url, {
       force: options.force,
-      maxAgeMs: matchCacheMaxAge(cachedMatches),
+      maxAgeMs: matchCacheMaxAge(cachedMatches, date),
     });
     return {
       matches: Array.isArray(data.matches) ? data.matches : [],
@@ -705,7 +701,6 @@
     setText('follow-band-kicker', t('followBandKicker'));
     setText('follow-band-title', t('followBandTitle'));
     setText('follow-band-disclaimer', t('followBandDisclaimer'));
-    setText('refresh-matches', t('refreshNow'));
 
     const controls = typeof document.querySelector === 'function' ? document.querySelector('.carousel-controls') : null;
     if (controls) controls.setAttribute('aria-label', t('carouselControls'));
@@ -1921,17 +1916,6 @@
       if (!card) return;
       event.preventDefault();
       openMatchDetails(card.dataset.matchId);
-    });
-  }
-
-  const refreshMatchesButton = document.getElementById('refresh-matches');
-  if (refreshMatchesButton) {
-    refreshMatchesButton.addEventListener('click', () => {
-      const todayUtc = new Date().toISOString().slice(0, 10);
-      clearDailyCacheStartsWith(`matches:${uiLocale}:${todayUtc}:${apiVersion}`);
-      clearDailyCacheStartsWith(`news:${uiLocale}:`);
-      loadMatches({ force: true });
-      loadNews();
     });
   }
 

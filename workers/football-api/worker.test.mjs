@@ -452,8 +452,111 @@ test('uses short TTL for live data and day-level TTL for non-live feeds', () => 
   const fixturesTtl = resolveCacheTtl(new URL('https://kinglive.test/api/matches?date=2026-06-11'));
   assert.equal(fixturesTtl > 60, true);
   assert.equal(fixturesTtl <= 86400, true);
+  const today = new Date().toISOString().slice(0, 10);
+  assert.equal(resolveCacheTtl(new URL(`https://kinglive.test/api/matches?date=${today}`)), 30);
 
   assert.equal(resolveCacheTtl(new URL('https://kinglive.test/api/matches/42')), 1800);
+});
+
+test('admin refresh bumps cache version and forces a fresh Sportmonks request', async () => {
+  const previousFetch = globalThis.fetch;
+  const previousCaches = globalThis.caches;
+  const cacheStore = new Map();
+  const kvData = new Map();
+  const today = new Date().toISOString().slice(0, 10);
+  let sportmonksCalls = 0;
+
+  globalThis.caches = {
+    default: {
+      async match(request) {
+        const cached = cacheStore.get(request.url);
+        return cached ? cached.clone() : undefined;
+      },
+      async put(request, response) {
+        cacheStore.set(request.url, response.clone());
+      },
+    },
+  };
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    if (requestUrl.includes('api.sportmonks.com')) {
+      sportmonksCalls += 1;
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 1540843,
+              starting_at: `${today} 18:00:00`,
+              state: { short_name: 'NS' },
+              league: { id: 732, name: 'FIFA World Cup', country: { name: 'World' } },
+              participants: [
+                { id: 1, name: 'Brazil', short_code: 'BRA', meta: { location: 'home' } },
+                { id: 2, name: 'Japan', short_code: 'JPN', meta: { location: 'away' } },
+              ],
+              scores: [],
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (requestUrl.includes('/papi/api/streams')) {
+      return new Response(JSON.stringify({ success: true, streams: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ data: [] }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  const env = {
+    SPORTMONKS_TOKEN: 'test-token',
+    ADMIN_USERNAME: 'admin',
+    ADMIN_PASSWORD: 'secret',
+    ADMIN_BEARER_TOKEN: 'admin-token',
+    STREAM_CONFIG_KV: {
+      async get(key) {
+        return kvData.get(key) || null;
+      },
+      async put(key, value) {
+        kvData.set(key, value);
+      },
+      async delete(key) {
+        kvData.delete(key);
+      },
+      async list() {
+        return { keys: [], list_complete: true };
+      },
+    },
+  };
+
+  try {
+    const first = await routeRequest(new Request(`https://kinglive.test/api/matches?date=${today}`), env, {});
+    const second = await routeRequest(new Request(`https://kinglive.test/api/matches?date=${today}`), env, {});
+    assert.equal(first.status, 200);
+    assert.equal(second.status, 200);
+    assert.equal(sportmonksCalls, 1);
+
+    const refresh = await routeRequest(
+      new Request('https://kinglive.test/api/admin/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer admin-token' },
+        body: JSON.stringify({ scope: 'matches', date: today }),
+      }),
+      env,
+      {},
+    );
+    assert.equal(refresh.status, 200);
+    const refreshBody = await refresh.json();
+    assert.equal(refreshBody.ok, true);
+    assert.equal(refreshBody.scope, 'matches');
+    assert.equal(typeof refreshBody.cache_version, 'string');
+    assert.equal(sportmonksCalls, 2);
+
+    const afterRefresh = await routeRequest(new Request(`https://kinglive.test/api/matches?date=${today}`), env, {});
+    assert.equal(afterRefresh.status, 200);
+    assert.equal(sportmonksCalls, 3);
+  } finally {
+    globalThis.fetch = previousFetch;
+    globalThis.caches = previousCaches;
+  }
 });
 
 test('tracks viewer heartbeats and returns admin monitoring snapshot from KV', async () => {
@@ -1154,6 +1257,267 @@ test('does not attach stream before starts_at and exposes it in /api/streams/act
     assert.deepEqual(payload.match_ids, ['1540843']);
     assert.equal(payload.total_matches, 1);
     assert.equal(payload.total_streams, 1);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('attaches every DAMI source to the matching Sportmonks fixture', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    if (requestUrl.includes('api.sportmonks.com')) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 1540843,
+            name: 'Korea Republic vs Czech Republic',
+            starting_at: '2026-06-12 18:00:00',
+            state: { short_name: '1st' },
+            league: { id: 732, name: 'FIFA World Cup', country: { name: 'World' } },
+            participants: [
+              { id: 1, name: 'Korea Republic', short_code: 'KOR', meta: { location: 'home' } },
+              { id: 2, name: 'Czech Republic', short_code: 'CZE', meta: { location: 'away' } },
+            ],
+            scores: [],
+            periods: [{ type_id: 1, minutes: 24, ticking: true }],
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (requestUrl.includes('/papi/api/streams')) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          streams: [
+            {
+              category: 'football',
+              streams: [
+                {
+                  id: 'wc/2026-06-12/kor-cze',
+                  name: 'Korea Republic vs. Czech Republic',
+                  teams: {
+                    home: { name: 'Korea Republic' },
+                    away: { name: 'Czech Republic' },
+                  },
+                  sources: [
+                    { source: 'tv', id: 's1', embed: 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101' },
+                    { source: 'tv', id: 's2', embed: 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=102' },
+                    { source: 'alt', id: 's3', embed: 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=103' },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    return new Response(JSON.stringify({ data: [] }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches/1540843?lang=en&region=global'),
+      { SPORTMONKS_TOKEN: 'test-token' },
+      {},
+    );
+
+    assert.equal(response.status, 200);
+    const match = await response.json();
+    assert.equal(match.streams.length, 3);
+    assert.deepEqual(
+      match.streams.map((stream) => stream.url),
+      [
+        'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101',
+        'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=102',
+        'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=103',
+      ],
+    );
+    assert.deepEqual(
+      match.streams.map((stream) => stream.label),
+      ['DAMI tv s1', 'DAMI tv s2', 'DAMI alt s3'],
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('caches DAMI streams in KV for multiple match responses', async () => {
+  const previousFetch = globalThis.fetch;
+  const kvData = new Map();
+  let damiCalls = 0;
+  let sportmonksCalls = 0;
+
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    if (requestUrl.includes('api.sportmonks.com')) {
+      sportmonksCalls += 1;
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 1540843,
+            name: 'Korea Republic vs Czech Republic',
+            starting_at: '2026-06-12 18:00:00',
+            state: { short_name: '1st' },
+            league: { id: 732, name: 'FIFA World Cup', country: { name: 'World' } },
+            participants: [
+              { id: 1, name: 'Korea Republic', short_code: 'KOR', meta: { location: 'home' } },
+              { id: 2, name: 'Czech Republic', short_code: 'CZE', meta: { location: 'away' } },
+            ],
+            scores: [],
+            periods: [{ type_id: 1, minutes: 24, ticking: true }],
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (requestUrl.includes('/papi/api/streams')) {
+      damiCalls += 1;
+      return new Response(
+        JSON.stringify({
+          success: true,
+          streams: [
+            {
+              category: 'football',
+              streams: [
+                {
+                  id: 'wc/2026-06-12/kor-cze',
+                  name: 'Korea Republic vs. Czech Republic',
+                  starts_at: 1781287200,
+                  ends_at: 1781298000,
+                  teams: {
+                    home: { name: 'Korea Republic' },
+                    away: { name: 'Czech Republic' },
+                  },
+                  sources: [
+                    { source: 'tv', id: 's1', embed: 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101' },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    return new Response(JSON.stringify({ data: [] }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  const env = {
+    SPORTMONKS_TOKEN: 'test-token',
+    STREAM_CONFIG_KV: {
+      async get(key) {
+        return kvData.get(key) || null;
+      },
+      async put(key, value) {
+        kvData.set(key, value);
+      },
+      async delete(key) {
+        kvData.delete(key);
+      },
+    },
+  };
+
+  try {
+    const first = await routeRequest(new Request('https://kinglive.test/api/matches/1540843?live=1&v=one'), env, {});
+    const second = await routeRequest(new Request('https://kinglive.test/api/matches/1540843?live=1&v=two'), env, {});
+    assert.equal(first.status, 200);
+    assert.equal(second.status, 200);
+    assert.equal(sportmonksCalls, 2);
+    assert.equal(damiCalls, 1);
+    assert.equal(kvData.has('dami:streams:v1'), true);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('keeps DAMI sources isolated when two fixtures run at the same time', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    if (requestUrl.includes('api.sportmonks.com')) {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 1540843,
+              name: 'Korea Republic vs Czech Republic',
+              starting_at: '2026-06-12 18:00:00',
+              state: { short_name: '1st' },
+              league: { id: 732, name: 'FIFA World Cup', country: { name: 'World' } },
+              participants: [
+                { id: 1, name: 'Korea Republic', short_code: 'KOR', meta: { location: 'home' } },
+                { id: 2, name: 'Czech Republic', short_code: 'CZE', meta: { location: 'away' } },
+              ],
+              scores: [],
+              periods: [{ type_id: 1, minutes: 24, ticking: true }],
+            },
+            {
+              id: 1540844,
+              name: 'Ghana vs Uruguay',
+              starting_at: '2026-06-12 18:00:00',
+              state: { short_name: '1st' },
+              league: { id: 732, name: 'FIFA World Cup', country: { name: 'World' } },
+              participants: [
+                { id: 3, name: 'Ghana', short_code: 'GHA', meta: { location: 'home' } },
+                { id: 4, name: 'Uruguay', short_code: 'URU', meta: { location: 'away' } },
+              ],
+              scores: [],
+              periods: [{ type_id: 1, minutes: 22, ticking: true }],
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (requestUrl.includes('/papi/api/streams')) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          streams: [
+            {
+              category: 'football',
+              streams: [
+                {
+                  id: 'wc/2026-06-12/kor-cze',
+                  name: 'Korea Republic vs. Czech Republic',
+                  starts_at: 1781287200,
+                  ends_at: 1781298000,
+                  teams: { home: { name: 'Korea Republic' }, away: { name: 'Czech Republic' } },
+                  sources: [{ source: 'tv', id: 'kor', embed: 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101' }],
+                },
+                {
+                  id: 'wc/2026-06-12/gha-uru',
+                  name: 'Ghana vs. Uruguay',
+                  starts_at: 1781287200,
+                  ends_at: 1781298000,
+                  teams: { home: { name: 'Ghana' }, away: { name: 'Uruguay' } },
+                  sources: [{ source: 'tv', id: 'gha', embed: 'https://dami-tv.pro/embed/?id=wc/2026-06-12/gha-uru&ch=202' }],
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    return new Response(JSON.stringify({ data: [] }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches?date=2026-06-12&live=1'),
+      { SPORTMONKS_TOKEN: 'test-token' },
+      {},
+    );
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    const korea = body.matches.find((match) => match.id === 1540843);
+    const ghana = body.matches.find((match) => match.id === 1540844);
+    assert.deepEqual(korea.streams.map((stream) => stream.url), ['https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101']);
+    assert.deepEqual(ghana.streams.map((stream) => stream.url), ['https://dami-tv.pro/embed/?id=wc/2026-06-12/gha-uru&ch=202']);
   } finally {
     globalThis.fetch = previousFetch;
   }

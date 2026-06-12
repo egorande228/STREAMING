@@ -219,6 +219,49 @@ test('plays a match stream configured in streams.json', async () => {
   assert.equal(result.copyEmbed.hidden, false);
 });
 
+test('merges configured player streams with match API streams', async () => {
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843&lang=en&region=global',
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              1540843: {
+                url: 'https://trusted.test/manual.m3u8',
+                label: 'Manual stream',
+              },
+            }),
+        });
+      }
+      assert.equal(String(url), '/api/matches/1540843?lang=en&region=global');
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Korea Republic' },
+            away_team: { name_en: 'Czech Republic' },
+            streams: [
+              {
+                url: 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101',
+                source_type: 'iframe',
+                label: 'DAMI tv s1',
+                priority: 90,
+                is_active: true,
+              },
+            ],
+          }),
+      });
+    },
+  });
+
+  assert.equal(result.appended.length, 1);
+  assert.match(result.sourceSelect.innerHTML, /Manual stream/);
+  assert.match(result.sourceSelect.innerHTML, /DAMI tv s1/);
+  assert.equal(result.sourceSelect.hidden, false);
+});
+
 test('sandboxes iframe streams to block popup and top navigation redirects', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',

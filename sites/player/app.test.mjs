@@ -23,12 +23,27 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
     addEventListener() {},
   };
   const localStorageStore = new Map();
+  const stageClasses = new Set(['stage']);
   const tgPopup = {
     hidden: true,
     innerHTML: '',
     addEventListener() {},
   };
   const stage = {
+    get className() {
+      return [...stageClasses].join(' ');
+    },
+    classList: {
+      add(...values) {
+        values.forEach((value) => stageClasses.add(value));
+      },
+      remove(...values) {
+        values.forEach((value) => stageClasses.delete(value));
+      },
+      contains(value) {
+        return stageClasses.has(value);
+      },
+    },
     get innerHTML() {
       return stageHtml;
     },
@@ -40,13 +55,21 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
       appended.push(element);
     },
   };
+  if (!timers.disableStageFullscreen) {
+    stage.requestFullscreen = () => {
+      timers.stageFullscreenRequested = true;
+      return Promise.resolve();
+    };
+  }
   const makeElement = (tagName) => ({
     tagName,
     className: '',
     hidden: false,
     innerHTML: '',
+    textContent: '',
     style: {},
     dataset: {},
+    listeners: new Map(),
     offsetHeight: timers.adProbeBlocked ? 0 : 12,
     clientHeight: timers.adProbeBlocked ? 0 : 12,
     remove() {},
@@ -54,7 +77,12 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
       this[name] = String(value);
     },
     addEventListener(type, handler) {
+      this.listeners.set(type, handler);
       elementListeners.set(type, handler);
+    },
+    click() {
+      const handler = this.listeners.get('click');
+      if (handler) handler({ preventDefault() {}, stopPropagation() {} });
     },
   });
 
@@ -112,8 +140,12 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
       querySelectorAll() {
         return [];
       },
+      exitFullscreen() {
+        timers.stageFullscreenExited = true;
+        return Promise.resolve();
+      },
       createElement(tagName) {
-        if (tagName === 'div') return makeElement(tagName);
+        if (tagName === 'div' || tagName === 'button' || tagName === 'span') return makeElement(tagName);
         return {
           tagName,
           canPlayType: () => '',
@@ -136,7 +168,9 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
     controls,
     copyEmbed,
     elementListeners,
+    getStageClassName: () => stage.className,
     sourceSelect,
+    stageClassName: stage.className,
     stageHtml,
     tgPopup,
     title: titleEl.textContent,
@@ -332,6 +366,83 @@ test('renders KingLive text overlays above iframe streams', async () => {
   assert.equal(overlays[0].textContent, 'KINGLIVE');
   assert.equal(overlays[1].textContent, 'KINGLIVE');
   assert.equal(overlays.every((element) => element['aria-hidden'] === 'true'), true);
+});
+
+test('stage fullscreen button keeps player overlays inside fullscreen surface', async () => {
+  const timers = {};
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    timers,
+    config: {
+      matchStreams: {
+        1540843: {
+          url: 'https://third-party.test/embed',
+          source_type: 'iframe',
+          label: 'Third-party iframe',
+        },
+      },
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Arsenal' },
+            away_team: { name_en: 'Atletico Madrid' },
+            streams: [],
+          }),
+      });
+    },
+  });
+
+  const fullscreenButton = result.appended.find((element) => element.className === 'player-fullscreen-button');
+
+  assert.ok(fullscreenButton);
+  assert.equal(fullscreenButton.type, 'button');
+  assert.equal(fullscreenButton['aria-label'], 'Fullscreen');
+
+  fullscreenButton.click();
+
+  assert.equal(timers.stageFullscreenRequested, true);
+});
+
+test('stage fullscreen button falls back to viewport mode when native fullscreen is unavailable', async () => {
+  const timers = { disableStageFullscreen: true };
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    timers,
+    config: {
+      matchStreams: {
+        1540843: {
+          url: 'https://third-party.test/embed',
+          source_type: 'iframe',
+          label: 'Third-party iframe',
+        },
+      },
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Arsenal' },
+            away_team: { name_en: 'Atletico Madrid' },
+            streams: [],
+          }),
+      });
+    },
+  });
+
+  const fullscreenButton = result.appended.find((element) => element.className === 'player-fullscreen-button');
+  fullscreenButton.click();
+
+  assert.match(result.getStageClassName(), /stage-pseudo-fullscreen/);
 });
 
 test('keeps DAMI resolver working while click shield blocks ad redirects', async () => {
@@ -604,7 +715,7 @@ test('shows adblock modal without clearing the active player stage', async () =>
   assert.ok(adblockModal);
   assert.match(adblockModal.innerHTML, /Ad blocker detected/);
 
-  result.elementListeners.get('click')({
+  adblockModal.listeners.get('click')({
     target: {
       closest(selector) {
         return selector === '[data-adblock-close]' ? {} : null;

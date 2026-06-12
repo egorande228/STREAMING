@@ -501,6 +501,7 @@
       stage.appendChild(adCover);
     }
     attachPlayerBrandOverlays();
+    attachPlayerFullscreenButton();
     attachTelegramPopupToStage();
   }
 
@@ -512,6 +513,61 @@
       overlay.setAttribute('aria-hidden', 'true');
       stage.appendChild(overlay);
     });
+  }
+
+  function attachPlayerFullscreenButton() {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'player-fullscreen-button';
+    button.setAttribute('aria-label', 'Fullscreen');
+    button.addEventListener('click', toggleStageFullscreen);
+    stage.appendChild(button);
+  }
+
+  function toggleStageFullscreen(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const isPseudoFullscreen = stage.classList && stage.classList.contains('stage-pseudo-fullscreen');
+    const fullscreenElement =
+      document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+    if (fullscreenElement || isPseudoFullscreen) {
+      exitPseudoStageFullscreen();
+      runFullscreenOperation(document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen, document);
+      return;
+    }
+    const didRequestFullscreen = runFullscreenOperation(
+      stage.requestFullscreen || stage.webkitRequestFullscreen || stage.webkitRequestFullScreen || stage.msRequestFullscreen,
+      stage,
+      enterPseudoStageFullscreen,
+    );
+    if (!didRequestFullscreen) enterPseudoStageFullscreen();
+  }
+
+  function runFullscreenOperation(operation, target, onFailure) {
+    if (typeof operation !== 'function') return false;
+    try {
+      const result = operation.call(target);
+      if (result && typeof result.catch === 'function') result.catch(() => {
+        if (onFailure) onFailure();
+      });
+      return true;
+    } catch {
+      // Fullscreen can be denied by browser policy; keep playback unaffected.
+      if (onFailure) onFailure();
+      return false;
+    }
+  }
+
+  function enterPseudoStageFullscreen() {
+    if (stage.classList) stage.classList.add('stage-pseudo-fullscreen');
+    if (document.body && document.body.classList) document.body.classList.add('stage-pseudo-fullscreen-active');
+  }
+
+  function exitPseudoStageFullscreen() {
+    if (stage.classList) stage.classList.remove('stage-pseudo-fullscreen');
+    if (document.body && document.body.classList) document.body.classList.remove('stage-pseudo-fullscreen-active');
   }
 
   function createIframeClickShield(stream) {
@@ -558,6 +614,7 @@
     video.poster = params.get('poster') || '';
     stage.appendChild(video);
     attachPlayerBrandOverlays();
+    attachPlayerFullscreenButton();
     attachTelegramPopupToStage();
 
     const preferHlsJs = /dami-tv\.pro/i.test(stream.url || '');

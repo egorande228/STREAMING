@@ -19,6 +19,7 @@ const GOOGLE_NEWS_FEEDS = {
 const STREAM_CONFIG_KV_KEY = 'match_streams_json';
 const MATCH_OVERRIDES_KV_KEY = 'match_overrides_json';
 const CACHE_VERSION_KV_KEY = 'api_cache_version';
+const API_CACHE_NAMESPACE = 'dami-labels-v2';
 const DAMI_STREAMS_KV_KEY = 'dami:streams:v1';
 const DAMI_STREAMS_TTL_SECONDS = 60;
 const DAMI_STREAMS_API_URL = 'https://dami-tv.pro/papi/api/streams';
@@ -2757,6 +2758,7 @@ function isLiveStatsRequest(url) {
 function normalizeCacheUrl(url, provider = '', cacheVersion = '') {
   const normalized = new URL(url);
   if (provider) normalized.searchParams.set('__provider', provider);
+  normalized.searchParams.set('__cache_namespace', API_CACHE_NAMESPACE);
   if (cacheVersion) normalized.searchParams.set('__cache_version', cacheVersion);
   normalized.searchParams.sort();
   return normalized;
@@ -2766,6 +2768,7 @@ function normalizeSportmonksSubrequestCacheUrl(apiUrl, cacheVersion = '') {
   const normalized = new URL(apiUrl);
   normalized.searchParams.delete('api_token');
   normalized.searchParams.set('__sportmonks_subrequest', '1');
+  normalized.searchParams.set('__cache_namespace', API_CACHE_NAMESPACE);
   if (cacheVersion) normalized.searchParams.set('__cache_version', cacheVersion);
   normalized.searchParams.sort();
   return normalized;

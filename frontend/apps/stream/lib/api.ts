@@ -220,7 +220,7 @@ export interface Stream {
   id: number;
   match_id: number;
   url: string;
-  source_type: 'hls' | 'iframe';
+  source_type: 'hls' | 'iframe' | 'videojs';
   label: string;
   language_code: string;
   region: string;

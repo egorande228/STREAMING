@@ -301,7 +301,8 @@
       },
       "sourceTypes": {
         "hls": "HLS",
-        "iframe": "Iframe / Telegram"
+        "iframe": "Iframe / Telegram",
+        "videojs": "Video.js"
       },
       "regions": {
         "global": "عالمي",

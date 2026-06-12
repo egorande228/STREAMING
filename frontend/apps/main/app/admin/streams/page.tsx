@@ -8,7 +8,7 @@ interface Stream {
   id: number;
   match_id: number;
   label: string;
-  source_type: 'hls' | 'iframe';
+  source_type: 'hls' | 'iframe' | 'videojs';
   quality: string;
   language_code: string;
   url: string;
@@ -196,6 +196,7 @@ export default function AdminStreamsPage() {
             >
               <option value="hls">{t('sourceTypes.hls')}</option>
               <option value="iframe">{t('sourceTypes.iframe')}</option>
+              <option value="videojs">{t('sourceTypes.videojs')}</option>
             </select>
           </div>
 

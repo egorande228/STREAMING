@@ -6,6 +6,8 @@ const SPORTMONKS_STATS_INCLUDES = 'participants;statistics.type';
 const SPORTMONKS_EVENTS_INCLUDES = 'participants;events.type';
 const SPORTMONKS_LINEUPS_INCLUDES = 'participants;lineups.player:display_name,image_path';
 const SPORTMONKS_NEWS_INCLUDES = 'fixture;league;lines';
+const SPORTMONKS_PREDICTIONS_INCLUDES = 'type';
+const MELBET_BOOKMAKER_ID = 64;
 const NEWS_FEED_URL = 'https://feeds.bbci.co.uk/sport/football/rss.xml';
 const NEWS_FEED_PROXY_URL = `https://morss.it/${NEWS_FEED_URL}`;
 const NEWS_FEED_AR_URL = 'https://feeds.bbci.co.uk/arabic/rss.xml';
@@ -19,7 +21,7 @@ const GOOGLE_NEWS_FEEDS = {
 const STREAM_CONFIG_KV_KEY = 'match_streams_json';
 const MATCH_OVERRIDES_KV_KEY = 'match_overrides_json';
 const CACHE_VERSION_KV_KEY = 'api_cache_version';
-const API_CACHE_NAMESPACE = 'dami-labels-v2';
+const API_CACHE_NAMESPACE = 'melbet64-predictions-v1';
 const DAMI_STREAMS_KV_KEY = 'dami:streams:v1';
 const DAMI_STREAMS_TTL_SECONDS = 60;
 const DAMI_STREAMS_API_URL = 'https://dami-tv.pro/papi/api/streams';
@@ -241,12 +243,13 @@ async function routeSportmonksFootballRequest(url, env, ttl, ctx = {}) {
   if (statsMatch) {
     const matchId = Number(statsMatch[1]);
     const liveTtl = isLiveStatsRequest(url) ? 30 : 1800;
-    const [statisticsPayload, eventsPayload, lineupsPayload, factsPayload, oddsPayload] = await Promise.all([
+    const [statisticsPayload, eventsPayload, lineupsPayload, factsPayload, oddsPayload, predictionsPayload] = await Promise.all([
       fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, SPORTMONKS_STATS_INCLUDES), env, liveTtl, ctx),
       fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, SPORTMONKS_EVENTS_INCLUDES), env, liveTtl, ctx),
       fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, SPORTMONKS_LINEUPS_INCLUDES), env, 1800, ctx),
       fetchCachedSportmonksJson(buildSportmonksMatchFactsUrl(matchId, url), env, 1800, ctx),
       fetchCachedSportmonksJson(buildSportmonksOddsUrl(matchId, url), env, 300, ctx),
+      fetchCachedSportmonksJson(buildSportmonksPredictionsUrl(matchId, url), env, 1800, ctx),
     ]);
     if (!statisticsPayload.ok && !eventsPayload.ok && !lineupsPayload.ok) {
       return jsonResponse({ error: 'sportmonks_api_error', status: statisticsPayload.status || eventsPayload.status || lineupsPayload.status }, 502, 30);
@@ -258,6 +261,7 @@ async function routeSportmonksFootballRequest(url, env, ttl, ctx = {}) {
         statistics: statisticsPayload.ok ? statisticsPayload.body?.data : null,
         events: eventsPayload.ok ? eventsPayload.body?.data : null,
         lineups: lineupsPayload.ok ? lineupsPayload.body?.data : null,
+        predictions: predictionsPayload.ok ? sportmonksDataList(predictionsPayload.body) : [],
       }),
       200,
       ttl,
@@ -1412,8 +1416,15 @@ function buildSportmonksFixtureDetailUrl(matchId, siteUrl = null, include = SPOR
 }
 
 function buildSportmonksOddsUrl(matchId, siteUrl = null) {
-  const url = new URL(`${SPORTMONKS_API_BASE}/odds/pre-match/fixtures/${matchId}`);
+  const url = new URL(`${SPORTMONKS_API_BASE}/odds/pre-match/fixtures/${matchId}/bookmakers/${MELBET_BOOKMAKER_ID}`);
   url.searchParams.set('include', 'bookmaker;market');
+  if (siteUrl) applySportmonksLocale(url, siteUrl);
+  return url;
+}
+
+function buildSportmonksPredictionsUrl(matchId, siteUrl = null) {
+  const url = new URL(`${SPORTMONKS_API_BASE}/predictions/probabilities/fixtures/${matchId}`);
+  url.searchParams.set('include', SPORTMONKS_PREDICTIONS_INCLUDES);
   if (siteUrl) applySportmonksLocale(url, siteUrl);
   return url;
 }
@@ -1539,6 +1550,7 @@ export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [
     team_stats: teamStats,
     facts: normalizeSportmonksFacts(facts),
     odds: normalizeSportmonksOdds(odds),
+    predictions: normalizeSportmonksPredictions(detailFixtures.predictions),
   };
 }
 
@@ -2450,9 +2462,9 @@ function participantLabel(participant = '') {
 
 function normalizeSportmonksOdds(odds = []) {
   const rows = sportmonksDataList({ data: odds }).filter((odd) => {
+    const bookmakerId = Number(odd.bookmaker_id ?? odd.bookmaker?.id);
     const bookmaker = String(odd.bookmaker?.name || '').trim().toLowerCase();
-    const market = String(odd.market?.developer_name || odd.market?.name || odd.market_description || '').trim().toLowerCase();
-    return bookmaker === 'melbet' && ['fulltime_result', 'fulltime result', 'goal_line', 'goal line', 'asian_handicap', 'asian handicap'].includes(market);
+    return (bookmakerId === MELBET_BOOKMAKER_ID || bookmaker === 'melbet') && normalizeSportmonksOddsMarketKey(odd);
   });
 
   if (!rows.length) return null;
@@ -2462,16 +2474,16 @@ function normalizeSportmonksOdds(odds = []) {
   const handicap = { home: null, away: null };
   let latestUpdatedAt = '';
   rows.forEach((odd) => {
-    const market = String(odd.market?.developer_name || odd.market?.name || odd.market_description || '').trim().toLowerCase();
+    const market = normalizeSportmonksOddsMarketKey(odd);
     const oddValue = normalizedOddValue(odd);
     if (!oddValue) return;
-    if (market === 'fulltime_result' || market === 'fulltime result') {
+    if (market === 'fulltime') {
       const key = normalizeFulltimeOutcome(odd);
       if (key && !fulltime[key]) fulltime[key] = oddValue;
-    } else if (market === 'goal_line' || market === 'goal line') {
+    } else if (market === 'goal_line') {
       const key = normalizeGoalLineOutcome(odd);
       if (key && !goalLine[key]) goalLine[key] = oddValue;
-    } else if (market === 'asian_handicap' || market === 'asian handicap') {
+    } else if (market === 'asian_handicap') {
       const key = normalizeHandicapOutcome(odd);
       if (key && !handicap[key]) handicap[key] = oddValue;
     }
@@ -2498,6 +2510,14 @@ function normalizeSportmonksOdds(odds = []) {
   };
 }
 
+function normalizeSportmonksOddsMarketKey(odd = {}) {
+  const value = String(odd.market?.developer_name || odd.market?.name || odd.market_description || '').trim().toLowerCase();
+  if (['fulltime_result', 'fulltime result', 'full time result', 'match winner', 'winner'].includes(value)) return 'fulltime';
+  if (['goal_line', 'goal line', 'total goals', 'over/under', 'over under'].includes(value)) return 'goal_line';
+  if (['asian_handicap', 'asian handicap', 'handicap'].includes(value)) return 'asian_handicap';
+  return '';
+}
+
 function normalizedOddValue(odd = {}) {
   return {
     label: String(odd.label || odd.name || '').trim(),
@@ -2506,6 +2526,68 @@ function normalizedOddValue(odd = {}) {
     total: odd.total == null ? '' : String(odd.total).trim(),
     handicap: odd.handicap == null ? '' : String(odd.handicap).trim(),
   };
+}
+
+function normalizeSportmonksPredictions(predictions = []) {
+  return sportmonksDataList({ data: predictions })
+    .map((prediction, index) => {
+      const outcomes = normalizePredictionOutcomes(prediction.predictions);
+      if (!outcomes.length) return null;
+      const label = cleanPredictionLabel(prediction.type?.name || prediction.type?.developer_name || prediction.type?.code || `Prediction ${index + 1}`);
+      return {
+        id: Number(prediction.id) || hashToPositiveInt(`prediction:${index}:${label}`),
+        key: normalizePredictionKey(prediction.type?.developer_name || prediction.type?.code || label),
+        label,
+        outcomes,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function normalizePredictionOutcomes(value = {}) {
+  if (!value || typeof value !== 'object') return [];
+  const entries = [];
+  Object.entries(value).forEach(([key, item]) => {
+    if (item && typeof item === 'object') {
+      Object.entries(item).forEach(([nestedKey, nestedValue]) => {
+        if (isScalarPredictionValue(nestedValue)) entries.push([`${key}_${nestedKey}`, nestedValue]);
+      });
+      return;
+    }
+    if (isScalarPredictionValue(item)) entries.push([key, item]);
+  });
+  return entries
+    .map(([key, item]) => ({
+      key: normalizePredictionKey(key),
+      label: cleanPredictionLabel(key),
+      value: formatPredictionValue(item),
+    }))
+    .filter((item) => item.value)
+    .slice(0, 8);
+}
+
+function isScalarPredictionValue(value) {
+  return value != null && ['string', 'number', 'boolean'].includes(typeof value);
+}
+
+function formatPredictionValue(value) {
+  const text = String(value).trim();
+  if (!text) return '';
+  if (text.endsWith('%')) return text;
+  const number = Number(text);
+  if (!Number.isFinite(number)) return text;
+  return `${Number.isInteger(number) ? number : number.toFixed(1).replace(/\.0$/, '')}%`;
+}
+
+function normalizePredictionKey(value = '') {
+  return String(value || 'prediction').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'prediction';
+}
+
+function cleanPredictionLabel(value = '') {
+  const text = String(value || '').replace(/[_-]+/g, ' ').trim();
+  if (!text) return 'Prediction';
+  return text.replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function normalizeFulltimeOutcome(odd = {}) {

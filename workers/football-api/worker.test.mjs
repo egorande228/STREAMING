@@ -126,27 +126,30 @@ test('returns split Sportmonks match detail endpoints with endpoint-specific cac
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       );
     }
-    if (path === '/v3/football/odds/pre-match/fixtures/42') {
+    if (path === '/v3/football/odds/pre-match/fixtures/42/bookmakers/64') {
       return new Response(
         JSON.stringify({
           data: [
             {
               id: 1001,
-              bookmaker: { name: 'MelBet' },
+              bookmaker_id: 64,
+              bookmaker: { id: 64, name: 'MelBet' },
               market: { developer_name: 'fulltime_result' },
               label: 'Home',
               value: '1.80',
             },
             {
               id: 1002,
-              bookmaker: { name: 'MelBet' },
+              bookmaker_id: 64,
+              bookmaker: { id: 64, name: 'MelBet' },
               market: { developer_name: 'fulltime_result' },
               label: 'Draw',
               value: '3.30',
             },
             {
               id: 1003,
-              bookmaker: { name: 'MelBet' },
+              bookmaker_id: 64,
+              bookmaker: { id: 64, name: 'MelBet' },
               market: { developer_name: 'fulltime_result' },
               label: 'Away',
               value: '4.20',
@@ -405,12 +408,33 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
         latest_bookmaker_update: '2026-06-09 10:15:10',
       },
       {
+        bookmaker_id: 64,
+        market: { developer_name: 'FULLTIME_RESULT', name: 'Fulltime Result' },
+        label: 'Home',
+        value: '1.41',
+      },
+      {
+        bookmaker_id: 8,
         bookmaker: { name: 'Dafabet' },
         market: { developer_name: 'FULLTIME_RESULT', name: 'Fulltime Result' },
         label: 'Home',
         value: '1.43',
       },
     ],
+    {
+      predictions: [
+        {
+          id: 501,
+          type: { name: 'Fulltime Result', developer_name: 'FULLTIME_RESULT' },
+          predictions: { home: 47.5, draw: 28, away: 24.5 },
+        },
+        {
+          id: 502,
+          type: { name: 'Both Teams To Score', developer_name: 'BOTH_TEAMS_TO_SCORE' },
+          predictions: { yes: 52, no: 48 },
+        },
+      ],
+    },
   );
 
   assert.equal(details.match_id, 42);
@@ -440,6 +464,27 @@ test('normalizes Sportmonks match details with events, team statistics, lineups,
   assert.deepEqual(details.facts, [
     { id: 900, title: 'Milestone', text: 'Brazil scored first in this fixture' },
     { id: 901, title: 'Total H2H Matches', text: 'Head-to-head sample: 3 matches (all matches)' },
+  ]);
+  assert.deepEqual(details.predictions, [
+    {
+      id: 501,
+      key: 'fulltime_result',
+      label: 'Fulltime Result',
+      outcomes: [
+        { key: 'home', label: 'Home', value: '47.5%' },
+        { key: 'draw', label: 'Draw', value: '28%' },
+        { key: 'away', label: 'Away', value: '24.5%' },
+      ],
+    },
+    {
+      id: 502,
+      key: 'both_teams_to_score',
+      label: 'Both Teams To Score',
+      outcomes: [
+        { key: 'yes', label: 'Yes', value: '52%' },
+        { key: 'no', label: 'No', value: '48%' },
+      ],
+    },
   ]);
 });
 
@@ -705,7 +750,8 @@ test('caches Sportmonks live match detail subrequests separately from stats resp
   globalThis.fetch = async (url) => {
     const requestUrl = String(url);
     calls.push(requestUrl);
-    if (requestUrl.includes('/fixtures/42')) {
+    const requestPath = new URL(requestUrl).pathname;
+    if (requestPath === '/v3/football/fixtures/42') {
       return new Response(JSON.stringify({
         data: {
           id: 42,
@@ -726,12 +772,19 @@ test('caches Sportmonks live match detail subrequests separately from stats resp
         data: [{ id: 901, name: 'Brazil have scored in 4 straight matches', type: { name: 'Streak' } }],
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
-    if (requestUrl.includes('/odds/pre-match/fixtures/42')) {
+    if (requestUrl.includes('/odds/pre-match/fixtures/42/bookmakers/64')) {
       return new Response(JSON.stringify({
         data: [
-          { bookmaker: { name: 'MelBet' }, market: { developer_name: 'FULLTIME_RESULT' }, label: 'Home', value: '1.40' },
-          { bookmaker: { name: 'MelBet' }, market: { developer_name: 'FULLTIME_RESULT' }, label: 'Draw', value: '4.00' },
-          { bookmaker: { name: 'MelBet' }, market: { developer_name: 'FULLTIME_RESULT' }, label: 'Away', value: '8.00' },
+          { bookmaker_id: 64, market: { developer_name: 'FULLTIME_RESULT' }, label: 'Home', value: '1.40' },
+          { bookmaker_id: 64, market: { developer_name: 'FULLTIME_RESULT' }, label: 'Draw', value: '4.00' },
+          { bookmaker_id: 64, market: { developer_name: 'FULLTIME_RESULT' }, label: 'Away', value: '8.00' },
+        ],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl.includes('/predictions/probabilities/fixtures/42')) {
+      return new Response(JSON.stringify({
+        data: [
+          { id: 501, type: { name: 'Fulltime Result' }, predictions: { home: 44, draw: 31, away: 25 } },
         ],
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
@@ -754,7 +807,9 @@ test('caches Sportmonks live match detail subrequests separately from stats resp
     assert.equal(second.headers.get('Cache-Control'), 'public, max-age=30');
     assert.equal(calls.filter((url) => new URL(url).pathname === '/v3/football/fixtures/42').length, 3);
     assert.equal(calls.filter((url) => new URL(url).pathname === '/v3/football/match-facts/42').length, 1);
-    assert.equal(calls.filter((url) => new URL(url).pathname === '/v3/football/odds/pre-match/fixtures/42').length, 1);
+    assert.equal(calls.filter((url) => new URL(url).pathname === '/v3/football/odds/pre-match/fixtures/42/bookmakers/64').length, 1);
+    assert.equal(calls.filter((url) => new URL(url).pathname === '/v3/football/predictions/probabilities/fixtures/42').length, 1);
+    assert.equal((await first.clone().json()).predictions[0].outcomes[0].value, '44%');
   } finally {
     globalThis.fetch = previousFetch;
     globalThis.caches = previousCaches;

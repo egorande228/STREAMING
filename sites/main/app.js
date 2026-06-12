@@ -1,7 +1,7 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
-  const apiVersion = 'sportmonks-facts-v11-contacts-quiz-buttons';
+  const apiVersion = 'sportmonks-facts-v12-melbet64-predictions';
   const scheduleLookaheadDays = 14;
   const playerBase = String(config.playerBase || '../player').replace(/\/$/, '');
   const streamConfigUrl = config.streamConfigUrl || './stream.json';
@@ -46,6 +46,7 @@
       matchEvents: 'Match events',
       teamStatistics: 'Team statistics',
       matchFacts: 'Match facts',
+      matchPredictions: 'Predictions',
       startingLineups: 'Starting lineups',
       melbetOdds: 'MelBet odds',
       homeWin: 'Home',
@@ -115,6 +116,7 @@
       matchEvents: 'Eventos del partido',
       teamStatistics: 'Estadísticas del equipo',
       matchFacts: 'Datos del partido',
+      matchPredictions: 'Predicciones',
       startingLineups: 'Alineaciones iniciales',
       melbetOdds: 'Cuotas MelBet',
       homeWin: 'Local',
@@ -183,6 +185,7 @@
       matchEvents: 'Événements du match',
       teamStatistics: 'Statistiques d’équipe',
       matchFacts: 'Faits du match',
+      matchPredictions: 'Pronostics',
       startingLineups: 'Compositions de départ',
       melbetOdds: 'Cotes MelBet',
       homeWin: 'Domicile',
@@ -251,6 +254,7 @@
       matchEvents: 'أحداث المباراة',
       teamStatistics: 'إحصاءات الفريقين',
       matchFacts: 'حقائق المباراة',
+      matchPredictions: 'التوقعات',
       startingLineups: 'التشكيلات الأساسية',
       melbetOdds: 'احتمالات MelBet',
       homeWin: 'المضيف',
@@ -319,6 +323,7 @@
       matchEvents: 'Тоглолтын үйл явдал',
       teamStatistics: 'Багийн статистик',
       matchFacts: 'Тоглолтын факт',
+      matchPredictions: 'Таамаг',
       startingLineups: 'Гарааны бүрэлдэхүүн',
       melbetOdds: 'MelBet коэффициент',
       homeWin: 'Эзэн',
@@ -1419,6 +1424,36 @@
     return renderDetailAccordion(t('melbetOdds'), `<div class="melbet-odds">${body}</div>`, 'odds-accordion', { open: true });
   }
 
+  function renderMatchPredictions(stats, homeName, awayName) {
+    const predictions = Array.isArray(stats?.predictions) ? stats.predictions : [];
+    if (!predictions.length) return '';
+    const body = predictions.map((prediction) => {
+      const outcomes = Array.isArray(prediction?.outcomes) ? prediction.outcomes : [];
+      if (!outcomes.length) return '';
+      return `
+        <div class="match-prediction-market">${escapeHtml(cleanText(prediction.label, t('matchPredictions')))}</div>
+        <div class="match-prediction-grid">
+          ${outcomes.map((outcome) => `
+            <div class="match-prediction">
+              <span>${escapeHtml(predictionOutcomeLabel(outcome, homeName, awayName))}</span>
+              <strong>${escapeHtml(cleanText(outcome.value, '-'))}</strong>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }).filter(Boolean).join('');
+    if (!body) return '';
+    return renderDetailAccordion(t('matchPredictions'), `<div class="match-predictions">${body}</div>`, 'predictions-accordion', { open: true });
+  }
+
+  function predictionOutcomeLabel(outcome, homeName, awayName) {
+    const key = String(outcome?.key || '').toLowerCase();
+    if (key === 'home') return homeName || t('homeWin');
+    if (key === 'away') return awayName || t('awayWin');
+    if (key === 'draw') return t('draw');
+    return cleanText(outcome?.label, key || t('matchPredictions'));
+  }
+
   function melbetMarketItems(market, outcomes, homeName, awayName) {
     if (market?.key === 'total_goals') {
       return [
@@ -1890,6 +1925,7 @@
         </div>
         ${liveStatusBar}
         ${renderMelbetOdds(matchStats, home, away)}
+        ${renderMatchPredictions(matchStats, home, away)}
         ${prematchPanel}
         <div class="match-stats detail-meta-lines">
           <div>${escapeHtml(t('kickoff'))}: ${escapeHtml(formatDate(match.scheduled_at))}</div>

@@ -1140,6 +1140,18 @@ test('opens match details with stats and only shows player button when stream ex
                   },
                 ],
               },
+              predictions: [
+                {
+                  id: 501,
+                  key: 'fulltime_result',
+                  label: 'Fulltime Result',
+                  outcomes: [
+                    { key: 'home', label: 'Home', value: '47.5%' },
+                    { key: 'draw', label: 'Draw', value: '28%' },
+                    { key: 'away', label: 'Away', value: '24.5%' },
+                  ],
+                },
+              ],
               team_stats: [
                 { team: { name: 'Arsenal' }, stats: { possession: 61, shots_on_goal: 5, total_shots: 11, corners: 6 } },
                 { team: { name: 'Atletico Madrid' }, stats: { possession: 39, shots_on_goal: 3, total_shots: 7, corners: 2 } },
@@ -1247,6 +1259,9 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /Asian Handicap/);
   assert.match(modalHtml, /Arsenal -1\.5/);
   assert.match(modalHtml, /Atletico Madrid 1\.5/);
+  assert.match(modalHtml, /Predictions/);
+  assert.match(modalHtml, /47\.5%/);
+  assert.match(modalHtml, /24\.5%/);
   assert.match(modalHtml, /Match events/);
   assert.match(modalHtml, /<details class="detail-accordion events-accordion" open>/);
   assert.match(modalHtml, /event-timeline/);

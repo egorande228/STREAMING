@@ -1156,6 +1156,151 @@ html[dir="rtl"] .locale-menu {
   line-height: 1.45;
 }
 
+.quiz-floating-button {
+  position: fixed;
+  left: 22px;
+  bottom: 22px;
+  z-index: 75;
+  display: inline-flex;
+  max-width: min(260px, calc(100vw - 44px));
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(245, 196, 0, 0.62);
+  border-radius: 8px;
+  background: var(--gold);
+  color: #111;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.1;
+  text-align: center;
+  text-decoration: none;
+  text-transform: uppercase;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.34);
+}
+
+html[dir="rtl"] .quiz-floating-button {
+  right: 22px;
+  left: auto;
+}
+
+.social-dock {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 70;
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+  pointer-events: none;
+}
+
+html[dir="rtl"] .social-dock {
+  right: auto;
+  left: 22px;
+  justify-items: start;
+}
+
+.social-dock-toggle {
+  display: none;
+  width: 46px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(245, 196, 0, 0.44);
+  border-radius: 999px;
+  background: var(--gold);
+  color: #111;
+  font-size: 24px;
+  font-weight: 950;
+  pointer-events: auto;
+}
+
+.social-dock-panel {
+  display: grid;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.social-link {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  min-width: 152px;
+  min-height: 42px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(245, 196, 0, 0.24);
+  border-radius: 8px;
+  background: rgba(12, 14, 12, 0.9);
+  color: var(--text);
+  padding: 4px 11px 4px 4px;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+
+.social-link.disabled {
+  color: rgba(244, 239, 226, 0.56);
+}
+
+.social-mark {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #1d9bf0;
+  color: #fff;
+}
+
+.social-mark svg {
+  display: block;
+  width: 21px;
+  height: 21px;
+  fill: currentColor;
+}
+
+.social-mark.telegram svg {
+  width: 22px;
+  height: 22px;
+}
+
+.social-mark.youtube {
+  background: #ff0033;
+}
+
+.social-mark.youtube svg {
+  width: 23px;
+  height: 23px;
+}
+
+.social-mark.tiktok {
+  background: #111;
+  box-shadow: inset 2px 0 #25f4ee, inset -2px 0 #fe2c55;
+}
+
+.social-mark.tiktok svg {
+  width: 20px;
+  height: 20px;
+}
+
+.social-mark.facebook {
+  background: #1877f2;
+}
+
+.social-mark.facebook svg {
+  width: 24px;
+  height: 24px;
+}
+
+.social-mark.instagram {
+  background: linear-gradient(135deg, #feda75, #fa7e1e 28%, #d62976 58%, #962fbf 78%, #4f5bd5);
+}
+
 .match-modal[hidden] {
   display: none;
 }
@@ -2507,6 +2652,45 @@ html[dir="rtl"] .locale-menu {
 
   .ad-bottom {
     max-width: 100%;
+  }
+
+  .quiz-floating-button {
+    right: auto;
+    left: 12px;
+    bottom: 12px;
+    max-width: calc(100vw - 86px);
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: 11px;
+  }
+
+  html[dir="rtl"] .quiz-floating-button {
+    right: 12px;
+    left: auto;
+  }
+
+  .social-dock {
+    right: 12px;
+    bottom: 12px;
+    z-index: 95;
+  }
+
+  html[dir="rtl"] .social-dock {
+    right: auto;
+    left: 12px;
+  }
+
+  .social-dock-toggle {
+    display: inline-flex;
+  }
+
+  .social-dock-panel {
+    display: none;
+    max-width: min(220px, calc(100vw - 24px));
+  }
+
+  .social-dock.open .social-dock-panel {
+    display: grid;
   }
 
   .match-detail {

@@ -1342,7 +1342,9 @@
           `;
         }).filter(Boolean).join('');
     if (!body) return '';
-    return renderDetailAccordion(t('melbetOdds'), `<div class="melbet-odds">${body}</div>`, 'odds-accordion', { open: true });
+    const bookmaker = cleanText(odds.bookmaker, 'MelBet');
+    const title = bookmaker.toLowerCase() === 'melbet' ? t('melbetOdds') : `${bookmaker} odds`;
+    return renderDetailAccordion(title, `<div class="melbet-odds">${body}</div>`, 'odds-accordion', { open: true });
   }
 
   function melbetMarketItems(market, outcomes, homeName, awayName) {

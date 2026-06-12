@@ -17,6 +17,11 @@ test('admin API errors prefer server message details', () => {
   assert.match(adminSource, /payload\.message \|\| payload\.error/);
 });
 
+test('odds panel title can use the returned bookmaker name', () => {
+  assert.match(appSource, /\$\{bookmaker\} odds/);
+  assert.match(appSource, /bookmaker\.toLowerCase\(\) === 'melbet'/);
+});
+
 test('renders same-day matches beyond the first six API results', async () => {
   let gridHtml = '';
   const matchGrid = {

@@ -35,10 +35,8 @@ if ! [[ "$MAX_RESTREAMS" =~ ^[0-9]+$ ]] || [[ "$MAX_RESTREAMS" -lt 1 ]]; then
 fi
 
 active_restreams="$(
-  pgrep -af 'ffmpeg .*rtmp://127[.]0[.]0[.]1:1935/live/' \
-    | grep -v "rtmp://127.0.0.1:1935/live/${STREAM_KEY}$" \
-    | wc -l \
-    | tr -d ' '
+  { pgrep -af 'ffmpeg .*rtmp://127[.]0[.]0[.]1:1935/live/' || true; } \
+    | awk -v current="rtmp://127.0.0.1:1935/live/${STREAM_KEY}" '$0 !~ current "$" { count++ } END { print count + 0 }'
 )"
 if [[ "${active_restreams:-0}" -ge "$MAX_RESTREAMS" ]]; then
   echo "Refusing to start ${slug}: ${active_restreams} restream(s) already active, limit is ${MAX_RESTREAMS}" >&2

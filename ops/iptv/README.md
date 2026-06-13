@@ -30,6 +30,7 @@ The launcher supports both paths so existing channel env files can keep working.
 
 Sharavoz account/session limits are the real constraint. Start with one channel only.
 If one channel works alone but two fail, use separate donor accounts/tokens or keep only one active restream.
+The launcher refuses to start more than `MAX_RESTREAMS=2` simultaneous FFmpeg restreams by default.
 
 ## Install On Origin VPS
 

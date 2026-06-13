@@ -27,6 +27,23 @@ USER_AGENT="${USER_AGENT:-VLC/3.0.18 LibVLC/3.0.18}"
 RTMP_URL="${RTMP_URL:-${RESTREAM_RTMP_URL:-rtmp://127.0.0.1:1935/live/${STREAM_KEY}}}"
 REFERER="${REFERER:-}"
 ORIGIN="${ORIGIN:-}"
+MAX_RESTREAMS="${MAX_RESTREAMS:-2}"
+
+if ! [[ "$MAX_RESTREAMS" =~ ^[0-9]+$ ]] || [[ "$MAX_RESTREAMS" -lt 1 ]]; then
+  echo "MAX_RESTREAMS must be a positive integer" >&2
+  exit 65
+fi
+
+active_restreams="$(
+  pgrep -af 'ffmpeg .*rtmp://127[.]0[.]0[.]1:1935/live/' \
+    | grep -v "rtmp://127.0.0.1:1935/live/${STREAM_KEY}$" \
+    | wc -l \
+    | tr -d ' '
+)"
+if [[ "${active_restreams:-0}" -ge "$MAX_RESTREAMS" ]]; then
+  echo "Refusing to start ${slug}: ${active_restreams} restream(s) already active, limit is ${MAX_RESTREAMS}" >&2
+  exit 75
+fi
 
 headers=()
 if [[ -n "$REFERER" || -n "$ORIGIN" ]]; then

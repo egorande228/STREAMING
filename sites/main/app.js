@@ -834,7 +834,6 @@
   }
 
   function inferStreamType(src = '') {
-    if (/^dami-channel:\/?\/?\d+$/i.test(src)) return 'dami-channel';
     if (/\.m3u8(\?|$)/i.test(src)) return 'hls';
     return 'iframe';
   }

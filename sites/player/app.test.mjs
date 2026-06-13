@@ -224,12 +224,6 @@ test('plays a match stream configured in streams.json', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843&admin=1',
     fetchImpl: (url) => {
-      if (String(url) === 'https://dami-tv.pro/papi/tv/resolve/966?t=') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ stream: '/papi/tv/playlist/resolved-arabic.m3u8' }),
-        });
-      }
       if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
         return Promise.resolve({
           ok: true,
@@ -350,15 +344,11 @@ test('merges configured player streams with match API streams', async () => {
 
 test('starts the stream selected by the site button source params', async () => {
   const selectedUrl = 'https://dami-tv.pro/embed/?id=usa-vs-paraguay-2391729&ch=966';
+  const requests = [];
   const result = await runPlayer({
     href: `https://player.test/?match=19609133&lang=en&region=global&source=dami-19609133-2092607600&src=${encodeURIComponent(selectedUrl)}`,
     fetchImpl: (url) => {
-      if (String(url) === 'https://dami-tv.pro/papi/tv/resolve/966?t=') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ stream: '/papi/tv/playlist/resolved-arabic.m3u8' }),
-        });
-      }
+      requests.push(String(url));
       if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
         return Promise.resolve({ ok: false });
       }
@@ -397,29 +387,22 @@ test('starts the stream selected by the site button source params', async () => 
   await new Promise((resolve) => setImmediate(resolve));
   await new Promise((resolve) => setImmediate(resolve));
 
-  const video = result.appended.find((element) => element.tagName === 'video');
-  assert.ok(video);
-  assert.equal(video.src, 'https://dami-tv.pro/papi/tv/playlist/resolved-arabic.m3u8');
+  const iframe = result.appended.find((element) => element.tagName === 'iframe');
+  assert.ok(iframe);
+  assert.equal(iframe.src, selectedUrl);
+  assert.match(iframe.sandbox, /allow-popups/);
   assert.equal(result.sourceSelect.value, '1');
   assert.match(result.sourceSelect.innerHTML, /FOX/);
   assert.match(result.sourceSelect.innerHTML, /BEIN\(AR\)/);
+  assert.equal(requests.some((url) => url.includes('/papi/tv/resolve/')), false);
 });
 
-test('falls back to the next same-language DAMI source when resolver fails', async () => {
+test('plays DAMI auto streams as iframe popups without HLS lookup', async () => {
   const requests = [];
   const result = await runPlayer({
     href: 'https://player.test/?match=19609130&lang=ar&region=global&source=dami-19609130-primary',
     fetchImpl: (url) => {
       requests.push(String(url));
-      if (String(url) === 'https://dami-tv.pro/papi/tv/resolve/966?t=') {
-        return Promise.resolve({ ok: false });
-      }
-      if (String(url) === 'https://dami-tv.pro/papi/tv/resolve/967?t=') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ stream: '/papi/tv/playlist/fallback-arabic.m3u8' }),
-        });
-      }
       if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
         return Promise.resolve({ ok: false });
       }
@@ -459,12 +442,12 @@ test('falls back to the next same-language DAMI source when resolver fails', asy
   await new Promise((resolve) => setImmediate(resolve));
   await new Promise((resolve) => setImmediate(resolve));
 
-  const video = result.appended.find((element) => element.tagName === 'video');
-  assert.ok(video);
-  assert.equal(video.src, 'https://dami-tv.pro/papi/tv/playlist/fallback-arabic.m3u8');
-  assert.equal(result.sourceSelect.value, '1');
-  assert.equal(requests.includes('https://dami-tv.pro/papi/tv/resolve/966?t='), true);
-  assert.equal(requests.includes('https://dami-tv.pro/papi/tv/resolve/967?t='), true);
+  const iframe = result.appended.find((element) => element.tagName === 'iframe');
+  assert.ok(iframe);
+  assert.equal(iframe.src, 'https://dami-tv.pro/embed/?id=qatar-vs-switzerland-2391732&ch=966');
+  assert.match(iframe.sandbox, /allow-popups/);
+  assert.equal(result.sourceSelect.value, '0');
+  assert.equal(requests.some((url) => url.includes('/papi/tv/resolve/')), false);
 });
 
 test('sandboxes iframe streams to block popup and top navigation redirects', async () => {
@@ -651,7 +634,7 @@ test('stage fullscreen button falls back to viewport mode when native fullscreen
   assert.match(result.getStageClassName(), /stage-pseudo-fullscreen/);
 });
 
-test('keeps DAMI resolver working while click shield blocks ad redirects', async () => {
+test('keeps DAMI iframe working while click shield blocks ad redirects', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',
     config: {

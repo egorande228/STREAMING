@@ -364,8 +364,6 @@
 
   function inferType(src, explicitType) {
     if (explicitType === 'hls' || explicitType === 'iframe' || explicitType === 'videojs') return explicitType;
-    if (explicitType === 'dami-channel') return explicitType;
-    if (/^dami-channel:\/?\/?\d+$/i.test(src)) return 'dami-channel';
     if (/\.m3u8(\?|$)/i.test(src)) return 'hls';
     return 'iframe';
   }
@@ -641,26 +639,16 @@
     }
   }
 
-  function damiEmbedChannelId(value) {
-    try {
-      const url = new URL(String(value || ''), window.location.href);
-      if (!/(^|\.)dami-tv\.pro$/i.test(url.hostname) || !url.pathname.startsWith('/embed')) return '';
-      const channel = url.searchParams.get('ch') || url.searchParams.get('channel');
-      return /^\d+$/.test(channel || '') ? channel : '';
-    } catch {
-      return '';
-    }
-  }
-
   function playbackMode(stream = {}) {
     const mode = String(stream.playback_mode || stream.playbackMode || 'auto').toLowerCase();
-    return ['auto', 'hls_resolver', 'iframe', 'iframe_popups'].includes(mode) ? mode : 'auto';
+    return ['auto', 'iframe', 'iframe_popups'].includes(mode) ? mode : 'auto';
   }
 
-  function shouldResolveDamiEmbed(stream = {}) {
-    const mode = playbackMode(stream);
-    if (mode === 'iframe' || mode === 'iframe_popups') return false;
-    return Boolean(damiEmbedChannelId(stream.url));
+  function iframePlaybackStream(stream = {}) {
+    if (playbackMode(stream) === 'auto' && isDamiEmbedUrl(stream.url)) {
+      return { ...stream, playback_mode: 'iframe_popups' };
+    }
+    return stream;
   }
 
   function renderHls(stream, onFatal) {
@@ -753,26 +741,6 @@
     video.play().catch(() => {});
   }
 
-  function damiChannelId(stream) {
-    const match = String(stream.url || '').match(/^dami-channel:\/?\/?(\d+)$/i);
-    return match ? match[1] : '';
-  }
-
-  async function resolveDamiChannel(stream) {
-    const channelId = damiChannelId(stream) || damiEmbedChannelId(stream.url);
-    if (!channelId) throw new Error('Missing DAMI channel id');
-    const response = await fetch(`https://dami-tv.pro/papi/tv/resolve/${channelId}?t=`, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`DAMI resolve returned ${response.status}`);
-    const data = await response.json();
-    const resolvedUrl = data.stream || data.url || '';
-    if (!resolvedUrl) throw new Error('DAMI resolve returned no stream');
-    return {
-      ...stream,
-      source_type: 'hls',
-      url: resolvedUrl.startsWith('http') ? resolvedUrl : `https://dami-tv.pro${resolvedUrl}`,
-    };
-  }
-
   function nextSameLanguageStreamIndex(index, attempted = new Set()) {
     const current = currentStreams[index];
     const language = String(current?.language_code || current?.languageCode || '').toLowerCase();
@@ -799,26 +767,8 @@
     const stream = currentStreams[index];
     if (!stream) return;
     titleEl.textContent = stream.title || stream.label || params.get('title') || 'Stream';
-    if (stream.source_type === 'iframe' && shouldResolveDamiEmbed(stream)) {
-      stage.innerHTML = '<div class="player-empty">Loading stream...</div>';
-      try {
-        renderHls(await resolveDamiChannel(stream), () => fallbackToNextStream(index, attempted));
-      } catch {
-        fallbackToNextStream(index, attempted);
-      }
-      return;
-    }
     if (stream.source_type === 'iframe') {
-      renderIframe(stream);
-      return;
-    }
-    if (stream.source_type === 'dami-channel') {
-      stage.innerHTML = '<div class="player-empty">Loading stream...</div>';
-      try {
-        renderHls(await resolveDamiChannel(stream), () => fallbackToNextStream(index, attempted));
-      } catch {
-        fallbackToNextStream(index, attempted);
-      }
+      renderIframe(iframePlaybackStream(stream));
       return;
     }
     if (stream.source_type === 'videojs') {

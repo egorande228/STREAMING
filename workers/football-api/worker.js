@@ -1158,7 +1158,7 @@ function normalizeApiStreamOverridePayload(payload, overrideId) {
 
 function normalizePlaybackMode(value) {
   const mode = String(value || 'auto').trim().toLowerCase();
-  return ['auto', 'hls_resolver', 'iframe', 'iframe_popups'].includes(mode) ? mode : 'auto';
+  return ['auto', 'iframe', 'iframe_popups'].includes(mode) ? mode : 'auto';
 }
 
 function normalizeOptionalDateTime(value) {

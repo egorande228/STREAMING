@@ -30,6 +30,8 @@ test('admin can edit API-provided DAMI streams', () => {
   assert.match(adminHtml, /id="playback-mode"/);
   assert.match(adminSource, /playback_mode: \$\('playback-mode'\)\.value/);
   assert.match(adminSource, /stream\.playback_mode/);
+  assert.doesNotMatch(adminHtml, /hls_resolver/);
+  assert.doesNotMatch(adminHtml, /HLS resolver/);
 });
 
 test('odds panel stays branded to MelBet only', () => {

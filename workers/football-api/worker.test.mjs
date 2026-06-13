@@ -2146,7 +2146,7 @@ test('admin streams list includes editable DAMI streams from upcoming fixture da
           ...autoStream,
           label: 'Bad DAMI source',
           language_code: 'und',
-          playback_mode: 'iframe',
+          playback_mode: 'hls_resolver',
           priority: 12,
           is_active: false,
         }),
@@ -2170,7 +2170,7 @@ test('admin streams list includes editable DAMI streams from upcoming fixture da
     );
     const updatedBody = await listAfterUpdate.json();
     const updatedAutoStream = updatedBody.streams.find((stream) => stream.id === autoStream.id);
-    assert.equal(updatedAutoStream?.playback_mode, 'iframe');
+    assert.equal(updatedAutoStream?.playback_mode, 'auto');
   } finally {
     globalThis.fetch = previousFetch;
   }

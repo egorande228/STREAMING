@@ -44,6 +44,10 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
   const wrangler = readFileSync(new URL('./wrangler.toml', import.meta.url), 'utf8');
   assert.match(wrangler, /pages_build_output_dir = "\.\/dist"/);
 
+  const headers = readFileSync(new URL('./dist/_headers', import.meta.url), 'utf8');
+  assert.match(headers, /https:\/\/static\.cloudflareinsights\.com/);
+  assert.match(headers, /sha256-tCyEj\/YeFnXHCigETugg\+JWVQ6EqdmsbPUFp3Zn\/P1g=/);
+
   const config = readFileSync(new URL('./dist/config.js', import.meta.url), 'utf8');
   assert.match(config, /const bannerClickUrl = 'https:\/\/refpa3665\.com\/L\?tag=d_5674754m_66329c_KINGLIVE2026(&amp;|&)site=5674754(&amp;|&)ad=66329'/);
   assert.match(config, /function safeBannerFile\(file\)/);

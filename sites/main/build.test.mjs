@@ -42,4 +42,9 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
 
   const wrangler = readFileSync(new URL('./wrangler.toml', import.meta.url), 'utf8');
   assert.match(wrangler, /pages_build_output_dir = "\.\/dist"/);
+
+  const config = readFileSync(new URL('./dist/config.js', import.meta.url), 'utf8');
+  assert.match(config, /runtimeConfig\.playerBase/);
+  assert.match(config, /window\.KINGLIVE_PLAYER_BASE/);
+  assert.match(config, /player-dev\.pages\.dev/);
 });

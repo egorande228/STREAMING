@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - 'sites/main/**'
       - '.github/workflows/deploy-main-pages.yml'
@@ -32,7 +33,7 @@ jobs:
         run: npm run build
 
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler@4 pages deploy dist --project-name kinglive-pages-main --branch main
+        run: npx wrangler@4 pages deploy dist --project-name kinglive-pages-main --branch "${GITHUB_REF_NAME}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 7616dece8b5aecd644f7f8e7a0b0522e

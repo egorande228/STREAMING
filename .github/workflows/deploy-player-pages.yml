@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - 'sites/player/**'
       - '.github/workflows/deploy-player-pages.yml'
@@ -38,7 +39,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PLAYER_ACCOUNT_ID }}
 
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler@4 pages deploy dist --project-name player --branch main
+        run: npx wrangler@4 pages deploy dist --project-name player --branch "${GITHUB_REF_NAME}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PLAYER_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PLAYER_ACCOUNT_ID }}

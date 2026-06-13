@@ -520,6 +520,7 @@ test('allows sandboxed popups only when iframe popups playback mode is selected'
   assert.match(iframe.sandbox, /allow-popups/);
   assert.doesNotMatch(iframe.sandbox, /allow-popups-to-escape-sandbox/);
   assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
+  assert.equal(result.appended.some((element) => element.className === 'iframe-click-shield'), false);
 });
 
 test('renders KingLive text overlays above iframe streams', async () => {

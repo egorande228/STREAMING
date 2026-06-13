@@ -530,7 +530,7 @@
     shield.className = 'third-party-shield';
     shield.setAttribute('aria-hidden', 'true');
     stage.appendChild(shield);
-    if (isDami) {
+    if (isDami && playbackMode(stream) !== 'iframe_popups') {
       stage.appendChild(createIframeClickShield(stream));
     } else {
       const adCover = document.createElement('div');

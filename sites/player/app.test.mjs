@@ -342,7 +342,7 @@ test('merges configured player streams with match API streams', async () => {
   assert.equal(result.sourceSelect.hidden, false);
 });
 
-test('renders iframe streams without browser sandbox restrictions', async () => {
+test('renders iframe streams with browser sandbox restrictions', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',
     config: {
@@ -372,7 +372,7 @@ test('renders iframe streams without browser sandbox restrictions', async () => 
 
   const iframe = result.appended.find((element) => element.tagName === 'iframe');
   assert.ok(iframe);
-  assert.equal(iframe.sandbox || '', '');
+  assert.equal(iframe.sandbox, 'allow-scripts allow-same-origin allow-forms allow-presentation');
 });
 
 test('renders KingLive text overlays above iframe streams', async () => {
@@ -520,7 +520,7 @@ test('keeps DAMI resolver working while click shield blocks ad redirects', async
   assert.ok(iframe);
   assert.ok(shield);
   assert.equal(iframe.src, 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101');
-  assert.equal(iframe.sandbox || '', '');
+  assert.equal(iframe.sandbox, 'allow-scripts allow-same-origin allow-forms allow-presentation');
 });
 
 test('routes DAMI iframe through embed proxy only when enabled', async () => {

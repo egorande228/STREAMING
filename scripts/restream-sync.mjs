@@ -32,6 +32,7 @@ export async function applyDesiredState(restreams, state, options) {
   for (const restream of restreams) {
     const item = normalizeRestream(restream, options);
     if (!item) continue;
+    await resolvePlaylistChannel(item, options);
     desired.set(item.slug, item);
     await writeEnvFile(item, options);
 
@@ -59,6 +60,8 @@ export async function applyDesiredState(restreams, state, options) {
       isActive: item.isActive,
       donorHash: item.donorHash,
       outputUrl: item.outputUrl,
+      channelName: item.channelName,
+      resolvedChannelTitle: item.resolvedChannelTitle || '',
       restartRequestedAt: item.restartRequestedAt,
       updatedAt: new Date().toISOString(),
     };
@@ -91,6 +94,8 @@ export function normalizeRestream(restream, options) {
     outputUrl,
     rtmpUrl: `${options.rtmpBaseUrl.replace(/\/+$/, '')}/${slug}`,
     label: String(restream?.label || slug).trim(),
+    channelName: String(restream?.channel_name || restream?.channelName || '').trim(),
+    resolvedInputUrl: donorUrl,
     desiredState,
     isActive: restream?.is_active !== false,
     restartRequestedAt: String(restream?.restart_requested_at || ''),
@@ -103,7 +108,9 @@ export function renderEnvFile(item) {
     `RESTREAM_SLUG=${shellQuote(item.slug)}`,
     `RESTREAM_LABEL=${shellQuote(item.label)}`,
     `RESTREAM_MATCH_ID=${shellQuote(String(item.matchId))}`,
-    `RESTREAM_INPUT_URL=${shellQuote(item.donorUrl)}`,
+    `RESTREAM_INPUT_URL=${shellQuote(item.resolvedInputUrl || item.donorUrl)}`,
+    `RESTREAM_DONOR_URL=${shellQuote(item.donorUrl)}`,
+    `RESTREAM_CHANNEL_NAME=${shellQuote(item.channelName || '')}`,
     `RESTREAM_RTMP_URL=${shellQuote(item.rtmpUrl)}`,
     `RESTREAM_PUBLIC_URL=${shellQuote(item.outputUrl)}`,
     '',
@@ -122,6 +129,66 @@ async function fetchDesiredRestreams(options) {
   }
   const payload = await response.json();
   return Array.isArray(payload?.restreams) ? payload.restreams : [];
+}
+
+export async function resolvePlaylistChannel(item, options = {}) {
+  if (!item.channelName) return item;
+  const response = await fetch(item.donorUrl, {
+    headers: { Accept: 'application/vnd.apple.mpegurl, application/x-mpegurl, audio/mpegurl, */*' },
+  });
+  if (!response.ok) {
+    throw new Error(`playlist fetch failed for ${item.slug}: ${response.status}`);
+  }
+  const text = await response.text();
+  const channel = findPlaylistChannel(text, item.channelName, item.donorUrl);
+  if (!channel) {
+    throw new Error(`channel not found for ${item.slug}: ${item.channelName}`);
+  }
+  item.resolvedInputUrl = channel.url;
+  item.resolvedChannelTitle = channel.title;
+  item.resolvedChannelAt = new Date().toISOString();
+  if (options.verbose) console.log(`resolved ${item.slug}: ${channel.title}`);
+  return item;
+}
+
+export function findPlaylistChannel(text, channelName, playlistUrl) {
+  const needle = normalizeSearchText(channelName);
+  if (!needle) return null;
+  const lines = String(text || '').split(/\r?\n/);
+  let pending = null;
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (line.startsWith('#EXTINF')) {
+      pending = {
+        title: parseExtinfTitle(line),
+        tvgName: parseExtinfAttribute(line, 'tvg-name'),
+        raw: line,
+      };
+      continue;
+    }
+    if (line.startsWith('#')) continue;
+    if (!pending) continue;
+    const haystack = normalizeSearchText(`${pending.title} ${pending.tvgName} ${pending.raw}`);
+    if (haystack.includes(needle)) {
+      return {
+        title: pending.title || pending.tvgName || channelName,
+        url: new URL(line, playlistUrl).toString(),
+      };
+    }
+    pending = null;
+  }
+  return null;
+}
+
+function parseExtinfTitle(line) {
+  const commaIndex = line.lastIndexOf(',');
+  return commaIndex >= 0 ? line.slice(commaIndex + 1).trim() : '';
+}
+
+function parseExtinfAttribute(line, name) {
+  const match = line.match(new RegExp(`${name}="([^"]*)"`, 'i'));
+  return match?.[1]?.trim() || '';
 }
 
 async function writeEnvFile(item, options) {
@@ -218,7 +285,10 @@ function inferPublicBaseUrl(apiUrl) {
 }
 
 function configChanged(next, current) {
-  return next.donorHash !== current.donorHash || next.outputUrl !== current.outputUrl || next.isActive !== current.isActive;
+  return next.donorHash !== current.donorHash
+    || next.outputUrl !== current.outputUrl
+    || next.isActive !== current.isActive
+    || next.channelName !== current.channelName;
 }
 
 function normalizeSlug(value) {
@@ -241,6 +311,13 @@ function isHttpUrl(value) {
 
 function shellQuote(value) {
   return `'${String(value).replace(/'/g, "'\\''")}'`;
+}
+
+function normalizeSearchText(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
 }
 
 function hashText(value) {

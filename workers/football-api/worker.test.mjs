@@ -1952,6 +1952,7 @@ test('admin restreams create Video.js streams without exposing donor URLs public
         slug: 'Fox Sport 1 HD',
         label: 'Fox Sport 1 HD',
         donor_url: 'https://donor.test/live/fox/index.m3u8?token=secret',
+        channel_name: 'Fox Sport 1 HD',
         language_code: 'en',
         priority: 120,
       }),
@@ -1998,6 +1999,7 @@ test('admin restreams create Video.js streams without exposing donor URLs public
   assert.equal(desired.status, 200);
   const desiredBody = await desired.json();
   assert.equal(desiredBody.restreams[0].donor_url, 'https://donor.test/live/fox/index.m3u8?token=secret');
+  assert.equal(desiredBody.restreams[0].channel_name, 'Fox Sport 1 HD');
 
   const stop = await routeRequest(
     new Request('https://kinglive.test/api/admin/restreams/fox-sport-1-hd/stop', {

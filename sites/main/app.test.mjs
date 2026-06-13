@@ -38,6 +38,7 @@ test('admin exposes IPTV restream controls alongside existing stream form', () =
   assert.match(adminHtml, /id="stream-form"/);
   assert.match(adminHtml, /id="restream-form"/);
   assert.match(adminHtml, /id="restream-donor-url"/);
+  assert.match(adminHtml, /id="restream-channel-name"/);
   assert.match(adminHtml, /id="restreams-body"/);
   assert.match(adminSource, /\/api\/admin\/restreams/);
   assert.match(adminSource, /loadRestreams/);

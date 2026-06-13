@@ -1269,6 +1269,7 @@ function normalizeAdminRestreamPayload(payload, restreamId = '', env = {}) {
     match_id: matchId,
     label: String(payload?.label || slugToLabel(slug)).trim().slice(0, 120),
     donor_url: donorUrl,
+    channel_name: String(payload?.channel_name || payload?.channelName || '').trim().slice(0, 160),
     output_url: outputUrl,
     source_type: 'videojs',
     quality: String(payload?.quality || '720p').trim().slice(0, 40),

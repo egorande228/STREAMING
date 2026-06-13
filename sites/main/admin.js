@@ -225,6 +225,7 @@
       match_id: Number($('restream-match-id').value),
       slug: $('restream-slug').value.trim(),
       donor_url: $('restream-donor-url').value.trim(),
+      channel_name: $('restream-channel-name').value.trim(),
       label: $('restream-label').value.trim(),
       language_code: $('restream-lang').value.trim() || 'en',
       priority: Number($('restream-priority').value || 100),
@@ -240,6 +241,7 @@
     $('restream-match-id').value = String(restream.match_id || '');
     $('restream-slug').value = restream.slug || restream.id || '';
     $('restream-donor-url').value = restream.donor_url || '';
+    $('restream-channel-name').value = restream.channel_name || '';
     $('restream-label').value = restream.label || '';
     $('restream-lang').value = restream.language_code || 'en';
     $('restream-priority').value = String(restream.priority ?? 100);

@@ -1,0 +1,9 @@
+[Unit]
+Description=Sync KingLive IPTV restream definitions from admin API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/kinglive/restream-sync.env
+ExecStart=/usr/bin/node /opt/kinglive-restream/restream-sync.mjs

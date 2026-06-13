@@ -352,9 +352,6 @@ test('starts the stream selected by the site button source params', async () => 
   const selectedUrl = 'https://dami-tv.pro/embed/?id=usa-vs-paraguay-2391729&ch=966';
   const result = await runPlayer({
     href: `https://player.test/?match=19609133&lang=en&region=global&source=dami-19609133-2092607600&src=${encodeURIComponent(selectedUrl)}`,
-    config: {
-      hlsProxyBase: 'https://kinglive-football-api.test',
-    },
     fetchImpl: (url) => {
       if (String(url) === 'https://dami-tv.pro/papi/tv/resolve/966?t=') {
         return Promise.resolve({
@@ -402,10 +399,7 @@ test('starts the stream selected by the site button source params', async () => 
 
   const video = result.appended.find((element) => element.tagName === 'video');
   assert.ok(video);
-  assert.equal(
-    video.src,
-    'https://kinglive-football-api.test/api/dami/hls-proxy?url=https%3A%2F%2Fdami-tv.pro%2Fpapi%2Ftv%2Fplaylist%2Fresolved-arabic.m3u8',
-  );
+  assert.equal(video.src, 'https://dami-tv.pro/papi/tv/playlist/resolved-arabic.m3u8');
   assert.equal(result.sourceSelect.value, '1');
   assert.match(result.sourceSelect.innerHTML, /FOX/);
   assert.match(result.sourceSelect.innerHTML, /BEIN\(AR\)/);

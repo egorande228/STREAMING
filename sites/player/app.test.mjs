@@ -101,7 +101,7 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
         adSlots: {},
         ...config,
       },
-      Hls: undefined,
+      Hls: timers.Hls,
       addEventListener: timers.addEventListener || (() => {}),
       getComputedStyle: timers.getComputedStyle || (() => ({
         display: timers.adProbeBlocked ? 'none' : 'block',
@@ -262,7 +262,7 @@ test('uses Video.js only for streams explicitly marked as videojs', async () => 
     config: {
       matchStreams: {
         1540843: {
-          url: 'https://hls.livekinglive.win/live/test/index.m3u8',
+          url: 'https://stream.test/live.m3u8',
           source_type: 'videojs',
           label: 'Video.js option',
         },
@@ -272,9 +272,9 @@ test('uses Video.js only for streams explicitly marked as videojs', async () => 
       videojs: (element, options) => {
         videoJsCalled = true;
         assert.equal(element.tagName, 'video');
-        assert.equal(element.crossOrigin, 'use-credentials');
-        assert.equal(options.html5.vhs.withCredentials, true);
-        assert.equal(options.sources[0].src, 'https://hls.livekinglive.win/live/test/index.m3u8');
+        assert.equal(element.crossOrigin, 'anonymous');
+        assert.equal(options.html5, undefined);
+        assert.equal(options.sources[0].src, 'https://stream.test/live.m3u8');
         return {
           ready(handler) {
             handler();
@@ -299,6 +299,62 @@ test('uses Video.js only for streams explicitly marked as videojs', async () => 
 
   assert.equal(videoJsCalled, true);
   assert.ok(result.appended.find((element) => element.className.includes('video-js')));
+});
+
+test('uses hls.js with credentials for KingLive HLS streams marked as videojs', async () => {
+  const calls = [];
+  class MockHls {
+    static Events = { MANIFEST_PARSED: 'manifest' };
+    static isSupported() {
+      return true;
+    }
+    constructor(options) {
+      calls.push({ type: 'options', options });
+    }
+    loadSource(src) {
+      calls.push({ type: 'source', src });
+    }
+    attachMedia(element) {
+      calls.push({ type: 'media', element });
+    }
+    on() {}
+    destroy() {}
+  }
+
+  let videoJsCalled = false;
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    config: {
+      matchStreams: {
+        1540843: {
+          url: 'https://hls.livekinglive.win/live/test/index.m3u8',
+          source_type: 'videojs',
+          label: 'KingLive HLS',
+        },
+      },
+    },
+    timers: {
+      Hls: MockHls,
+      videojs: () => {
+        videoJsCalled = true;
+      },
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ home_team: { name_en: 'A' }, away_team: { name_en: 'B' } }),
+      });
+    },
+  });
+
+  const video = result.appended.find((element) => element.tagName === 'video');
+  assert.equal(videoJsCalled, false);
+  assert.equal(video.crossOrigin, 'use-credentials');
+  assert.equal(typeof calls.find((call) => call.type === 'options').options.xhrSetup, 'function');
+  assert.equal(calls.find((call) => call.type === 'source').src, 'https://hls.livekinglive.win/live/test/index.m3u8');
 });
 
 test('merges configured player streams with match API streams', async () => {

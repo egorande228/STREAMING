@@ -684,6 +684,11 @@
   }
 
   function renderVideoJs(stream) {
+    if (usesCredentialedHls(stream.url) && window.Hls && window.Hls.isSupported()) {
+      renderHls(stream);
+      return;
+    }
+
     destroyHls();
     destroyVideoJs();
     if (stage.classList) stage.classList.remove('stage-iframe');

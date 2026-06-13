@@ -1826,6 +1826,21 @@ test('adds CORS headers to JSON responses', () => {
   assert.equal(response.headers.get('Cache-Control'), 'public, max-age=60');
 });
 
+test('reflects browser origins for credentialed CORS requests', async () => {
+  const response = await worker.fetch(
+    new Request('https://kinglive.test/api/streams/active', {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://livekinglive.win' },
+    }),
+    {},
+    {},
+  );
+
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), 'https://livekinglive.win');
+  assert.equal(response.headers.get('Access-Control-Allow-Credentials'), 'true');
+});
+
 test('authenticates admin login and performs stream CRUD in KV', async () => {
   const kvData = new Map();
   const kv = {

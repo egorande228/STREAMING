@@ -118,16 +118,26 @@ const TOP_LEAGUE_PRIORITY = new Map([
 export default {
   async fetch(request, env, ctx) {
     try {
-      return await routeRequest(request, env, ctx);
+      return withRequestCors(request, await routeRequest(request, env, ctx));
     } catch (error) {
       const url = new URL(request.url);
       const adminMessage = url.pathname.startsWith('/api/admin')
         ? String(error?.message || error || 'internal_error').slice(0, 300)
         : 'internal_error';
-      return jsonResponse({ error: 'internal_error', message: adminMessage }, 500, 0);
+      return withRequestCors(request, jsonResponse({ error: 'internal_error', message: adminMessage }, 500, 0));
     }
   },
 };
+
+function withRequestCors(request, response) {
+  const origin = request.headers.get('Origin');
+  if (!origin) return response;
+  const next = new Response(response.body, response);
+  next.headers.set('Access-Control-Allow-Origin', origin);
+  next.headers.set('Access-Control-Allow-Credentials', 'true');
+  next.headers.append('Vary', 'Origin');
+  return next;
+}
 
 export async function routeRequest(request, env = {}, ctx = {}) {
   const url = new URL(request.url);

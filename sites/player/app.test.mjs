@@ -262,7 +262,7 @@ test('uses Video.js only for streams explicitly marked as videojs', async () => 
     config: {
       matchStreams: {
         1540843: {
-          url: 'https://stream.test/live.m3u8',
+          url: 'https://hls.livekinglive.win/live/test/index.m3u8',
           source_type: 'videojs',
           label: 'Video.js option',
         },
@@ -272,7 +272,9 @@ test('uses Video.js only for streams explicitly marked as videojs', async () => 
       videojs: (element, options) => {
         videoJsCalled = true;
         assert.equal(element.tagName, 'video');
-        assert.equal(options.sources[0].src, 'https://stream.test/live.m3u8');
+        assert.equal(element.crossOrigin, 'use-credentials');
+        assert.equal(options.html5.vhs.withCredentials, true);
+        assert.equal(options.sources[0].src, 'https://hls.livekinglive.win/live/test/index.m3u8');
         return {
           ready(handler) {
             handler();

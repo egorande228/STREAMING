@@ -624,6 +624,15 @@
     }
   }
 
+  function usesCredentialedHls(value) {
+    try {
+      const url = new URL(String(value || ''), window.location.href);
+      return url.hostname === 'hls.livekinglive.win';
+    } catch {
+      return false;
+    }
+  }
+
   function renderHls(stream) {
     destroyHls();
     destroyVideoJs();
@@ -633,7 +642,7 @@
     video.controls = true;
     video.autoplay = true;
     video.playsInline = true;
-    video.crossOrigin = 'anonymous';
+    video.crossOrigin = usesCredentialedHls(stream.url) ? 'use-credentials' : 'anonymous';
     video.muted = /dami-tv\.pro/i.test(stream.url || '');
     video.poster = params.get('poster') || '';
     stage.appendChild(video);
@@ -652,6 +661,11 @@
       hls = new window.Hls({
         enableWorker: true,
         lowLatencyMode: true,
+        xhrSetup: usesCredentialedHls(stream.url)
+          ? (xhr) => {
+              xhr.withCredentials = true;
+            }
+          : undefined,
         liveSyncDurationCount: 1,
         liveMaxLatencyDurationCount: 2,
         backBufferLength: 20,
@@ -680,7 +694,7 @@
     video.autoplay = true;
     video.playsInline = true;
     video.preload = 'auto';
-    video.crossOrigin = 'anonymous';
+    video.crossOrigin = usesCredentialedHls(stream.url) ? 'use-credentials' : 'anonymous';
     video.muted = /dami-tv\.pro/i.test(stream.url || '');
     video.poster = params.get('poster') || '';
     stage.appendChild(video);
@@ -696,6 +710,13 @@
         responsive: true,
         liveui: true,
         muted: video.muted,
+        html5: usesCredentialedHls(stream.url)
+          ? {
+              vhs: {
+                withCredentials: true,
+              },
+            }
+          : undefined,
         sources: [{ src: stream.url, type: 'application/x-mpegURL' }],
       });
       if (videoJsPlayer && typeof videoJsPlayer.ready === 'function') {

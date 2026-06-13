@@ -46,6 +46,7 @@
   let currentStreams = [];
   let hls;
   let videoJsPlayer = null;
+  let videoJsRetryTimer = null;
 
   const isAdmin = params.get('admin') === '1';
   const chatClientId = getChatClientId();
@@ -503,6 +504,10 @@
   }
 
   function destroyVideoJs() {
+    if (videoJsRetryTimer) {
+      clearTimeout(videoJsRetryTimer);
+      videoJsRetryTimer = null;
+    }
     if (videoJsPlayer && typeof videoJsPlayer.dispose === 'function') {
       videoJsPlayer.dispose();
     }
@@ -719,6 +724,21 @@
     attachTelegramPopupToStage();
 
     if (window.videojs) {
+      let retryCount = 0;
+      const retrySource = () => {
+        if (!videoJsPlayer || videoJsRetryTimer) return;
+        if (retryCount >= 20) return;
+        retryCount += 1;
+        videoJsRetryTimer = setTimeout(() => {
+          videoJsRetryTimer = null;
+          if (!videoJsPlayer) return;
+          if (typeof videoJsPlayer.src === 'function') {
+            videoJsPlayer.src({ src: stream.url, type: 'application/x-mpegURL' });
+          }
+          const playResult = typeof videoJsPlayer.play === 'function' ? videoJsPlayer.play() : null;
+          if (playResult && typeof playResult.catch === 'function') playResult.catch(() => {});
+        }, 2500);
+      };
       videoJsPlayer = window.videojs(video, {
         autoplay: true,
         controls: true,
@@ -732,6 +752,12 @@
         videoJsPlayer.ready(() => {
           const playResult = typeof videoJsPlayer.play === 'function' ? videoJsPlayer.play() : null;
           if (playResult && typeof playResult.catch === 'function') playResult.catch(() => {});
+        });
+      }
+      if (videoJsPlayer && typeof videoJsPlayer.on === 'function') {
+        videoJsPlayer.on('error', retrySource);
+        videoJsPlayer.on('playing', () => {
+          retryCount = 0;
         });
       }
       return;

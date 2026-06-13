@@ -299,6 +299,62 @@ test('uses Video.js only for streams explicitly marked as videojs', async () => 
   assert.ok(result.appended.find((element) => element.className.includes('video-js')));
 });
 
+test('retries Video.js HLS streams after transient load errors', async () => {
+  let errorHandler = null;
+  let retryHandler = null;
+  const srcCalls = [];
+  await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    config: {
+      matchStreams: {
+        1540843: {
+          url: 'https://hls.test/live/fox-sport-1/index.m3u8',
+          source_type: 'videojs',
+          label: 'Restream option',
+        },
+      },
+    },
+    timers: {
+      setTimeout(handler) {
+        retryHandler = handler;
+        return 1;
+      },
+      videojs: () => ({
+        ready(handler) {
+          handler();
+        },
+        play() {
+          return Promise.resolve();
+        },
+        src(source) {
+          srcCalls.push(source);
+        },
+        on(event, handler) {
+          if (event === 'error') errorHandler = handler;
+        },
+        dispose() {},
+      }),
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ home_team: { name_en: 'A' }, away_team: { name_en: 'B' } }),
+      });
+    },
+  });
+
+  assert.equal(typeof errorHandler, 'function');
+  errorHandler();
+  assert.equal(typeof retryHandler, 'function');
+  retryHandler();
+  assert.equal(srcCalls.length, 1);
+  assert.equal(srcCalls[0].src, 'https://hls.test/live/fox-sport-1/index.m3u8');
+  assert.equal(srcCalls[0].type, 'application/x-mpegURL');
+});
+
 test('merges configured player streams with match API streams', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843&lang=en&region=global',

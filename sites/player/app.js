@@ -1,6 +1,7 @@
 (function () {
   const config = window.KINGLIVE_PLAYER_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
+  const hlsProxyBase = String(config.hlsProxyBase || apiBase || '').replace(/\/$/, '');
   const params = new URLSearchParams(window.location.search);
   const streamConfigUrl = config.streamConfigUrl || './streams.json';
   const activeStreamsApiUrl = config.activeStreamsApiUrl || `${apiBase}/api/streams/active`;
@@ -766,11 +767,17 @@
     const data = await response.json();
     const resolvedUrl = data.stream || data.url || '';
     if (!resolvedUrl) throw new Error('DAMI resolve returned no stream');
+    const absoluteUrl = resolvedUrl.startsWith('http') ? resolvedUrl : `https://dami-tv.pro${resolvedUrl}`;
     return {
       ...stream,
       source_type: 'hls',
-      url: resolvedUrl.startsWith('http') ? resolvedUrl : `https://dami-tv.pro${resolvedUrl}`,
+      url: hlsProxyUrl(absoluteUrl),
     };
+  }
+
+  function hlsProxyUrl(value) {
+    if (!hlsProxyBase) return value;
+    return `${hlsProxyBase}/api/dami/hls-proxy?url=${encodeURIComponent(value)}`;
   }
 
   function nextSameLanguageStreamIndex(index, attempted = new Set()) {

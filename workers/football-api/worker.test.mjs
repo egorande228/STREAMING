@@ -75,6 +75,64 @@ test('maps site language to Sportmonks locale parameters', () => {
   );
 });
 
+test('proxies DAMI HLS playlists and media with browser CORS headers', async () => {
+  const previousFetch = globalThis.fetch;
+  const upstreamPlaylist = 'https://dami-tv.pro/papi/tv/playlist/master-token';
+  const upstreamSegment = 'https://romplaklis.shop/ingest/segment-one.zst';
+  const calls = [];
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    calls.push(requestUrl);
+    if (requestUrl === upstreamPlaylist) {
+      return new Response(
+        [
+          '#EXTM3U',
+          '#EXT-X-TARGETDURATION:7',
+          '#EXTINF:5.000,',
+          upstreamSegment,
+          '#EXTINF:5.000,',
+          '/papi/tv/playlist/media-token',
+          '',
+        ].join('\n'),
+        { status: 200, headers: { 'Content-Type': 'application/vnd.apple.mpegurl' } },
+      );
+    }
+    if (requestUrl === upstreamSegment) {
+      return new Response(new Uint8Array([0x47, 0x40, 0x11]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/octet-stream' },
+      });
+    }
+    throw new Error(`unexpected fetch ${requestUrl}`);
+  };
+
+  try {
+    const playlistResponse = await routeRequest(
+      new Request(`https://kinglive.test/api/dami/hls-proxy?url=${encodeURIComponent(upstreamPlaylist)}`),
+      {},
+      {},
+    );
+    const playlist = await playlistResponse.text();
+    assert.equal(playlistResponse.status, 200);
+    assert.equal(playlistResponse.headers.get('Access-Control-Allow-Origin'), '*');
+    assert.match(playlist, new RegExp(`/api/dami/hls-proxy\\?url=${encodeURIComponent(upstreamSegment).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+    assert.match(playlist, /\/api\/dami\/hls-proxy\?url=https%3A%2F%2Fdami-tv\.pro%2Fpapi%2Ftv%2Fplaylist%2Fmedia-token/);
+
+    const segmentResponse = await routeRequest(
+      new Request(`https://kinglive.test/api/dami/hls-proxy?url=${encodeURIComponent(upstreamSegment)}`),
+      {},
+      {},
+    );
+    assert.equal(segmentResponse.status, 200);
+    assert.equal(segmentResponse.headers.get('Access-Control-Allow-Origin'), '*');
+    assert.equal(segmentResponse.headers.get('Content-Type'), 'application/octet-stream');
+    assert.deepEqual([...new Uint8Array(await segmentResponse.arrayBuffer())], [0x47, 0x40, 0x11]);
+    assert.deepEqual(calls, [upstreamPlaylist, upstreamSegment]);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test('returns split Sportmonks match detail endpoints with endpoint-specific cache TTLs', async () => {
   const previousFetch = globalThis.fetch;
   const calls = [];

@@ -133,6 +133,10 @@ export async function routeRequest(request, env = {}, ctx = {}) {
   if (url.pathname.startsWith('/api/')) {
     await recordMetric(env, 'api_calls');
   }
+  if (url.pathname === '/api/dami/hls-proxy') {
+    if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+    return routeDamiHlsProxyRequest(request);
+  }
   const viewerHeartbeatMatch = url.pathname.match(/^\/api\/viewers\/(\d+)\/heartbeat$/);
   if (viewerHeartbeatMatch) {
     return routeViewerHeartbeatRequest(request, env, Number(viewerHeartbeatMatch[1]));
@@ -738,6 +742,90 @@ function isDamiStreamUrl(value) {
   }
 }
 
+function normalizeDamiHlsProxyTarget(value) {
+  try {
+    const url = new URL(String(value || ''));
+    if (url.protocol !== 'https:') return null;
+    if (isPrivateHostname(url.hostname)) return null;
+    if (isDamiPlaylistProxyTarget(url) || isDamiMediaSegmentTarget(url)) return url;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function isDamiPlaylistProxyTarget(url) {
+  return isDamiStreamUrl(url.toString()) && url.pathname.startsWith('/papi/tv/playlist/');
+}
+
+function isDamiMediaSegmentTarget(url) {
+  return url.pathname.startsWith('/ingest/');
+}
+
+function isPrivateHostname(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  if (!host || host === 'localhost' || host.endsWith('.localhost')) return true;
+  if (host.includes(':')) return true;
+  const ipv4 = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (!ipv4) return false;
+  const octets = ipv4.slice(1).map(Number);
+  if (octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return true;
+  const [first, second] = octets;
+  return first === 0
+    || first === 10
+    || first === 127
+    || (first === 169 && second === 254)
+    || (first === 172 && second >= 16 && second <= 31)
+    || (first === 192 && second === 168);
+}
+
+function isHlsPlaylistResponse(url, contentType) {
+  const type = String(contentType || '').toLowerCase();
+  return type.includes('mpegurl') || type.includes('application/vnd.apple') || /\.m3u8($|\?)/i.test(url.pathname);
+}
+
+function rewriteHlsPlaylist(playlist, baseUrl, requestUrl) {
+  return String(playlist || '')
+    .split('\n')
+    .map((line) => rewriteHlsPlaylistLine(line, baseUrl, requestUrl))
+    .join('\n');
+}
+
+function rewriteHlsPlaylistLine(line, baseUrl, requestUrl) {
+  const trimmed = String(line || '').trim();
+  if (!trimmed) return line;
+  if (trimmed.startsWith('#')) return rewriteHlsDirectiveUris(line, baseUrl, requestUrl);
+  return proxiedHlsUrl(new URL(trimmed, baseUrl).toString(), requestUrl);
+}
+
+function rewriteHlsDirectiveUris(line, baseUrl, requestUrl) {
+  return String(line).replace(/URI="([^"]+)"/g, (_, uri) => {
+    return `URI="${proxiedHlsUrl(new URL(uri, baseUrl).toString(), requestUrl)}"`;
+  });
+}
+
+function proxiedHlsUrl(targetUrl, requestUrl) {
+  const proxyUrl = new URL('/api/dami/hls-proxy', requestUrl.origin);
+  proxyUrl.searchParams.set('url', targetUrl);
+  return proxyUrl.toString();
+}
+
+function hlsProxyHeaders(contentType, maxAge = 0, upstreamHeaders = null) {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Range',
+    'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
+    'Content-Type': contentType,
+    'Cache-Control': maxAge > 0 ? `public, max-age=${maxAge}` : 'no-store',
+  };
+  ['Content-Length', 'Content-Range', 'Accept-Ranges'].forEach((name) => {
+    const value = upstreamHeaders?.get?.(name);
+    if (value) headers[name] = value;
+  });
+  return headers;
+}
+
 async function routePublicStreamsRequest(env) {
   const config = await readRuntimeStreamConfig(env);
   const streams = flattenStreamConfig(config).filter((stream) => isStreamActiveNow(stream));
@@ -758,6 +846,38 @@ async function routePublicStreamsRequest(env) {
     200,
     30,
   );
+}
+
+async function routeDamiHlsProxyRequest(request) {
+  const requestUrl = new URL(request.url);
+  const targetUrl = normalizeDamiHlsProxyTarget(requestUrl.searchParams.get('url'));
+  if (!targetUrl) return jsonResponse({ error: 'invalid_hls_proxy_url' }, 400, 0);
+
+  const upstreamHeaders = {
+    Accept: '*/*',
+    Referer: 'https://dami-tv.pro/',
+    'User-Agent': 'Mozilla/5.0 KingLive HLS Proxy',
+  };
+  const range = request.headers.get('Range');
+  if (range) upstreamHeaders.Range = range;
+  const upstream = await fetch(targetUrl.toString(), { headers: upstreamHeaders });
+  if (!upstream.ok) {
+    return jsonResponse({ error: 'hls_proxy_upstream_error', status: upstream.status }, 502, 0);
+  }
+
+  const contentType = upstream.headers.get('Content-Type') || '';
+  if (isHlsPlaylistResponse(targetUrl, contentType)) {
+    const playlist = await upstream.text();
+    return new Response(rewriteHlsPlaylist(playlist, targetUrl, requestUrl), {
+      status: upstream.status,
+      headers: hlsProxyHeaders('application/vnd.apple.mpegurl; charset=utf-8', 0),
+    });
+  }
+
+  return new Response(upstream.body, {
+    status: upstream.status,
+    headers: hlsProxyHeaders(contentType || 'application/octet-stream', 3600, upstream.headers),
+  });
 }
 
 async function routeChatRequest(request, env = {}, matchId) {

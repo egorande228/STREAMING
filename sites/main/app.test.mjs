@@ -324,6 +324,7 @@ test('renders only primary language player buttons using the highest-priority st
                 },
                 {
                   id: 'dami-19609154-966',
+                  api_stream_id: 'dami-api-19609154-bein-ar',
                   label: 'BEIN Arabic',
                   language_code: 'ar',
                   url: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia&ch=966',
@@ -373,6 +374,7 @@ test('renders only primary language player buttons using the highest-priority st
   assert.match(gridHtml, /ch%3D935/);
   assert.doesNotMatch(gridHtml, /ch%3D844/);
   assert.match(gridHtml, /ch%3D966/);
+  assert.match(gridHtml, /source=dami-api-19609154-bein-ar/);
   assert.doesNotMatch(gridHtml, /ch%3D290/);
   assert.doesNotMatch(gridHtml, /ch%3D533/);
 });

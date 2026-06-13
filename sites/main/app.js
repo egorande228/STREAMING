@@ -888,7 +888,7 @@
           ${streams
             .map((stream, index) => {
               const lang = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
-              const source = stream.id || stream.label || stream.source_type || stream.sourceType || '';
+              const source = stream.api_stream_id || stream.apiStreamId || stream.id || stream.label || stream.source_type || stream.sourceType || '';
               const href = playerUrl({
                 match: match.id,
                 title,

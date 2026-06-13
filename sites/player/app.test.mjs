@@ -506,6 +506,57 @@ test('plays DAMI auto streams as iframe popups without HLS lookup', async () => 
   assert.equal(requests.some((url) => url.includes('/papi/tv/resolve/')), false);
 });
 
+test('uses DAMI fake popup proxy when apiBase is configured', async () => {
+  const damiUrl = 'https://dami-tv.pro/embed/?id=qatar-vs-switzerland-2391732&ch=966';
+  const result = await runPlayer({
+    href: 'https://player.test/?match=19609130&lang=ar&region=global',
+    timers: {
+      setInterval: () => 1,
+      clearInterval: () => {},
+    },
+    config: {
+      apiBase: 'https://api.kinglive.test',
+      matchStreams: {
+        19609130: {
+          url: damiUrl,
+          source_type: 'iframe',
+          label: 'DAMI proxy source',
+          playback_mode: 'iframe_popups',
+        },
+      },
+    },
+    fetchImpl: (url) => {
+      if (String(url) === 'https://api.kinglive.test/api/streams/active') {
+        return Promise.resolve({ ok: false });
+      }
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      assert.equal(String(url), 'https://api.kinglive.test/api/matches/19609130?lang=ar&region=global');
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Qatar' },
+            away_team: { name_en: 'Switzerland' },
+            streams: [],
+          }),
+      });
+    },
+  });
+
+  const iframe = result.appended.find((element) => element.tagName === 'iframe');
+  assert.ok(iframe);
+  assert.equal(
+    iframe.src,
+    `https://api.kinglive.test/api/embed-proxy/dami?url=${encodeURIComponent(damiUrl)}`,
+  );
+  assert.doesNotMatch(iframe.sandbox, /allow-popups/);
+  assert.doesNotMatch(iframe.sandbox, /allow-popups-to-escape-sandbox/);
+  assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
+  assert.equal(result.appended.some((element) => element.className === 'iframe-click-shield'), false);
+});
+
 test('sandboxes iframe streams to block popup and top navigation redirects', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',
@@ -576,7 +627,7 @@ test('allows sandboxed popups only when iframe popups playback mode is selected'
   assert.match(iframe.sandbox, /allow-popups/);
   assert.doesNotMatch(iframe.sandbox, /allow-popups-to-escape-sandbox/);
   assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
-  assert.equal(result.appended.some((element) => element.className === 'iframe-click-shield'), false);
+  assert.equal(result.appended.some((element) => element.className === 'iframe-click-shield'), true);
 });
 
 test('renders KingLive text overlays above iframe streams', async () => {

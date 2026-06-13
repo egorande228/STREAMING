@@ -160,6 +160,9 @@ export async function routeRequest(request, env = {}, ctx = {}) {
     if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
     return routePublicStreamsRequest(env);
   }
+  if (url.pathname === '/api/embed-proxy/dami') {
+    return routeDamiEmbedProxyRequest(request, env, ctx);
+  }
   const chatMatch = url.pathname.match(/^\/api\/chat\/(\d+)$/);
   if (chatMatch) {
     return routeChatRequest(request, env, Number(chatMatch[1]));
@@ -431,6 +434,121 @@ async function routeNewsRequest(request, env = {}, ctx = {}) {
   }
 
   return newsResponse;
+}
+
+async function routeDamiEmbedProxyRequest(request, env = {}, ctx = {}) {
+  if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  if (String(env.DAMI_IFRAME_PROXY || '').toLowerCase() === 'false') {
+    return jsonResponse({ error: 'not_found' }, 404, 0);
+  }
+  const requestUrl = new URL(request.url);
+  const target = normalizeDamiEmbedUrl(requestUrl.searchParams.get('url'));
+  if (!target) return jsonResponse({ error: 'invalid_dami_embed_url' }, 400, 0);
+  const channelId = normalizeDamiChannelId(target.searchParams.get('ch'));
+  if (!channelId) return jsonResponse({ error: 'invalid_dami_channel' }, 400, 0);
+
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  const cacheKey = new Request(request.url, { method: 'GET' });
+  if (cache) {
+    const cached = await cache.match(cacheKey);
+    if (cached) return cached;
+  }
+
+  const response = htmlResponse(buildDamiFakePopupHtml(target, channelId), 200, 45);
+  if (cache && response.ok) {
+    const cacheable = response.clone();
+    if (ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, cacheable));
+    else await cache.put(cacheKey, cacheable);
+  }
+  return response;
+}
+
+function normalizeDamiEmbedUrl(value = '') {
+  try {
+    const url = new URL(String(value || '').trim());
+    const isDamiHost = url.hostname === 'dami-tv.pro';
+    const isEmbedPath = url.pathname === '/embed' || url.pathname.startsWith('/embed/');
+    if (url.protocol !== 'https:' || !isDamiHost || !isEmbedPath) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeDamiChannelId(value = '') {
+  const channelId = String(value || '').trim();
+  return /^[A-Za-z0-9_-]{1,64}$/.test(channelId) ? channelId : '';
+}
+
+function buildDamiFakePopupHtml(embedUrl, channelId) {
+  const hlsUrl = new URL('https://dami-tv.pro/player/hls/');
+  hlsUrl.searchParams.set('resolve', channelId);
+  hlsUrl.searchParams.set('name', deriveDamiPlayerName(embedUrl));
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base href="https://dami-tv.pro/">
+  <title>DAMI Stream</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+    iframe { display: block; width: 100%; height: 100%; border: 0; background: #000; }
+  </style>
+  <script>
+    (function () {
+      var fakeLocation = {
+        href: 'about:blank',
+        assign: function (value) { this.href = String(value || 'about:blank'); },
+        replace: function (value) { this.href = String(value || 'about:blank'); }
+      };
+      var fakeWindow = {
+        closed: false,
+        location: fakeLocation,
+        document: { write: function () {}, close: function () {} },
+        close: function () { this.closed = true; },
+        focus: function () { return this; },
+        blur: function () { return this; },
+        postMessage: function () {}
+      };
+      function fakeOpen() {
+        fakeWindow.closed = false;
+        fakeWindow.location.href = 'about:blank';
+        return fakeWindow;
+      }
+      Object.defineProperty(window, 'open', {
+        value: fakeOpen,
+        writable: true,
+        configurable: true
+      });
+      window.open = fakeOpen;
+      window.__kingliveFakePopup = fakeWindow;
+    })();
+  </script>
+</head>
+<body>
+  <iframe src="${escapeHtmlAttr(hlsUrl.toString())}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="origin" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>
+</body>
+</html>`;
+}
+
+function deriveDamiPlayerName(embedUrl) {
+  const id = String(embedUrl.searchParams.get('id') || '').trim();
+  if (!id) return 'Live Stream';
+  return id
+    .split(/[/-]+/)
+    .filter(Boolean)
+    .slice(-4)
+    .join(' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase()) || 'Live Stream';
+}
+
+function escapeHtmlAttr(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 async function routeAdminRequest(request, env = {}, ctx = {}) {
@@ -3291,6 +3409,16 @@ export function jsonResponse(body, status = 200, maxAge = 0) {
   return new Response(JSON.stringify(body), {
     status,
     headers: responseHeaders(maxAge),
+  });
+}
+
+function htmlResponse(body, status = 200, maxAge = 0) {
+  const headers = responseHeaders(maxAge);
+  headers['Content-Type'] = 'text/html; charset=utf-8';
+  headers['Referrer-Policy'] = 'origin';
+  return new Response(body, {
+    status,
+    headers,
   });
 }
 

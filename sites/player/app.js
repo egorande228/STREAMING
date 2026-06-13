@@ -6,6 +6,7 @@
   const activeStreamsApiUrl = config.activeStreamsApiUrl || `${apiBase}/api/streams/active`;
   const chatApiBase = String(config.chatApiBase || (apiBase ? `${apiBase}/api/chat` : '')).replace(/\/$/, '');
   const viewerHeartbeatBase = apiBase ? `${apiBase}/api/viewers` : '';
+  const damiIframeProxyEnabled = config.damiIframeProxy !== false;
   const chatPollMs = Math.max(3000, Number(config.chatPollMs) || 5000);
   const preferredLang = params.get('lang') || config.defaultLang || 'en';
   const preferredRegion = params.get('region') || config.defaultRegion || 'global';
@@ -520,12 +521,14 @@
     if (stage.classList) stage.classList.add('stage-iframe');
     stage.innerHTML = '';
     const isDami = isDamiEmbedUrl(stream.url);
+    const iframeUrl = iframeSourceUrl(stream);
+    const usesDamiProxy = isDami && iframeUrl !== stream.url;
     const iframe = document.createElement('iframe');
-    iframe.src = stream.url;
+    iframe.src = iframeUrl;
     iframe.title = stream.title || stream.label || 'Stream player';
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
     iframe.allowFullscreen = true;
-    const sandbox = playbackMode(stream) === 'iframe_popups'
+    const sandbox = playbackMode(stream) === 'iframe_popups' && !usesDamiProxy
       ? 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups'
       : 'allow-scripts allow-same-origin allow-forms allow-presentation';
     iframe.setAttribute('sandbox', sandbox);
@@ -535,7 +538,7 @@
     shield.className = 'third-party-shield';
     shield.setAttribute('aria-hidden', 'true');
     stage.appendChild(shield);
-    if (isDami && playbackMode(stream) !== 'iframe_popups') {
+    if (isDami && !usesDamiProxy) {
       stage.appendChild(createIframeClickShield(stream));
     } else {
       const adCover = document.createElement('div');
@@ -546,6 +549,14 @@
     attachPlayerBrandOverlays();
     attachPlayerFullscreenButton();
     attachTelegramPopupToStage();
+  }
+
+  function iframeSourceUrl(stream) {
+    const sourceUrl = String(stream.url || '');
+    if (!apiBase || !damiIframeProxyEnabled || !isDamiEmbedUrl(sourceUrl)) return sourceUrl;
+    const proxyUrl = new URL(`${apiBase}/api/embed-proxy/dami`);
+    proxyUrl.searchParams.set('url', sourceUrl);
+    return proxyUrl.toString();
   }
 
   function attachPlayerBrandOverlays() {

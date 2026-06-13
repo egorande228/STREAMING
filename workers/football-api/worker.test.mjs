@@ -75,6 +75,49 @@ test('maps site language to Sportmonks locale parameters', () => {
   );
 });
 
+test('serves DAMI fake popup wrapper for valid embed proxy URLs', async () => {
+  const response = await routeRequest(
+    new Request('https://kinglive.test/api/embed-proxy/dami?url=https%3A%2F%2Fdami-tv.pro%2Fembed%2F%3Fid%3Dqatar-vs-switzerland-2391732%26ch%3D966'),
+    {},
+    {},
+  );
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /text\/html/);
+  assert.equal(response.headers.get('cache-control'), 'public, max-age=45');
+  const html = await response.text();
+  assert.match(html, /window\.open/);
+  assert.match(html, /__kingliveFakePopup/);
+  assert.match(html, /https:\/\/dami-tv\.pro\/player\/hls\/\?resolve=966/);
+  assert.doesNotMatch(html, /allow-popups/);
+});
+
+test('rejects non-DAMI legacy embed proxy targets', async () => {
+  const response = await routeRequest(
+    new Request('https://kinglive.test/api/embed-proxy/dami?url=https%3A%2F%2Fads.test%2Fembed%2F'),
+    {},
+    {},
+  );
+  assert.equal(response.status, 400);
+});
+
+test('rejects DAMI embed proxy URLs without a channel id', async () => {
+  const response = await routeRequest(
+    new Request('https://kinglive.test/api/embed-proxy/dami?url=https%3A%2F%2Fdami-tv.pro%2Fembed%2F%3Fid%3Dqatar-vs-switzerland-2391732'),
+    {},
+    {},
+  );
+  assert.equal(response.status, 400);
+});
+
+test('disables DAMI fake popup proxy when env kill switch is false', async () => {
+  const response = await routeRequest(
+    new Request('https://kinglive.test/api/embed-proxy/dami?url=https%3A%2F%2Fdami-tv.pro%2Fembed%2F%3Fid%3Dqatar-vs-switzerland-2391732%26ch%3D966'),
+    { DAMI_IFRAME_PROXY: 'false' },
+    {},
+  );
+  assert.equal(response.status, 404);
+});
+
 test('returns split Sportmonks match detail endpoints with endpoint-specific cache TTLs', async () => {
   const previousFetch = globalThis.fetch;
   const calls = [];

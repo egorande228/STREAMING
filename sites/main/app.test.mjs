@@ -8,6 +8,10 @@ const indexHtml = readFileSync(new URL('./index.html', import.meta.url), 'utf8')
 const adminSource = readFileSync(new URL('./admin.js', import.meta.url), 'utf8');
 const apiVersion = appSource.match(/const apiVersion = '([^']+)'/)?.[1] || '';
 
+function futureIso(hours = 2) {
+  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+}
+
 test('does not render a public refresh matches button', () => {
   assert.doesNotMatch(indexHtml, /id="refresh-matches"/);
   assert.doesNotMatch(indexHtml, /Refresh now/);
@@ -15,6 +19,13 @@ test('does not render a public refresh matches button', () => {
 
 test('admin API errors prefer server message details', () => {
   assert.match(adminSource, /payload\.message \|\| payload\.error/);
+});
+
+test('admin can edit API-provided DAMI streams', () => {
+  assert.equal(adminSource.includes("const id = String($('stream-id').value || '').trim();"), true);
+  assert.match(adminSource, /const editable = stream\.editable !== false;/);
+  assert.doesNotMatch(adminSource, /stream\.origin !== 'dami'/);
+  assert.match(adminSource, /Reset override for/);
 });
 
 test('odds panel stays branded to MelBet only', () => {
@@ -43,7 +54,7 @@ test('renders same-day matches beyond the first six API results', async () => {
   const today = new Date().toISOString().slice(0, 10);
   const fillerMatches = Array.from({ length: 6 }, (_, index) => ({
     id: index + 1,
-    scheduled_at: `${today}T12:0${index}:00+00:00`,
+    scheduled_at: futureIso(index + 1),
     status: 'scheduled',
     stage: 'Fixture',
     home_team: { name_en: `Home ${index + 1}` },
@@ -51,7 +62,7 @@ test('renders same-day matches beyond the first six API results', async () => {
   }));
   const featuredMatch = {
     id: 1540843,
-    scheduled_at: `${today}T19:00:00+00:00`,
+    scheduled_at: futureIso(8),
     status: 'scheduled',
     stage: 'Semi-finals',
     home_team: { name_en: 'Arsenal', flag_url: 'https://logo.test/ars.png' },
@@ -110,7 +121,7 @@ test('renders same-day matches beyond the first six API results', async () => {
   assert.match(gridHtml, /Arsenal vs Atletico Madrid/);
 });
 
-test('keeps scheduled status visible when a future match already has streams', async () => {
+test('does not show player button before a stream window starts', async () => {
   let gridHtml = '';
   const matchGrid = {
     get innerHTML() {
@@ -128,6 +139,9 @@ test('keeps scheduled status visible when a future match already has streams', a
     addEventListener() {},
   };
   const today = new Date().toISOString().slice(0, 10);
+  const currentKickoff = futureIso(1);
+  const streamStartsAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const streamEndsAt = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString();
 
   const context = {
     URL,
@@ -164,7 +178,7 @@ test('keeps scheduled status visible when a future match already has streams', a
       if (request.includes('/streams/active')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ match_ids: ['19609154'], streams: { 19609154: [{ url: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia&ch=533' }] } }),
+          json: () => Promise.resolve({ match_ids: [], streams: {} }),
         });
       }
       if (request.endsWith('/stream.json') || request.endsWith('stream.json')) {
@@ -174,12 +188,20 @@ test('keeps scheduled status visible when a future match already has streams', a
         ? [
             {
               id: 19609154,
-              scheduled_at: `${today}T19:00:00+00:00`,
+              scheduled_at: currentKickoff,
               status: 'scheduled',
               stage: 'Group Stage',
               home_team: { name_en: 'Canada' },
               away_team: { name_en: 'Bosnia and Herzegovina' },
-              streams: [{ url: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia&ch=533', source_type: 'iframe', is_active: true }],
+              streams: [
+                {
+                  url: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia&ch=533',
+                  source_type: 'iframe',
+                  is_active: true,
+                  starts_at: streamStartsAt,
+                  ends_at: streamEndsAt,
+                },
+              ],
             },
           ]
         : [];
@@ -192,10 +214,112 @@ test('keeps scheduled status visible when a future match already has streams', a
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.match(gridHtml, /Canada vs Bosnia and Herzegovina/);
-  assert.match(gridHtml, /Open player/);
+  assert.doesNotMatch(gridHtml, /Open player/);
   assert.match(gridHtml, /scheduled/);
   assert.doesNotMatch(gridHtml, />live</);
   assert.doesNotMatch(gridHtml, /match-status live/);
+});
+
+test('renders one player button per language using the highest-priority stream', async () => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const today = new Date().toISOString().slice(0, 10);
+  const currentKickoff = new Date().toISOString();
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: { appendChild() {} },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch(url) {
+      const request = String(url);
+      if (request.includes('/streams/active')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ match_ids: [], streams: {} }) });
+      }
+      if (request.endsWith('/stream.json') || request.endsWith('stream.json')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      }
+      const matches = request.includes(`date=${today}`)
+        ? [
+            {
+              id: 19609154,
+              scheduled_at: currentKickoff,
+              status: 'live',
+              stage: 'Group Stage',
+              home_team: { name_en: 'Canada' },
+              away_team: { name_en: 'Bosnia and Herzegovina' },
+              streams: [
+                {
+                  id: 'dami-19609154-111',
+                  label: 'S2 English',
+                  language_code: 'en',
+                  url: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia&ch=111',
+                  source_type: 'iframe',
+                  priority: 90,
+                  is_active: true,
+                },
+                {
+                  id: 'dami-19609154-39',
+                  label: 'S3 backup',
+                  language_code: 'en',
+                  url: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia&ch=39',
+                  source_type: 'iframe',
+                  priority: 80,
+                  is_active: true,
+                },
+              ],
+            },
+          ]
+        : [];
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ matches }) });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /S2 English/);
+  assert.doesNotMatch(gridHtml, /S3 backup/);
+  assert.match(gridHtml, /ch%3D111/);
+  assert.doesNotMatch(gridHtml, /ch%3D39/);
 });
 
 test('falls back to upcoming schedule when today has no matches', async () => {
@@ -357,7 +481,7 @@ test('includes upcoming schedule even when today has matches', async () => {
         ? [
             {
               id: 19609127,
-              scheduled_at: `${today}T19:00:00+00:00`,
+              scheduled_at: futureIso(1),
               status: 'scheduled',
               stage: 'Group Stage',
               league: { name: 'World Cup' },
@@ -393,6 +517,92 @@ test('includes upcoming schedule even when today has matches', async () => {
   assert.match(gridHtml, /Canada vs Brazil/);
   assert.equal(requests.some((url) => url.includes(`/api/matches?date=${today}`)), true);
   assert.equal(requests.some((url) => url.includes(`/api/matches?date=${tomorrowText}`)), true);
+});
+
+test('filters scheduled matches whose kickoff time has already passed from upcoming schedule', async () => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const today = new Date().toISOString().slice(0, 10);
+  const pastKickoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const futureKickoff = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: { appendChild() {} },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch(url) {
+      const request = String(url);
+      if (request.endsWith('/stream.json') || request.endsWith('stream.json')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      }
+      const matches = request.includes(`date=${today}`)
+        ? [
+            {
+              id: 19609120,
+              scheduled_at: pastKickoff,
+              status: 'scheduled',
+              stage: 'Group Stage',
+              home_team: { name_en: 'Past Home' },
+              away_team: { name_en: 'Past Away' },
+            },
+            {
+              id: 19609121,
+              scheduled_at: futureKickoff,
+              status: 'scheduled',
+              stage: 'Group Stage',
+              home_team: { name_en: 'Future Home' },
+              away_team: { name_en: 'Future Away' },
+            },
+          ]
+        : [];
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ matches }) });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.doesNotMatch(gridHtml, /Past Home vs Past Away/);
+  assert.match(gridHtml, /Future Home vs Future Away/);
 });
 
 test('does not reuse empty daily match cache after API recovers', async () => {
@@ -434,7 +644,7 @@ test('does not reuse empty daily match cache after API recovers', async () => {
   const today = new Date().toISOString().slice(0, 10);
   const recoveredMatch = {
     id: 19609127,
-    scheduled_at: `${today}T19:00:00+00:00`,
+    scheduled_at: futureIso(1),
     status: 'scheduled',
     stage: 'Group Stage',
     league: { name: 'World Cup' },
@@ -591,7 +801,7 @@ test('sends site locale with match API requests', async () => {
             matches: [
               {
                 id: 1540843,
-                scheduled_at: `${today}T19:00:00+00:00`,
+                scheduled_at: futureIso(1),
                 status: 'scheduled',
                 stage: 'Group Stage',
                 home_team: { id: 1, name_en: 'France' },
@@ -624,7 +834,7 @@ test('sends site locale with match API requests', async () => {
   );
 });
 
-test('renders finished match score in the match list', async () => {
+test('does not render finished matches in the upcoming schedule', async () => {
   let gridHtml = '';
   const matchGrid = {
     get innerHTML() {
@@ -703,8 +913,9 @@ test('renders finished match score in the match list', async () => {
   vm.runInNewContext(appSource, context);
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.match(gridHtml, /match-score/);
-  assert.match(gridHtml, /2 : 1/);
+  assert.doesNotMatch(gridHtml, /Chelsea vs Tottenham/);
+  assert.doesNotMatch(gridHtml, /2 : 1/);
+  assert.match(gridHtml, /Could not load matches/);
 });
 
 test('renders football news from the backend news endpoint', async () => {
@@ -1011,6 +1222,8 @@ test('opens match details with stats and only shows player button when stream ex
     },
   };
   const today = new Date().toISOString().slice(0, 10);
+  const currentKickoff = new Date().toISOString();
+  const scheduledKickoff = futureIso(1);
   const requests = [];
 
   const context = {
@@ -1188,7 +1401,7 @@ test('opens match details with stats and only shows player button when stream ex
         ? [
             {
               id: 1540843,
-              scheduled_at: `${today}T19:00:00+00:00`,
+              scheduled_at: currentKickoff,
               status: 'live',
               stage: 'Semi-finals',
               home_team: { name_en: 'Arsenal', flag_url: 'https://logo.test/ars.png' },
@@ -1197,7 +1410,7 @@ test('opens match details with stats and only shows player button when stream ex
             },
             {
               id: 1540844,
-              scheduled_at: `${today}T21:00:00+00:00`,
+              scheduled_at: scheduledKickoff,
               status: 'scheduled',
               stage: 'Semi-finals',
               home_team: { id: 1, name_en: 'Brazil' },

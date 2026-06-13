@@ -72,7 +72,7 @@
   function logout() {
     setToken('');
     setAuthLabel();
-    streamsBody.innerHTML = '<tr><td colspan="11">Logged out</td></tr>';
+    streamsBody.innerHTML = '<tr><td colspan="12">Logged out</td></tr>';
     if (monitoringBody) monitoringBody.innerHTML = '<tr><td colspan="3">Logged out</td></tr>';
     if (statusBody) statusBody.innerHTML = '<tr><td colspan="7">Logged out</td></tr>';
   }
@@ -126,8 +126,8 @@
     saveMsg.textContent = '';
     saveErr.textContent = '';
     try {
-      const id = Number($('stream-id').value || 0);
-      if (id > 0) {
+      const id = String($('stream-id').value || '').trim();
+      if (id) {
         await adminFetch(`/api/admin/streams/${id}`, { method: 'PUT', body: JSON.stringify(streamFromForm()) });
       } else {
         await adminFetch('/api/admin/streams', { method: 'POST', body: JSON.stringify(streamFromForm()) });
@@ -141,12 +141,13 @@
   }
 
   async function deleteStream(id) {
-    if (!window.confirm(`Delete stream #${id}?`)) return;
+    const isApiStream = String(id || '').startsWith('dami-');
+    if (!window.confirm(isApiStream ? `Reset override for ${id}?` : `Delete stream #${id}?`)) return;
     saveMsg.textContent = '';
     saveErr.textContent = '';
     try {
       await adminFetch(`/api/admin/streams/${id}`, { method: 'DELETE' });
-      saveMsg.textContent = 'Deleted';
+      saveMsg.textContent = isApiStream ? 'API stream override reset' : 'Deleted';
       await loadStreams();
     } catch (error) {
       saveErr.textContent = String(error.message || error);
@@ -155,20 +156,21 @@
 
   async function loadStreams() {
     if (!token()) {
-      streamsBody.innerHTML = '<tr><td colspan="11">Login first</td></tr>';
+      streamsBody.innerHTML = '<tr><td colspan="12">Login first</td></tr>';
       return;
     }
     try {
       const payload = await adminFetch('/api/admin/streams');
       const streams = Array.isArray(payload.streams) ? payload.streams : [];
       if (!streams.length) {
-        streamsBody.innerHTML = '<tr><td colspan="11">No streams</td></tr>';
+        streamsBody.innerHTML = '<tr><td colspan="12">No streams</td></tr>';
         return;
       }
       streamsBody.innerHTML = streams
         .map((stream) => {
           const url = escapeHtml(stream.url || '');
-          const editable = stream.editable !== false && stream.origin !== 'dami';
+          const editable = stream.editable !== false;
+          const isApiStream = stream.origin === 'dami';
           return `
             <tr>
               <td>${escapeHtml(stream.id)}</td>
@@ -176,6 +178,7 @@
               <td>${escapeHtml(stream.match_id)}</td>
               <td>${escapeHtml(stream.source_type || '')}</td>
               <td>${escapeHtml(stream.label || '')}</td>
+              <td>${escapeHtml(stream.language_code || '')}</td>
               <td class="mono">${url}</td>
               <td>${escapeHtml(stream.priority ?? '')}</td>
               <td>${stream.is_active === false ? 'false' : 'true'}</td>
@@ -184,7 +187,7 @@
               <td>
                 <div class="admin-actions">
                   ${editable ? `<button class="button secondary" type="button" data-edit="${escapeHtml(stream.id)}">Edit</button>` : '<span class="mono">auto</span>'}
-                  ${editable ? `<button class="button secondary" type="button" data-del="${escapeHtml(stream.id)}">Delete</button>` : ''}
+                  ${editable ? `<button class="button secondary" type="button" data-del="${escapeHtml(stream.id)}">${isApiStream ? 'Reset' : 'Delete'}</button>` : ''}
                 </div>
               </td>
             </tr>
@@ -194,19 +197,19 @@
 
       streamsBody.querySelectorAll('[data-edit]').forEach((button) => {
         button.addEventListener('click', () => {
-          const id = Number(button.getAttribute('data-edit'));
-          const stream = streams.find((item) => Number(item.id) === id);
+          const id = String(button.getAttribute('data-edit') || '');
+          const stream = streams.find((item) => String(item.id) === id);
           if (stream) fillForm(stream);
         });
       });
       streamsBody.querySelectorAll('[data-del]').forEach((button) => {
         button.addEventListener('click', () => {
-          const id = Number(button.getAttribute('data-del'));
-          if (id > 0) deleteStream(id);
+          const id = String(button.getAttribute('data-del') || '');
+          if (id) deleteStream(id);
         });
       });
     } catch (error) {
-      streamsBody.innerHTML = `<tr><td colspan="11">${escapeHtml(String(error.message || error))}</td></tr>`;
+      streamsBody.innerHTML = `<tr><td colspan="12">${escapeHtml(String(error.message || error))}</td></tr>`;
     }
   }
 

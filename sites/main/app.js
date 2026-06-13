@@ -555,7 +555,7 @@
     const upcomingMatches = [
       ...todayResult.matches,
       ...upcomingResults.flatMap((result) => result.matches),
-    ];
+    ].filter(isUpcomingScheduleMatch);
     const cachedMatches = [
       ...todayResult.cachedMatches,
       ...upcomingResults.flatMap((result) => result.cachedMatches),
@@ -565,6 +565,16 @@
       matches: upcomingMatches.sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || ''))),
       cachedMatches,
     };
+  }
+
+  function isUpcomingScheduleMatch(match = {}) {
+    const status = String(match.status || 'scheduled').toLowerCase();
+    if (status === 'live' || status === 'half_time') return true;
+    if (status === 'finished') return false;
+    if (status !== 'scheduled') return true;
+    const kickoff = Date.parse(match.scheduled_at || match.scheduledAt || '');
+    if (Number.isNaN(kickoff)) return true;
+    return kickoff >= Date.now();
   }
 
   function localizedNewsUrl() {
@@ -805,6 +815,8 @@
   }
 
   function streamLanguageLabel(stream = {}, index = 0) {
+    const explicitLabel = cleanText(stream.button_label || stream.buttonLabel || stream.label, '');
+    if (explicitLabel) return explicitLabel;
     const code = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
     const labels = {
       ar: 'Arabic',
@@ -825,25 +837,21 @@
 
   function streamsForMatch(match = {}) {
     return Array.isArray(match.streams)
-      ? match.streams.filter((stream) => stream && stream.url && stream.is_active !== false && stream.isActive !== false)
+      ? match.streams.filter((stream) => stream && stream.url && isStreamActiveNow(stream))
       : [];
   }
 
   function displayStreamsForMatch(match = {}) {
-    const byLanguage = new Map();
-    const withoutLanguage = [];
+    const byButton = new Map();
     streamsForMatch(match).forEach((stream, index) => {
-      const language = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
       const priority = Number.isFinite(Number(stream.priority)) ? Number(stream.priority) : 100 - index;
       const normalized = { ...stream, priority };
-      if (!language) {
-        withoutLanguage.push(normalized);
-        return;
-      }
-      const current = byLanguage.get(language);
-      if (!current || priority > Number(current.priority || 0)) byLanguage.set(language, normalized);
+      const language = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
+      const key = language && language !== 'und' ? `lang:${language}` : `stream:${stream.id || stream.url || index}`;
+      const current = byButton.get(key);
+      if (!current || priority > Number(current.priority || 0)) byButton.set(key, normalized);
     });
-    return [...byLanguage.values(), ...withoutLanguage].sort((left, right) => Number(right.priority || 0) - Number(left.priority || 0));
+    return [...byButton.values()].sort((left, right) => Number(right.priority || 0) - Number(left.priority || 0));
   }
 
   function localDateKey(value) {
@@ -1127,7 +1135,7 @@
     const matchId = typeof match === 'object' ? match?.id : match;
     if (matchId == null) return false;
     if (activeStreamMatchIds.has(String(matchId))) return true;
-    if (match && Array.isArray(match.streams) && match.streams.some((stream) => stream && stream.url)) return true;
+    if (match && Array.isArray(match.streams) && match.streams.some((stream) => stream && stream.url && isStreamActiveNow(stream))) return true;
     return false;
   }
 

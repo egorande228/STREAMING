@@ -20,12 +20,15 @@ const GOOGLE_NEWS_FEEDS = {
 };
 const STREAM_CONFIG_KV_KEY = 'match_streams_json';
 const MATCH_OVERRIDES_KV_KEY = 'match_overrides_json';
+const API_STREAM_OVERRIDES_KV_KEY = 'api_stream_overrides_json';
 const CACHE_VERSION_KV_KEY = 'api_cache_version';
 const API_CACHE_NAMESPACE = 'melbet64-predictions-v1';
 const DAMI_STREAMS_KV_KEY = 'dami:streams:v1';
 const DAMI_STREAMS_TTL_SECONDS = 60;
 const DAMI_STREAMS_API_URL = 'https://dami-tv.pro/papi/api/streams';
 const DAMI_STREAMS_FALLBACK_API_URL = 'https://damitv.b-cdn.net/papi/api/streams';
+const ADMIN_STREAM_PAST_DAYS = 1;
+const ADMIN_STREAM_LOOKAHEAD_DAYS = 14;
 const DAMI_TEAM_CODE_ALIASES = {
   ARG: 'argentina',
   AUS: 'australia',
@@ -454,8 +457,8 @@ async function routeAdminRequest(request, env = {}, ctx = {}) {
     return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
   }
 
-  const streamId = Number(url.pathname.match(/^\/api\/admin\/streams\/(\d+)$/)?.[1]);
-  if (streamId > 0) {
+  const streamId = url.pathname.match(/^\/api\/admin\/streams\/([^/]+)$/)?.[1] || '';
+  if (streamId) {
     if (request.method === 'PUT') return routeAdminStreamsUpdate(request, env, streamId);
     if (request.method === 'DELETE') return routeAdminStreamsDelete(env, streamId);
     return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
@@ -667,28 +670,63 @@ async function routeAdminMatchOverridesDelete(env, matchId) {
 
 async function readAdminAutoStreams(env = {}, ctx = {}) {
   if (!env.SPORTMONKS_TOKEN && !env.API_FOOTBALL_KEY) return [];
-  const date = new Date().toISOString().slice(0, 10);
-  const url = new URL(`/api/matches?date=${date}`, 'https://kinglive.admin');
-  const ttl = resolveCacheTtl(url);
-  const response = env.SPORTMONKS_TOKEN
-    ? await routeSportmonksFootballRequest(url, env, ttl, ctx)
-    : await routeApiFootballRequest(url, env, ttl);
-  if (!response.ok) return [];
-  const payload = await response.json().catch(() => null);
-  const matches = Array.isArray(payload?.matches) ? payload.matches : [];
-  return matches.flatMap((match) => {
+  const adminEnv = { ...env, ADMIN_DAMI_LIST: 'true' };
+  const responses = await Promise.all(adminStreamDates(env).map(async (date) => {
+    const url = new URL(`/api/matches?date=${date}`, 'https://kinglive.admin');
+    const ttl = resolveCacheTtl(url);
+    const response = env.SPORTMONKS_TOKEN
+      ? await routeSportmonksFootballRequest(url, adminEnv, ttl, ctx)
+      : await routeApiFootballRequest(url, adminEnv, ttl);
+    if (!response.ok) return [];
+    const payload = await response.json().catch(() => null);
+    return Array.isArray(payload?.matches) ? payload.matches : [];
+  }));
+  const streams = responses.flat().flatMap((match) => {
     const streams = Array.isArray(match?.streams) ? match.streams : [];
     return streams
       .filter((stream) => isDamiStreamUrl(stream?.url))
       .map((stream, index) => ({
         ...stream,
-        id: `dami-${match.id}-${stream.id || index}`,
+        id: stream.api_stream_id || `dami-${match.id}-${stream.id || index}`,
         match_id: Number(match.id),
         origin: 'dami',
-        editable: false,
+        editable: true,
+        overridden: stream.api_overridden === true,
         is_live_now: isStreamActiveNow(stream),
       }));
   });
+  return dedupeAdminStreams(streams);
+}
+
+function adminStreamDates(env = {}) {
+  const pastDays = boundedInteger(env.ADMIN_STREAM_PAST_DAYS, ADMIN_STREAM_PAST_DAYS, 0, 7);
+  const lookaheadDays = boundedInteger(env.ADMIN_STREAM_LOOKAHEAD_DAYS, ADMIN_STREAM_LOOKAHEAD_DAYS, 0, 31);
+  const start = new Date(`${todayDate()}T00:00:00Z`);
+  const dates = [];
+  for (let offset = -pastDays; offset <= lookaheadDays; offset += 1) {
+    const date = new Date(start);
+    date.setUTCDate(date.getUTCDate() + offset);
+    dates.push(date.toISOString().slice(0, 10));
+  }
+  return dates;
+}
+
+function boundedInteger(value, fallback, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(number)));
+}
+
+function dedupeAdminStreams(streams = []) {
+  const seen = new Set();
+  const deduped = [];
+  streams.forEach((stream) => {
+    const key = String(stream.id || `${stream.match_id}:${stream.url}`);
+    if (seen.has(key)) return;
+    seen.add(key);
+    deduped.push(stream);
+  });
+  return deduped;
 }
 
 function isDamiStreamUrl(value) {
@@ -799,12 +837,27 @@ async function routeAdminStreamsUpdate(request, env, streamId) {
   }
 
   const body = await readJsonBody(request);
-  const updated = normalizeAdminStreamPayload(body, streamId);
+  const idText = String(streamId || '').trim();
+  if (isApiStreamOverrideId(idText)) {
+    const override = normalizeApiStreamOverridePayload(body, idText);
+    if (!override) return jsonResponse({ error: 'invalid_api_stream_override_payload' }, 400, 0);
+    const overrides = await readRuntimeApiStreamOverrides(env);
+    overrides[idText] = override;
+    await writeRuntimeApiStreamOverrides(env, overrides);
+    const cacheVersion = await bumpCacheVersion(env);
+    return jsonResponse({ ok: true, override, cache_version: cacheVersion }, 200, 0);
+  }
+
+  const numericStreamId = Number(streamId);
+  if (!Number.isFinite(numericStreamId) || numericStreamId <= 0) {
+    return jsonResponse({ error: 'stream_not_found' }, 404, 0);
+  }
+  const updated = normalizeAdminStreamPayload(body, numericStreamId);
   if (!updated) return jsonResponse({ error: 'invalid_stream_payload' }, 400, 0);
 
   const config = await readRuntimeStreamConfig(env);
   const streams = flattenStreamConfig(config);
-  const index = streams.findIndex((item) => Number(item.id) === streamId);
+  const index = streams.findIndex((item) => Number(item.id) === numericStreamId);
   if (index < 0) return jsonResponse({ error: 'stream_not_found' }, 404, 0);
   streams[index] = updated;
   await writeRuntimeStreamConfig(env, expandStreamConfig(streams));
@@ -816,9 +869,22 @@ async function routeAdminStreamsDelete(env, streamId) {
     return jsonResponse({ error: 'stream_kv_not_configured' }, 503, 0);
   }
 
+  const idText = String(streamId || '').trim();
+  if (isApiStreamOverrideId(idText)) {
+    const overrides = await readRuntimeApiStreamOverrides(env);
+    delete overrides[idText];
+    await writeRuntimeApiStreamOverrides(env, overrides);
+    const cacheVersion = await bumpCacheVersion(env);
+    return jsonResponse({ ok: true, id: idText, cache_version: cacheVersion }, 200, 0);
+  }
+
+  const numericStreamId = Number(streamId);
+  if (!Number.isFinite(numericStreamId) || numericStreamId <= 0) {
+    return jsonResponse({ error: 'stream_not_found' }, 404, 0);
+  }
   const config = await readRuntimeStreamConfig(env);
   const streams = flattenStreamConfig(config);
-  const filtered = streams.filter((item) => Number(item.id) !== streamId);
+  const filtered = streams.filter((item) => Number(item.id) !== numericStreamId);
   if (filtered.length === streams.length) {
     return jsonResponse({ error: 'stream_not_found' }, 404, 0);
   }
@@ -899,6 +965,28 @@ async function readRuntimeMatchOverrides(env = {}) {
 async function writeRuntimeMatchOverrides(env = {}, overrides = {}) {
   if (!env.STREAM_CONFIG_KV?.put) return false;
   await env.STREAM_CONFIG_KV.put(MATCH_OVERRIDES_KV_KEY, JSON.stringify(overrides));
+  return true;
+}
+
+async function readRuntimeApiStreamOverrides(env = {}) {
+  if (!env.STREAM_CONFIG_KV?.get) return {};
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(API_STREAM_OVERRIDES_KV_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .map(([key, value]) => [key, normalizeApiStreamOverridePayload(value, key)])
+        .filter(([, value]) => value),
+    );
+  } catch {
+    return {};
+  }
+}
+
+async function writeRuntimeApiStreamOverrides(env = {}, overrides = {}) {
+  if (!env.STREAM_CONFIG_KV?.put) return false;
+  await env.STREAM_CONFIG_KV.put(API_STREAM_OVERRIDES_KV_KEY, JSON.stringify(overrides));
   return true;
 }
 
@@ -1029,6 +1117,37 @@ function normalizeAdminMatchOverridePayload(payload) {
     scheduled_at: normalizeOptionalDateTime(payload?.scheduled_at),
     note: String(payload?.note || '').trim().slice(0, 200),
     updated_at: new Date().toISOString(),
+  };
+}
+
+function isApiStreamOverrideId(value = '') {
+  return /^dami-\d+-\d+$/.test(String(value || '').trim());
+}
+
+function normalizeApiStreamOverridePayload(payload, overrideId) {
+  const id = String(overrideId || payload?.id || '').trim();
+  if (!isApiStreamOverrideId(id)) return null;
+  const matchId = Number(payload?.match_id || id.split('-')[1]);
+  const url = String(payload?.url || '').trim();
+  if (!Number.isFinite(matchId) || matchId <= 0 || !url) return null;
+  const sourceType = payload?.source_type === 'hls' || payload?.source_type === 'videojs' || payload?.source_type === 'iframe'
+    ? payload.source_type
+    : inferStreamType(url);
+  return {
+    id,
+    match_id: matchId,
+    label: String(payload?.label || 'API stream').trim(),
+    source_type: sourceType,
+    quality: String(payload?.quality || '720p').trim(),
+    language_code: String(payload?.language_code || 'und').trim(),
+    url,
+    priority: Number.isFinite(Number(payload?.priority)) ? Number(payload.priority) : 80,
+    region: String(payload?.region || 'global').trim(),
+    commentary_type: String(payload?.commentary_type || 'full').trim(),
+    is_active: payload?.is_active !== false,
+    starts_at: normalizeOptionalDateTime(payload?.starts_at),
+    ends_at: normalizeOptionalDateTime(payload?.ends_at),
+    updated_at: payload?.updated_at || new Date().toISOString(),
   };
 }
 
@@ -1701,8 +1820,10 @@ async function applyDamiAutoStreams(matches = [], env = {}) {
   if (env.DAMI_AUTO_STREAMS === 'false') return matches;
   if (!Array.isArray(matches) || !matches.length) return matches;
   let damiStreams = [];
+  let apiStreamOverrides = {};
   try {
     damiStreams = await fetchDamiStreams(env);
+    apiStreamOverrides = await readRuntimeApiStreamOverrides(env);
   } catch {
     return matches;
   }
@@ -1710,7 +1831,7 @@ async function applyDamiAutoStreams(matches = [], env = {}) {
   return matches.map((match) => {
     if (match?.status === 'finished') return match;
     const manualStreams = Array.isArray(match?.streams) ? match.streams : [];
-    const autoStreams = damiStreamsForMatch(match, damiStreams, env);
+    const autoStreams = damiStreamsForMatch(match, damiStreams, env, apiStreamOverrides);
     const mergedStreams = mergeStreamsByLanguageAndUrl(manualStreams, autoStreams);
     return mergedStreams.length ? { ...match, streams: mergedStreams } : match;
   });
@@ -1776,7 +1897,7 @@ async function writeCachedDamiStreams(env = {}, streams = []) {
   }
 }
 
-function damiStreamsForMatch(match = {}, damiStreams = [], env = {}) {
+function damiStreamsForMatch(match = {}, damiStreams = [], env = {}, apiStreamOverrides = {}) {
   const damiMatch = damiStreams.find((stream) => isDamiMatchForFixture(stream, match));
   if (!damiMatch) return [];
   const streams = [];
@@ -1788,7 +1909,7 @@ function damiStreamsForMatch(match = {}, damiStreams = [], env = {}) {
     if (!url) return;
     const channel = damiChannelFromUrl(url);
     const language = damiLanguageForSource(source, channel, env) || 'und';
-    streams.push({
+    streams.push(applyApiStreamOverride({
       id: hashToPositiveInt(`${match.id}:dami:${index}:${url}`),
       url,
       source_type: 'iframe',
@@ -1801,12 +1922,12 @@ function damiStreamsForMatch(match = {}, damiStreams = [], env = {}) {
       is_active: true,
       starts_at: window.starts_at,
       ends_at: window.ends_at,
-    });
+    }, match.id, apiStreamOverrides));
   });
   parseDamiExtraLanguageChannels(env.DAMI_EXTRA_LANGUAGE_CHANNELS).forEach((extra, index) => {
     const url = damiEmbedUrlForChannel(damiMatch, extra.channel);
     if (!url || streams.some((stream) => stream.url === url)) return;
-    streams.push({
+    streams.push(applyApiStreamOverride({
       id: hashToPositiveInt(`${match.id}:dami:${extra.language}:${extra.channel}`),
       url,
       source_type: 'iframe',
@@ -1819,10 +1940,10 @@ function damiStreamsForMatch(match = {}, damiStreams = [], env = {}) {
       is_active: true,
       starts_at: window.starts_at,
       ends_at: window.ends_at,
-    });
+    }, match.id, apiStreamOverrides));
   });
   if (!streams.length && damiMatch.iframe) {
-    streams.push({
+    streams.push(applyApiStreamOverride({
       id: hashToPositiveInt(`${match.id}:dami:iframe`),
       url: String(damiMatch.iframe),
       source_type: 'iframe',
@@ -1835,9 +1956,26 @@ function damiStreamsForMatch(match = {}, damiStreams = [], env = {}) {
       is_active: true,
       starts_at: window.starts_at,
       ends_at: window.ends_at,
-    });
+    }, match.id, apiStreamOverrides));
   }
-  return streams;
+  return streams.filter((stream) => env.ADMIN_DAMI_LIST === 'true' || stream?.is_active !== false);
+}
+
+function applyApiStreamOverride(stream = {}, matchId, apiStreamOverrides = {}) {
+  const apiStreamId = `dami-${matchId}-${stream.id}`;
+  const override = apiStreamOverrides[apiStreamId];
+  if (!override) return { ...stream, api_stream_id: apiStreamId, api_overridden: false };
+  return {
+    ...stream,
+    ...override,
+    id: stream.id,
+    match_id: undefined,
+    api_stream_id: apiStreamId,
+    api_overridden: true,
+    is_active: override.is_active !== false,
+    starts_at: override.starts_at || stream.starts_at || null,
+    ends_at: override.ends_at || stream.ends_at || null,
+  };
 }
 
 function isBlockedDamiSource(source = {}) {

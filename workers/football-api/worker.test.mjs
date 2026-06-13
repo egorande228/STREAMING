@@ -2042,44 +2042,53 @@ test('admin match status overrides are stored in KV and applied to match respons
   }
 });
 
-test('admin streams list includes DAMI auto streams as read-only rows', async () => {
+test('admin streams list includes editable DAMI streams from upcoming fixture dates', async () => {
   const previousFetch = globalThis.fetch;
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrowDate = new Date(`${today}T00:00:00Z`);
+  tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1);
+  const tomorrow = tomorrowDate.toISOString().slice(0, 10);
+  const requests = [];
   const kvData = new Map();
-  const kv = {
-    async get(key) {
-      return kvData.get(key) || null;
-    },
-    async put(key, value) {
-      kvData.set(key, value);
-    },
-  };
   const env = {
     ADMIN_USERNAME: 'admin',
     ADMIN_PASSWORD: 'secret',
     ADMIN_BEARER_TOKEN: 'test-token',
     SPORTMONKS_TOKEN: 'sportmonks-token',
-    STREAM_CONFIG_KV: kv,
+    STREAM_CONFIG_KV: {
+      async get(key) {
+        return kvData.get(key) || null;
+      },
+      async put(key, value) {
+        kvData.set(key, value);
+      },
+    },
   };
+
   globalThis.fetch = async (request) => {
     const requestUrl = String(request.url || request);
+    requests.push(requestUrl);
     if (requestUrl.includes('api.sportmonks.com')) {
+      const hasTomorrow = requestUrl.includes(`/fixtures/date/${tomorrow}`);
       return new Response(
         JSON.stringify({
-          data: [
-            {
-              id: 42,
-              name: 'Canada vs Bosnia and Herzegovina',
-              starting_at: '2026-06-12 19:00:00',
-              state: { short_name: 'NS' },
-              league: { id: 732, name: 'World Cup', country: { name: 'World' } },
-              participants: [
-                { id: 1, name: 'Canada', short_code: 'CAN', meta: { location: 'home' } },
-                { id: 2, name: 'Bosnia and Herzegovina', short_code: 'BIH', meta: { location: 'away' } },
-              ],
-              scores: [],
-              periods: [],
-            },
-          ],
+          data: hasTomorrow
+            ? [
+                {
+                  id: 77,
+                  name: 'USA vs Paraguay',
+                  starting_at: `${tomorrow} 19:00:00`,
+                  state: { short_name: 'NS' },
+                  league: { id: 732, name: 'World Cup', country: { name: 'World' } },
+                  participants: [
+                    { id: 1, name: 'USA', short_code: 'USA', meta: { location: 'home' } },
+                    { id: 2, name: 'Paraguay', short_code: 'PAR', meta: { location: 'away' } },
+                  ],
+                  scores: [],
+                  periods: [],
+                },
+              ]
+            : [],
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       );
@@ -2093,13 +2102,15 @@ test('admin streams list includes DAMI auto streams as read-only rows', async ()
               category: 'football',
               streams: [
                 {
-                  id: 'canada-vs-bosnia-herzegovina-2461104',
-                  name: 'Canada vs Bosnia and Herzegovina',
+                  id: 'usa-vs-paraguay-2461105',
+                  name: 'USA vs Paraguay',
                   teams: {
-                    home: { name: 'Canada' },
-                    away: { name: 'Bosnia and Herzegovina' },
+                    home: { name: 'USA' },
+                    away: { name: 'Paraguay' },
                   },
-                  sources: [{ source: 'tv', id: 's1', embed: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia-herzegovina-2461104&ch=533' }],
+                  sources: [
+                    { source: 'tv', id: 's2', embed: 'https://dami-tv.pro/embed/?id=usa-vs-paraguay-2461105&ch=111' },
+                  ],
                 },
               ],
             },
@@ -2112,17 +2123,42 @@ test('admin streams list includes DAMI auto streams as read-only rows', async ()
   };
 
   try {
-    const list = await routeRequest(
+    const response = await routeRequest(
       new Request('https://kinglive.test/api/admin/streams', {
         headers: { Authorization: 'Bearer test-token' },
       }),
       env,
       {},
     );
-    assert.equal(list.status, 200);
-    const body = await list.json();
-    assert.equal(body.auto_total, 0);
-    assert.equal(body.streams.length, 0);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.auto_total, 1);
+    const autoStream = body.streams.find((stream) => stream.origin === 'dami');
+    assert.equal(autoStream?.editable, true);
+    assert.equal(autoStream?.match_id, 77);
+    assert.equal(requests.some((url) => url.includes(`/fixtures/date/${tomorrow}`)), true);
+
+    const update = await routeRequest(
+      new Request(`https://kinglive.test/api/admin/streams/${autoStream.id}`, {
+        method: 'PUT',
+        headers: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...autoStream,
+          label: 'Bad DAMI source',
+          language_code: 'und',
+          priority: 12,
+          is_active: false,
+        }),
+      }),
+      env,
+      {},
+    );
+    assert.equal(update.status, 200);
+
+    const matchResponse = await routeRequest(new Request(`https://kinglive.test/api/matches?date=${tomorrow}&lang=en`), env, {});
+    assert.equal(matchResponse.status, 200);
+    const matchBody = await matchResponse.json();
+    assert.deepEqual(matchBody.matches[0].streams, []);
   } finally {
     globalThis.fetch = previousFetch;
   }

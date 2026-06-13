@@ -2,6 +2,7 @@
   const config = window.KINGLIVE_PLAYER_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
   const hlsProxyBase = String(config.hlsProxyBase || apiBase || '').replace(/\/$/, '');
+  const damiAutoPlayback = normalizeDamiAutoPlayback(config.damiAutoPlayback);
   const params = new URLSearchParams(window.location.search);
   const streamConfigUrl = config.streamConfigUrl || './streams.json';
   const activeStreamsApiUrl = config.activeStreamsApiUrl || `${apiBase}/api/streams/active`;
@@ -658,10 +659,22 @@
     return ['auto', 'hls_resolver', 'iframe', 'iframe_popups'].includes(mode) ? mode : 'auto';
   }
 
+  function normalizeDamiAutoPlayback(value) {
+    const mode = String(value || 'iframe_popups').toLowerCase();
+    return ['hls_resolver', 'iframe', 'iframe_popups'].includes(mode) ? mode : 'iframe_popups';
+  }
+
   function shouldResolveDamiEmbed(stream = {}) {
     const mode = playbackMode(stream);
+    if (mode === 'hls_resolver') return Boolean(damiEmbedChannelId(stream.url));
     if (mode === 'iframe' || mode === 'iframe_popups') return false;
+    if (damiAutoPlayback !== 'hls_resolver') return false;
     return Boolean(damiEmbedChannelId(stream.url));
+  }
+
+  function damiAutoIframeStream(stream) {
+    if (playbackMode(stream) !== 'auto' || !isDamiEmbedUrl(stream.url) || damiAutoPlayback === 'hls_resolver') return stream;
+    return { ...stream, playback_mode: damiAutoPlayback };
   }
 
   function renderHls(stream, onFatal) {
@@ -802,6 +815,22 @@
     void playStream(nextIndex, attempted);
   }
 
+  function fallbackDamiAutoStream(index, attempted = new Set()) {
+    const stream = currentStreams[index];
+    attempted.add(index);
+    const nextIndex = nextSameLanguageStreamIndex(index, attempted);
+    if (nextIndex >= 0) {
+      sourceSelect.value = String(nextIndex);
+      void playStream(nextIndex, attempted);
+      return;
+    }
+    if (stream && playbackMode(stream) === 'auto' && isDamiEmbedUrl(stream.url)) {
+      renderIframe({ ...stream, playback_mode: 'iframe_popups' });
+      return;
+    }
+    showStreamUnavailable();
+  }
+
   async function playStream(index, attempted = new Set()) {
     const stream = currentStreams[index];
     if (!stream) return;
@@ -809,14 +838,14 @@
     if (stream.source_type === 'iframe' && shouldResolveDamiEmbed(stream)) {
       stage.innerHTML = '<div class="player-empty">Loading stream...</div>';
       try {
-        renderHls(await resolveDamiChannel(stream), () => fallbackToNextStream(index, attempted));
+        renderHls(await resolveDamiChannel(stream), () => fallbackDamiAutoStream(index, attempted));
       } catch {
-        fallbackToNextStream(index, attempted);
+        fallbackDamiAutoStream(index, attempted);
       }
       return;
     }
     if (stream.source_type === 'iframe') {
-      renderIframe(stream);
+      renderIframe(damiAutoIframeStream(stream));
       return;
     }
     if (stream.source_type === 'dami-channel') {

@@ -116,6 +116,7 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
         },
       },
       videojs: timers.videojs,
+      Hls: timers.Hls,
     },
     navigator: {
       clipboard: {
@@ -354,6 +355,7 @@ test('starts the stream selected by the site button source params', async () => 
     href: `https://player.test/?match=19609133&lang=en&region=global&source=dami-19609133-2092607600&src=${encodeURIComponent(selectedUrl)}`,
     config: {
       hlsProxyBase: 'https://kinglive-football-api.test',
+      damiAutoPlayback: 'hls_resolver',
     },
     fetchImpl: (url) => {
       if (String(url) === 'https://dami-tv.pro/papi/tv/resolve/966?t=') {
@@ -411,10 +413,63 @@ test('starts the stream selected by the site button source params', async () => 
   assert.match(result.sourceSelect.innerHTML, /BEIN\(AR\)/);
 });
 
+test('uses iframe popups for DAMI auto streams by default to avoid proxying viewer video', async () => {
+  const damiUrl = 'https://dami-tv.pro/embed/?id=qatar-vs-switzerland-2391732&ch=966';
+  const requests = [];
+  const result = await runPlayer({
+    href: 'https://player.test/?match=19609130&lang=ar&region=global&source=dami-19609130-1212398579',
+    config: {
+      hlsProxyBase: 'https://kinglive-football-api.test',
+    },
+    fetchImpl: (url) => {
+      requests.push(String(url));
+      if (String(url) === 'https://dami-tv.pro/papi/tv/resolve/966?t=') {
+        return Promise.reject(new Error('default DAMI auto playback must not call resolver'));
+      }
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      assert.equal(String(url), '/api/matches/19609130?lang=ar&region=global');
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Qatar' },
+            away_team: { name_en: 'Switzerland' },
+            streams: [
+              {
+                id: 1212398579,
+                api_stream_id: 'dami-19609130-1212398579',
+                url: damiUrl,
+                source_type: 'iframe',
+                label: 'Arabic stream',
+                language_code: 'ar',
+                priority: 80,
+                playback_mode: 'auto',
+                is_active: true,
+              },
+            ],
+          }),
+      });
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const iframe = result.appended.find((element) => element.tagName === 'iframe');
+  assert.ok(iframe);
+  assert.equal(iframe.src, damiUrl);
+  assert.match(iframe.sandbox, /allow-popups/);
+  assert.equal(requests.includes('https://dami-tv.pro/papi/tv/resolve/966?t='), false);
+});
+
 test('falls back to the next same-language DAMI source when resolver fails', async () => {
   const requests = [];
   const result = await runPlayer({
     href: 'https://player.test/?match=19609130&lang=ar&region=global&source=dami-19609130-primary',
+    config: {
+      damiAutoPlayback: 'hls_resolver',
+    },
     fetchImpl: (url) => {
       requests.push(String(url));
       if (String(url) === 'https://dami-tv.pro/papi/tv/resolve/966?t=') {
@@ -471,6 +526,84 @@ test('falls back to the next same-language DAMI source when resolver fails', asy
   assert.equal(result.sourceSelect.value, '1');
   assert.equal(requests.includes('https://dami-tv.pro/papi/tv/resolve/966?t='), true);
   assert.equal(requests.includes('https://dami-tv.pro/papi/tv/resolve/967?t='), true);
+});
+
+test('falls back to the same DAMI source iframe when auto HLS playback fails', async () => {
+  const damiUrl = 'https://dami-tv.pro/embed/?id=qatar-vs-switzerland-2391732&ch=966';
+  const timers = {};
+  class MockHls {
+    static Events = { MANIFEST_PARSED: 'manifest-parsed', ERROR: 'error' };
+    static isSupported() {
+      return true;
+    }
+    constructor() {
+      timers.hls = this;
+      this.handlers = {};
+    }
+    loadSource(url) {
+      timers.hlsSource = url;
+    }
+    attachMedia() {}
+    on(event, handler) {
+      this.handlers[event] = handler;
+    }
+    destroy() {
+      timers.hlsDestroyed = true;
+    }
+  }
+  timers.Hls = MockHls;
+
+  const result = await runPlayer({
+    href: 'https://player.test/?match=19609130&lang=ar&region=global&source=dami-19609130-1212398579',
+    timers,
+    config: {
+      hlsProxyBase: 'https://kinglive-football-api.test',
+      damiAutoPlayback: 'hls_resolver',
+    },
+    fetchImpl: (url) => {
+      if (String(url) === 'https://dami-tv.pro/papi/tv/resolve/966?t=') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ stream: '/papi/tv/playlist/resolved-arabic.m3u8' }),
+        });
+      }
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      assert.equal(String(url), '/api/matches/19609130?lang=ar&region=global');
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Qatar' },
+            away_team: { name_en: 'Switzerland' },
+            streams: [
+              {
+                id: 1212398579,
+                api_stream_id: 'dami-19609130-1212398579',
+                url: damiUrl,
+                source_type: 'iframe',
+                label: 'Arabic stream',
+                language_code: 'ar',
+                priority: 80,
+                playback_mode: 'auto',
+                is_active: true,
+              },
+            ],
+          }),
+      });
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(timers.hlsSource, /\/api\/dami\/hls-proxy\?url=/);
+
+  timers.hls.handlers[MockHls.Events.ERROR](null, { fatal: true });
+
+  const iframe = result.appended.find((element) => element.tagName === 'iframe');
+  assert.ok(iframe);
+  assert.equal(iframe.src, damiUrl);
+  assert.match(iframe.sandbox, /allow-popups/);
+  assert.doesNotMatch(result.stageHtml, /Stream unavailable/);
 });
 
 test('sandboxes iframe streams to block popup and top navigation redirects', async () => {

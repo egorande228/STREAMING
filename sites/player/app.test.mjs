@@ -342,6 +342,59 @@ test('merges configured player streams with match API streams', async () => {
   assert.equal(result.sourceSelect.hidden, false);
 });
 
+test('starts the stream selected by the site button source params', async () => {
+  const selectedUrl = 'https://dami-tv.pro/embed/?id=usa-vs-paraguay-2391729&ch=966';
+  const result = await runPlayer({
+    href: `https://player.test/?match=19609133&lang=en&region=global&source=dami-19609133-2092607600&src=${encodeURIComponent(selectedUrl)}`,
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              19609133: {
+                id: 1,
+                url: 'https://hls.livekinglive.win/live/fox-sport-1-hd/index.m3u8',
+                source_type: 'videojs',
+                label: 'FOX',
+                language_code: 'en',
+                priority: 100,
+              },
+            }),
+        });
+      }
+      assert.equal(String(url), '/api/matches/19609133?lang=en&region=global');
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'United States' },
+            away_team: { name_en: 'Paraguay' },
+            streams: [
+              {
+                id: 2092607600,
+                api_stream_id: 'dami-19609133-2092607600',
+                url: selectedUrl,
+                source_type: 'iframe',
+                label: 'BEIN(AR)',
+                language_code: 'ar',
+                priority: 80,
+                is_active: true,
+              },
+            ],
+          }),
+      });
+    },
+  });
+
+  const iframe = result.appended.find((element) => element.tagName === 'iframe');
+  assert.ok(iframe);
+  assert.equal(iframe.src, selectedUrl);
+  assert.equal(result.sourceSelect.value, '1');
+  assert.match(result.sourceSelect.innerHTML, /FOX/);
+  assert.match(result.sourceSelect.innerHTML, /BEIN\(AR\)/);
+});
+
 test('sandboxes iframe streams to block popup and top navigation redirects', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',

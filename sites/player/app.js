@@ -469,6 +469,22 @@
     });
   }
 
+  function selectedStreamIndex(streams = []) {
+    const requestedSource = String(params.get('source') || '').trim();
+    const requestedUrl = String(params.get('src') || '').trim();
+    if (!requestedSource && !requestedUrl) return 0;
+    const index = streams.findIndex((stream) => {
+      const ids = [
+        stream?.id,
+        stream?.api_stream_id,
+        stream?.apiStreamId,
+        stream?.label,
+      ].map((value) => String(value || '').trim()).filter(Boolean);
+      return (requestedSource && ids.includes(requestedSource)) || (requestedUrl && String(stream?.url || '').trim() === requestedUrl);
+    });
+    return index >= 0 ? index : 0;
+  }
+
   function destroyHls() {
     if (hls) {
       hls.destroy();
@@ -754,7 +770,9 @@
     sourceSelect.hidden = currentStreams.length < 2;
     titleEl.textContent = title || params.get('title') || 'Stream';
     controls.hidden = false;
-    playStream(0);
+    const initialIndex = selectedStreamIndex(currentStreams);
+    sourceSelect.value = String(initialIndex);
+    playStream(initialIndex);
   }
 
   function loadDirectStream() {

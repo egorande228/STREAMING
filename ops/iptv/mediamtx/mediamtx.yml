@@ -1,0 +1,25 @@
+# KingLive MediaMTX origin config for IPTV restreaming.
+# FFmpeg publishes RTMP to rtmp://127.0.0.1:1935/live/<slug>.
+# MediaMTX exposes local HLS at http://127.0.0.1:8888/live/<slug>/index.m3u8.
+
+logLevel: info
+
+rtmp: yes
+rtmpAddress: :1935
+
+hls: yes
+hlsAddress: :8888
+hlsAllowOrigins:
+  - "https://kinglive.live"
+  - "https://www.kinglive.live"
+  - "https://livekinglive.win"
+  - "https://player-dev.pages.dev"
+hlsAlwaysRemux: yes
+hlsVariant: mpegts
+hlsSegmentCount: 6
+hlsSegmentDuration: 2s
+hlsPartDuration: 200ms
+
+paths:
+  all:
+    source: publisher

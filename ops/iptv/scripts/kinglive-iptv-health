@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+slug="${1:-}"
+base="${2:-https://hls.livekinglive.win}"
+
+if [[ -z "$slug" || "$slug" == *"/"* || "$slug" == *".."* ]]; then
+  echo "Usage: kinglive-iptv-health <channel-slug> [base-url]" >&2
+  exit 64
+fi
+
+manifest_url="${base%/}/live/${slug}/index.m3u8"
+tmp_manifest="$(mktemp)"
+trap 'rm -f "$tmp_manifest"' EXIT
+
+status="$(curl -fsS -o "$tmp_manifest" -w '%{http_code}' "$manifest_url" || true)"
+if [[ "$status" != "200" ]]; then
+  echo "HLS manifest failed: HTTP $status $manifest_url" >&2
+  exit 1
+fi
+
+if ! grep -q '^#EXTM3U' "$tmp_manifest"; then
+  echo "HLS manifest is not an m3u8 playlist: $manifest_url" >&2
+  exit 1
+fi
+
+segment="$(awk 'NF && $0 !~ /^#/ { print; exit }' "$tmp_manifest")"
+if [[ -z "$segment" ]]; then
+  echo "HLS manifest has no media segment yet: $manifest_url" >&2
+  exit 1
+fi
+
+if [[ "$segment" == http://* || "$segment" == https://* ]]; then
+  segment_url="$segment"
+else
+  segment_url="${base%/}/live/${slug}/${segment#./}"
+fi
+
+segment_status="$(curl -fsS -r 0-1023 -o /dev/null -w '%{http_code}' "$segment_url" || true)"
+if [[ "$segment_status" != "200" && "$segment_status" != "206" ]]; then
+  echo "HLS segment failed: HTTP $segment_status $segment_url" >&2
+  exit 1
+fi
+
+echo "OK $manifest_url"
+

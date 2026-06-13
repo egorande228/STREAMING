@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+slug="${1:-}"
+if [[ -z "$slug" || "$slug" == *"/"* || "$slug" == *".."* ]]; then
+  echo "Usage: kinglive-restream <channel-slug>" >&2
+  exit 64
+fi
+
+env_file="/etc/kinglive/iptv/channels/${slug}.env"
+legacy_env_file="/etc/kinglive/restreams/${slug}.env"
+if [[ ! -r "$env_file" && -r "$legacy_env_file" ]]; then
+  env_file="$legacy_env_file"
+fi
+if [[ ! -r "$env_file" ]]; then
+  echo "Missing readable channel env: $env_file or $legacy_env_file" >&2
+  exit 66
+fi
+
+# shellcheck disable=SC1090
+source "$env_file"
+
+SOURCE_URL="${SOURCE_URL:-${RESTREAM_INPUT_URL:-}}"
+: "${SOURCE_URL:?SOURCE_URL or RESTREAM_INPUT_URL is required}"
+STREAM_KEY="${STREAM_KEY:-$slug}"
+USER_AGENT="${USER_AGENT:-VLC/3.0.18 LibVLC/3.0.18}"
+RTMP_URL="${RTMP_URL:-${RESTREAM_RTMP_URL:-rtmp://127.0.0.1:1935/live/${STREAM_KEY}}}"
+REFERER="${REFERER:-}"
+ORIGIN="${ORIGIN:-}"
+
+headers=()
+if [[ -n "$REFERER" || -n "$ORIGIN" ]]; then
+  header_blob=""
+  [[ -n "$REFERER" ]] && header_blob+="Referer: ${REFERER}"$'\r\n'
+  [[ -n "$ORIGIN" ]] && header_blob+="Origin: ${ORIGIN}"$'\r\n'
+  headers=(-headers "$header_blob")
+fi
+
+exec ffmpeg \
+  -hide_banner \
+  -loglevel info \
+  -nostdin \
+  -reconnect 1 \
+  -reconnect_streamed 1 \
+  -reconnect_at_eof 1 \
+  -reconnect_delay_max 5 \
+  -rw_timeout 15000000 \
+  -user_agent "$USER_AGENT" \
+  "${headers[@]}" \
+  -i "$SOURCE_URL" \
+  -map 0:v:0? \
+  -map 0:a:0? \
+  -c copy \
+  -f flv \
+  "$RTMP_URL"

@@ -1,0 +1,21 @@
+[Unit]
+Description=KingLive IPTV restream channel %i
+After=network-online.target docker.service mediamtx.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/bin/kinglive-restream %i
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=5
+KillSignal=SIGINT
+TimeoutStopSec=20
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+

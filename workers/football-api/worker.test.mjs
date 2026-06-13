@@ -41,6 +41,16 @@ test('maps site match queries to API-FOOTBALL fixture endpoints', () => {
   );
 });
 
+test('serves DAMI embed proxy as a lightweight HTML wrapper', async () => {
+  const response = await routeRequest(new Request('https://kinglive.test/api/embed-proxy/dami?ch=533'), {}, {});
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type') || '', /text\/html/);
+  const html = await response.text();
+  assert.match(html, /https:\/\/dami-tv\.pro\/hls-player\/\?ch=533/);
+  assert.match(html, /Object\.defineProperty\(window, 'open'/);
+  assert.doesNotMatch(html, /papi\/tv\/resolve/);
+});
+
 test('maps site match queries to Sportmonks fixture and livescore endpoints', () => {
   assert.equal(
     buildSportmonksApiUrl(new URL('https://kinglive.test/api/matches?status=live')).toString(),

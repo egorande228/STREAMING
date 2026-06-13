@@ -139,6 +139,10 @@ export async function routeRequest(request, env = {}, ctx = {}) {
     if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
     return routePublicStreamsRequest(env);
   }
+  if (url.pathname === '/api/embed-proxy/dami') {
+    if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+    return routeDamiEmbedProxyRequest(url);
+  }
   const chatMatch = url.pathname.match(/^\/api\/chat\/(\d+)$/);
   if (chatMatch) {
     return routeChatRequest(request, env, Number(chatMatch[1]));
@@ -1867,6 +1871,70 @@ function damiEmbedUrlForChannel(damiMatch = {}, channel = '') {
   }
 }
 
+function routeDamiEmbedProxyRequest(url) {
+  const channel = url.searchParams.get('ch') || url.searchParams.get('channel') || '';
+  if (!/^\d{1,8}$/.test(channel)) {
+    return htmlResponse(damiEmbedErrorHtml('Invalid DAMI channel'), 400, 0);
+  }
+  return htmlResponse(damiEmbedWrapperHtml(channel), 200, 60);
+}
+
+function damiEmbedWrapperHtml(channel) {
+  const safeChannel = escapeHtml(channel);
+  const damiUrl = `https://dami-tv.pro/hls-player/?ch=${encodeURIComponent(channel)}`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DAMI stream</title>
+  <style>
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}
+    iframe{display:block;width:100%;height:100%;border:0;background:#000}
+  </style>
+</head>
+<body>
+  <iframe id="dami-frame" src="${escapeHtml(damiUrl)}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+  <script>
+    (() => {
+      const fakePopup = {
+        closed: false,
+        close() { this.closed = true; },
+        focus() {},
+        blur() {},
+        postMessage() {},
+        location: { href: 'about:blank', replace() {}, assign() {}, reload() {} },
+        document: { write() {}, writeln() {}, open() {}, close() {} }
+      };
+      try {
+        Object.defineProperty(window, 'open', {
+          configurable: true,
+          writable: true,
+          value: () => fakePopup
+        });
+      } catch {
+        window.open = () => fakePopup;
+      }
+      window.__DAMI_CHANNEL__ = '${safeChannel}';
+    })();
+  </script>
+</body>
+</html>`;
+}
+
+function damiEmbedErrorHtml(message) {
+  return `<!doctype html><meta charset="utf-8"><title>DAMI stream</title><body style="margin:0;background:#000;color:#fff;font:14px system-ui;display:grid;place-items:center;height:100vh">${escapeHtml(message)}</body>`;
+}
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function isDamiMatchForFixture(damiStream = {}, match = {}) {
   if (!isDamiTimeCompatible(damiStream, match)) return false;
   const home = normalizeMatchToken(teamNameForDami(match.home_team));
@@ -2791,6 +2859,18 @@ export function jsonResponse(body, status = 200, maxAge = 0) {
   return new Response(JSON.stringify(body), {
     status,
     headers: responseHeaders(maxAge),
+  });
+}
+
+function htmlResponse(body, status = 200, maxAge = 0) {
+  return new Response(body, {
+    status,
+    headers: {
+      ...responseHeaders(maxAge),
+      'Content-Type': 'text/html; charset=utf-8',
+      'Content-Security-Policy': "default-src 'self' https://dami-tv.pro https://*.dami-tv.pro; script-src 'self' 'unsafe-inline' https://dami-tv.pro https://*.dami-tv.pro; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; media-src https: blob:; connect-src 'self' https://dami-tv.pro https://*.dami-tv.pro; frame-src https://dami-tv.pro https://*.dami-tv.pro; base-uri 'none'; form-action 'none'",
+      'Referrer-Policy': 'no-referrer-when-downgrade',
+    },
   });
 }
 

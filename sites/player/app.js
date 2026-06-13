@@ -490,7 +490,7 @@
     stage.innerHTML = '';
     const isDami = isDamiEmbedUrl(stream.url);
     const iframe = document.createElement('iframe');
-    iframe.src = stream.url;
+    iframe.src = isDami ? damiEmbedProxyUrl(stream.url) : stream.url;
     iframe.title = stream.title || stream.label || 'Stream player';
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
     iframe.allowFullscreen = true;
@@ -607,6 +607,20 @@
       return /(^|\.)dami-tv\.pro$/i.test(url.hostname) && url.pathname.startsWith('/embed');
     } catch {
       return false;
+    }
+  }
+
+  function damiEmbedProxyUrl(value) {
+    try {
+      const url = new URL(String(value || ''), window.location.href);
+      const channel = url.searchParams.get('ch') || url.searchParams.get('channel') || '';
+      if (!/^\d+$/.test(channel)) return value;
+      const proxyBase = apiBase || window.location.origin;
+      const proxyUrl = new URL(`${proxyBase}/api/embed-proxy/dami`);
+      proxyUrl.searchParams.set('ch', channel);
+      return proxyUrl.toString();
+    } catch {
+      return value;
     }
   }
 

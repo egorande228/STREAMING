@@ -220,7 +220,7 @@ test('does not show player button before a stream window starts', async () => {
   assert.doesNotMatch(gridHtml, /match-status live/);
 });
 
-test('renders one player button per language using the highest-priority stream', async () => {
+test('renders only primary language player buttons using the highest-priority stream', async () => {
   let gridHtml = '';
   const matchGrid = {
     get innerHTML() {
@@ -304,6 +304,51 @@ test('renders one player button per language using the highest-priority stream',
                   priority: 80,
                   is_active: true,
                 },
+                {
+                  id: 'dami-19609154-935',
+                  label: 'S4 Spanish',
+                  language_code: 'es',
+                  url: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia&ch=935',
+                  source_type: 'iframe',
+                  priority: 87,
+                  is_active: true,
+                },
+                {
+                  id: 'dami-19609154-844',
+                  label: 'S5 Spanish backup',
+                  language_code: 'es',
+                  url: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia&ch=844',
+                  source_type: 'iframe',
+                  priority: 86,
+                  is_active: true,
+                },
+                {
+                  id: 'dami-19609154-966',
+                  label: 'BEIN Arabic',
+                  language_code: 'ar',
+                  url: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia&ch=966',
+                  source_type: 'iframe',
+                  priority: 80,
+                  is_active: true,
+                },
+                {
+                  id: 'dami-19609154-290',
+                  label: 'SportTV Portuguese',
+                  language_code: 'pt',
+                  url: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia&ch=290',
+                  source_type: 'iframe',
+                  priority: 85,
+                  is_active: true,
+                },
+                {
+                  id: 'dami-19609154-533',
+                  label: 'Unknown stream',
+                  language_code: 'und',
+                  url: 'https://dami-tv.pro/embed/?id=canada-vs-bosnia&ch=533',
+                  source_type: 'iframe',
+                  priority: 81,
+                  is_active: true,
+                },
               ],
             },
           ]
@@ -316,10 +361,20 @@ test('renders one player button per language using the highest-priority stream',
   await new Promise((resolve) => setImmediate(resolve));
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.match(gridHtml, /S2 English/);
+  assert.match(gridHtml, />English<\/a>/);
+  assert.match(gridHtml, />Spanish<\/a>/);
+  assert.match(gridHtml, />Arabic<\/a>/);
+  assert.doesNotMatch(gridHtml, /S2 English/);
   assert.doesNotMatch(gridHtml, /S3 backup/);
+  assert.doesNotMatch(gridHtml, /SportTV Portuguese/);
+  assert.doesNotMatch(gridHtml, /Unknown stream/);
   assert.match(gridHtml, /ch%3D111/);
   assert.doesNotMatch(gridHtml, /ch%3D39/);
+  assert.match(gridHtml, /ch%3D935/);
+  assert.doesNotMatch(gridHtml, /ch%3D844/);
+  assert.match(gridHtml, /ch%3D966/);
+  assert.doesNotMatch(gridHtml, /ch%3D290/);
+  assert.doesNotMatch(gridHtml, /ch%3D533/);
 });
 
 test('falls back to upcoming schedule when today has no matches', async () => {

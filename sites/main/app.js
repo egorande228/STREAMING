@@ -8,6 +8,12 @@
   const activeStreamsApiUrl = config.activeStreamsApiUrl || `${apiBase}/api/streams/active`;
   const newsApiUrl = config.newsApiUrl || `${apiBase}/api/news?limit=6`;
   const defaultLocale = config.defaultLocale || 'en';
+  const primaryStreamLanguages = ['en', 'es', 'ar'];
+  const primaryStreamLanguageLabels = {
+    en: 'English',
+    es: 'Spanish',
+    ar: 'Arabic',
+  };
   const dailyCachePrefix = 'kinglive.daily.v2.no-cyrillic';
   const newsStoryCachePrefix = 'kinglive.news.story.v1';
   const localeButton = typeof document.querySelector === 'function' ? document.querySelector('.locale') : null;
@@ -815,13 +821,11 @@
   }
 
   function streamLanguageLabel(stream = {}, index = 0) {
+    const code = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
+    if (primaryStreamLanguageLabels[code]) return primaryStreamLanguageLabels[code];
     const explicitLabel = cleanText(stream.button_label || stream.buttonLabel || stream.label, '');
     if (explicitLabel) return explicitLabel;
-    const code = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
     const labels = {
-      ar: 'Arabic',
-      en: 'English',
-      es: 'Spanish',
       fr: 'French',
       mn: 'Mongolian',
       ru: 'Russian',
@@ -847,11 +851,12 @@
       const priority = Number.isFinite(Number(stream.priority)) ? Number(stream.priority) : 100 - index;
       const normalized = { ...stream, priority };
       const language = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
-      const key = language && language !== 'und' ? `lang:${language}` : `stream:${stream.id || stream.url || index}`;
+      if (!primaryStreamLanguages.includes(language)) return;
+      const key = `lang:${language}`;
       const current = byButton.get(key);
       if (!current || priority > Number(current.priority || 0)) byButton.set(key, normalized);
     });
-    return [...byButton.values()].sort((left, right) => Number(right.priority || 0) - Number(left.priority || 0));
+    return primaryStreamLanguages.map((language) => byButton.get(`lang:${language}`)).filter(Boolean);
   }
 
   function localDateKey(value) {

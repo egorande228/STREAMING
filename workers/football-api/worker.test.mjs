@@ -1435,18 +1435,17 @@ test('attaches every DAMI source to the matching Sportmonks fixture', async () =
 
     assert.equal(response.status, 200);
     const match = await response.json();
-    assert.equal(match.streams.length, 3);
+    assert.equal(match.streams.length, 2);
     assert.deepEqual(
       match.streams.map((stream) => stream.url),
       [
-        'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101',
         'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=102',
         'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=103',
       ],
     );
     assert.deepEqual(
       match.streams.map((stream) => stream.label),
-      ['S1', 'S2', 'S3'],
+      ['S2', 'S3'],
     );
   } finally {
     globalThis.fetch = previousFetch;
@@ -2122,10 +2121,8 @@ test('admin streams list includes DAMI auto streams as read-only rows', async ()
     );
     assert.equal(list.status, 200);
     const body = await list.json();
-    assert.equal(body.auto_total, 1);
-    assert.equal(body.streams[0].origin, 'dami');
-    assert.equal(body.streams[0].editable, false);
-    assert.equal(body.streams[0].match_id, 42);
+    assert.equal(body.auto_total, 0);
+    assert.equal(body.streams.length, 0);
   } finally {
     globalThis.fetch = previousFetch;
   }

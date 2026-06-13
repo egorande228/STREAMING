@@ -989,7 +989,7 @@ function normalizeAdminStreamPayload(payload, streamId) {
   const url = String(payload?.url || '').trim();
   if (!Number.isFinite(matchId) || matchId <= 0 || !url) return null;
 
-  const sourceType = payload?.source_type === 'hls' || payload?.source_type === 'iframe'
+  const sourceType = ['hls', 'iframe', 'videojs'].includes(payload?.source_type)
     ? payload.source_type
     : inferStreamType(url);
   return {
@@ -1783,6 +1783,7 @@ function damiStreamsForMatch(match = {}, damiStreams = [], env = {}) {
   const sources = Array.isArray(damiMatch.sources) ? damiMatch.sources : [];
   const window = damiStreamWindow(damiMatch);
   sources.forEach((source, index) => {
+    if (isBlockedDamiSource(source)) return;
     const url = String(source?.embed || '').trim();
     if (!url) return;
     const channel = damiChannelFromUrl(url);
@@ -1837,6 +1838,10 @@ function damiStreamsForMatch(match = {}, damiStreams = [], env = {}) {
     });
   }
   return streams;
+}
+
+function isBlockedDamiSource(source = {}) {
+  return String(source.id || '').trim().toLowerCase() === 's1';
 }
 
 function damiStreamWindow(damiMatch = {}) {

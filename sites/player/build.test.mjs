@@ -18,6 +18,7 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
     'index.html',
     'app.js',
     'url-propagation.js',
+    'analytics.js',
     'styles.css',
     'config.js',
     '_headers',

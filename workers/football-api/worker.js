@@ -19,6 +19,7 @@ const GOOGLE_NEWS_FEEDS = {
 const STREAM_CONFIG_KV_KEY = 'match_streams_json';
 const MATCH_OVERRIDES_KV_KEY = 'match_overrides_json';
 const CACHE_VERSION_KV_KEY = 'api_cache_version';
+const DEFAULT_RESTREAM_PUBLIC_BASE_URL = 'https://hls.livekinglive.win/live';
 const API_CACHE_NAMESPACE = 'dami-labels-v2';
 const DAMI_STREAMS_KV_KEY = 'dami:streams:v1';
 const DAMI_STREAMS_TTL_SECONDS = 60;
@@ -134,6 +135,10 @@ export async function routeRequest(request, env = {}, ctx = {}) {
   }
   if (url.pathname.startsWith('/api/admin')) {
     return routeAdminRequest(request, env, ctx);
+  }
+  if (url.pathname === '/api/restreams') {
+    if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+    return routeRestreamSyncList(request, env);
   }
   if (url.pathname === '/api/streams/active') {
     if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
@@ -785,7 +790,7 @@ async function routeAdminStreamsCreate(request, env) {
   }
 
   const body = await readJsonBody(request);
-  const nextStream = normalizeAdminStreamPayload(body, 0);
+  const nextStream = normalizeAdminStreamPayload(body, 0, env);
   if (!nextStream) return jsonResponse({ error: 'invalid_stream_payload' }, 400, 0);
 
   const config = await readRuntimeStreamConfig(env);
@@ -802,7 +807,7 @@ async function routeAdminStreamsUpdate(request, env, streamId) {
   }
 
   const body = await readJsonBody(request);
-  const updated = normalizeAdminStreamPayload(body, streamId);
+  const updated = normalizeAdminStreamPayload(body, streamId, env);
   if (!updated) return jsonResponse({ error: 'invalid_stream_payload' }, 400, 0);
 
   const config = await readRuntimeStreamConfig(env);
@@ -828,6 +833,41 @@ async function routeAdminStreamsDelete(env, streamId) {
 
   await writeRuntimeStreamConfig(env, expandStreamConfig(filtered));
   return jsonResponse({ ok: true }, 200, 0);
+}
+
+async function routeRestreamSyncList(request, env = {}) {
+  const expected = String(env.RESTREAM_SYNC_TOKEN || '').trim();
+  if (!expected) return jsonResponse({ error: 'restream_sync_not_configured' }, 503, 0);
+  const auth = request.headers.get('Authorization') || '';
+  if (auth !== `Bearer ${expected}`) return jsonResponse({ error: 'unauthorized' }, 401, 0);
+
+  const config = await readRuntimeStreamConfig(env);
+  const restreams = [];
+  for (const [matchKey, rawValue] of Object.entries(config || {})) {
+    const matchId = Number(matchKey);
+    if (!Number.isFinite(matchId) || matchId <= 0) continue;
+    const list = Array.isArray(rawValue) ? rawValue : [rawValue];
+    list.forEach((entry, index) => {
+      const restream = entry?.restream;
+      if (!restream?.enabled || !isHttpUrl(restream.donor_url)) return;
+      const slug = normalizeSlug(restream.slug || `${matchId}-${index + 1}`);
+      if (!slug) return;
+      restreams.push({
+        id: slug,
+        slug,
+        match_id: matchId,
+        label: String(entry?.label || slug),
+        donor_url: String(restream.donor_url),
+        output_url: String(restream.output_url || entry?.url || `${DEFAULT_RESTREAM_PUBLIC_BASE_URL}/${slug}/index.m3u8`),
+        desired_state: entry?.is_active === false ? 'stopped' : String(restream.desired_state || 'running'),
+        is_active: entry?.is_active !== false,
+        channel_name: String(restream.channel_name || ''),
+        restart_requested_at: String(restream.restart_requested_at || ''),
+      });
+    });
+  }
+
+  return jsonResponse({ restreams, total: restreams.length, generated_at: new Date().toISOString() }, 200, 0);
 }
 
 function isAuthorizedAdminRequest(request, env = {}) {
@@ -969,7 +1009,7 @@ function expandStreamConfig(streams = []) {
     if (!Number.isFinite(matchId) || matchId <= 0) return;
     const key = String(matchId);
     if (!byMatch[key]) byMatch[key] = [];
-    byMatch[key].push({
+    const expanded = {
       id: Number(stream.id) || index + 1,
       url: String(stream.url || ''),
       source_type: stream.source_type || inferStreamType(stream.url || ''),
@@ -982,12 +1022,14 @@ function expandStreamConfig(streams = []) {
       is_active: stream.is_active !== false,
       starts_at: stream.starts_at || null,
       ends_at: stream.ends_at || null,
-    });
+    };
+    if (stream.restream) expanded.restream = stream.restream;
+    byMatch[key].push(expanded);
   });
   return byMatch;
 }
 
-function normalizeAdminStreamPayload(payload, streamId) {
+function normalizeAdminStreamPayload(payload, streamId, env = {}) {
   const matchId = Number(payload?.match_id);
   const url = String(payload?.url || '').trim();
   if (!Number.isFinite(matchId) || matchId <= 0 || !url) return null;
@@ -995,6 +1037,14 @@ function normalizeAdminStreamPayload(payload, streamId) {
   const sourceType = ['hls', 'iframe', 'videojs'].includes(payload?.source_type)
     ? payload.source_type
     : inferStreamType(url);
+  const restream = normalizeRestreamFromAdminPayload(payload, {
+    matchId,
+    label: String(payload?.label || 'Live stream').trim(),
+    languageCode: String(payload?.language_code || 'en').trim(),
+    sourceType,
+    url,
+    env,
+  });
   return {
     id: streamId,
     match_id: matchId,
@@ -1002,14 +1052,78 @@ function normalizeAdminStreamPayload(payload, streamId) {
     source_type: sourceType,
     quality: String(payload?.quality || '720p').trim(),
     language_code: String(payload?.language_code || 'en').trim(),
-    url,
+    url: restream?.output_url || url,
     priority: Number.isFinite(Number(payload?.priority)) ? Number(payload.priority) : 100,
     region: String(payload?.region || 'global').trim(),
     commentary_type: String(payload?.commentary_type || 'full').trim(),
     is_active: payload?.is_active !== false,
     starts_at: normalizeOptionalDateTime(payload?.starts_at),
     ends_at: normalizeOptionalDateTime(payload?.ends_at),
+    ...(restream ? { restream } : {}),
   };
+}
+
+function normalizeRestreamFromAdminPayload(payload = {}, options = {}) {
+  const explicit = payload?.restream && typeof payload.restream === 'object' ? payload.restream : null;
+  const donorUrl = String(explicit?.donor_url || payload?.donor_url || options.url || '').trim();
+  const enabled = explicit?.enabled === true
+    || payload?.restream_enabled === true
+    || (options.sourceType === 'videojs' && isIptvDonorUrl(donorUrl));
+  if (!enabled || !isHttpUrl(donorUrl) || isPublicRestreamUrl(donorUrl)) return null;
+
+  const slug = normalizeSlug(
+    explicit?.slug
+      || payload?.restream_slug
+      || `${options.matchId}-${options.languageCode}-${options.label || 'stream'}`,
+  );
+  if (!slug) return null;
+  const publicBase = String(options.env?.RESTREAM_PUBLIC_BASE_URL || DEFAULT_RESTREAM_PUBLIC_BASE_URL).replace(/\/+$/, '');
+  return {
+    enabled: true,
+    slug,
+    donor_url: donorUrl,
+    output_url: `${publicBase}/${slug}/index.m3u8`,
+    desired_state: payload?.is_active === false ? 'stopped' : String(explicit?.desired_state || payload?.desired_state || 'running'),
+    restart_requested_at: String(explicit?.restart_requested_at || payload?.restart_requested_at || ''),
+    channel_name: String(explicit?.channel_name || payload?.channel_name || ''),
+  };
+}
+
+function isIptvDonorUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    const host = url.hostname.toLowerCase();
+    return host.includes('plinkspile.cc') || host.includes('sharavoz') || host.includes('rv77.pw');
+  } catch {
+    return false;
+  }
+}
+
+function isPublicRestreamUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return url.hostname === 'hls.livekinglive.win';
+  } catch {
+    return false;
+  }
+}
+
+function isHttpUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function normalizeSlug(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
 }
 
 function normalizeAdminMatchOverridePayload(payload) {

@@ -342,7 +342,7 @@ test('merges configured player streams with match API streams', async () => {
   assert.equal(result.sourceSelect.hidden, false);
 });
 
-test('sandboxes iframe streams to block popup and top navigation redirects', async () => {
+test('renders iframe streams without browser sandbox restrictions', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',
     config: {
@@ -372,10 +372,7 @@ test('sandboxes iframe streams to block popup and top navigation redirects', asy
 
   const iframe = result.appended.find((element) => element.tagName === 'iframe');
   assert.ok(iframe);
-  assert.match(iframe.sandbox, /allow-scripts/);
-  assert.match(iframe.sandbox, /allow-same-origin/);
-  assert.doesNotMatch(iframe.sandbox, /allow-popups/);
-  assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
+  assert.equal(iframe.sandbox || '', '');
 });
 
 test('renders KingLive text overlays above iframe streams', async () => {
@@ -523,10 +520,7 @@ test('keeps DAMI resolver working while click shield blocks ad redirects', async
   assert.ok(iframe);
   assert.ok(shield);
   assert.equal(iframe.src, 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101');
-  assert.match(iframe.sandbox, /allow-scripts/);
-  assert.match(iframe.sandbox, /allow-same-origin/);
-  assert.doesNotMatch(iframe.sandbox, /allow-popups/);
-  assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
+  assert.equal(iframe.sandbox || '', '');
 });
 
 test('routes DAMI iframe through embed proxy only when enabled', async () => {

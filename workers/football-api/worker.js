@@ -141,6 +141,9 @@ export async function routeRequest(request, env = {}, ctx = {}) {
   }
   if (url.pathname === '/api/embed-proxy/dami') {
     if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+    if (env.DAMI_EMBED_PROXY_ENABLED !== 'true') {
+      return htmlResponse(damiEmbedErrorHtml('DAMI embed proxy is temporarily disabled'), 503, 0);
+    }
     return routeDamiEmbedProxyRequest(url);
   }
   const chatMatch = url.pathname.match(/^\/api\/chat\/(\d+)$/);

@@ -494,7 +494,6 @@ test('keeps DAMI resolver working while click shield blocks ad redirects', async
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',
     config: {
-      apiBase: 'https://kinglive-football-api.test',
       matchStreams: {
         1540843: {
           url: 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101',
@@ -523,11 +522,45 @@ test('keeps DAMI resolver working while click shield blocks ad redirects', async
   const shield = result.appended.find((element) => element.className === 'iframe-click-shield');
   assert.ok(iframe);
   assert.ok(shield);
-  assert.equal(iframe.src, 'https://kinglive-football-api.test/api/embed-proxy/dami?ch=101');
+  assert.equal(iframe.src, 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101');
   assert.match(iframe.sandbox, /allow-scripts/);
   assert.match(iframe.sandbox, /allow-same-origin/);
   assert.doesNotMatch(iframe.sandbox, /allow-popups/);
   assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
+});
+
+test('routes DAMI iframe through embed proxy only when enabled', async () => {
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    config: {
+      apiBase: 'https://kinglive-football-api.test',
+      damiEmbedProxyEnabled: true,
+      matchStreams: {
+        1540843: {
+          url: 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101',
+          source_type: 'iframe',
+          label: 'DAMI source',
+        },
+      },
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Korea Republic' },
+            away_team: { name_en: 'Czech Republic' },
+            streams: [],
+          }),
+      });
+    },
+  });
+
+  const iframe = result.appended.find((element) => element.tagName === 'iframe');
+  assert.equal(iframe.src, 'https://kinglive-football-api.test/api/embed-proxy/dami?ch=101');
 });
 
 test('auto-plays the only active stream when no match query is present', async () => {

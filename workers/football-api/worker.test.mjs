@@ -42,7 +42,14 @@ test('maps site match queries to API-FOOTBALL fixture endpoints', () => {
 });
 
 test('serves DAMI embed proxy as a lightweight HTML wrapper', async () => {
-  const response = await routeRequest(new Request('https://kinglive.test/api/embed-proxy/dami?ch=533'), {}, {});
+  const disabled = await routeRequest(new Request('https://kinglive.test/api/embed-proxy/dami?ch=533'), {}, {});
+  assert.equal(disabled.status, 503);
+
+  const response = await routeRequest(
+    new Request('https://kinglive.test/api/embed-proxy/dami?ch=533'),
+    { DAMI_EMBED_PROXY_ENABLED: 'true' },
+    {},
+  );
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-type') || '', /text\/html/);
   const html = await response.text();

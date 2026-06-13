@@ -490,7 +490,7 @@
     stage.innerHTML = '';
     const isDami = isDamiEmbedUrl(stream.url);
     const iframe = document.createElement('iframe');
-    iframe.src = isDami ? damiEmbedProxyUrl(stream.url) : stream.url;
+    iframe.src = isDami && config.damiEmbedProxyEnabled === true ? damiEmbedProxyUrl(stream.url) : stream.url;
     iframe.title = stream.title || stream.label || 'Stream player';
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
     iframe.allowFullscreen = true;

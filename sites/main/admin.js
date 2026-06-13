@@ -8,6 +8,7 @@
   const saveMsg = $('save-msg');
   const saveErr = $('save-err');
   const streamsBody = $('streams-body');
+  const restreamsBody = $('restreams-body');
   const monitoringMetrics = $('monitoring-metrics');
   const monitoringBody = $('monitoring-body');
   const monitoringMeta = $('monitoring-meta');
@@ -63,6 +64,7 @@
       setAuthLabel();
       await loadMonitoring();
       await loadStreams();
+      await loadRestreams();
       await loadStatuses();
     } catch (error) {
       saveErr.textContent = String(error.message || error);
@@ -73,6 +75,7 @@
     setToken('');
     setAuthLabel();
     streamsBody.innerHTML = '<tr><td colspan="13">Logged out</td></tr>';
+    if (restreamsBody) restreamsBody.innerHTML = '<tr><td colspan="8">Logged out</td></tr>';
     if (monitoringBody) monitoringBody.innerHTML = '<tr><td colspan="3">Logged out</td></tr>';
     if (statusBody) statusBody.innerHTML = '<tr><td colspan="7">Logged out</td></tr>';
   }
@@ -214,6 +217,150 @@
       });
     } catch (error) {
       streamsBody.innerHTML = `<tr><td colspan="13">${escapeHtml(String(error.message || error))}</td></tr>`;
+    }
+  }
+
+  function restreamFromForm() {
+    return {
+      match_id: Number($('restream-match-id').value),
+      slug: $('restream-slug').value.trim(),
+      donor_url: $('restream-donor-url').value.trim(),
+      label: $('restream-label').value.trim(),
+      language_code: $('restream-lang').value.trim() || 'en',
+      priority: Number($('restream-priority').value || 100),
+      desired_state: $('restream-desired-state').value,
+      is_active: $('restream-is-active').value === 'true',
+      starts_at: normalizeAdminDateTime($('restream-starts-at').value),
+      ends_at: normalizeAdminDateTime($('restream-ends-at').value),
+    };
+  }
+
+  function fillRestreamForm(restream) {
+    $('restream-id').value = restream.id || '';
+    $('restream-match-id').value = String(restream.match_id || '');
+    $('restream-slug').value = restream.slug || restream.id || '';
+    $('restream-donor-url').value = restream.donor_url || '';
+    $('restream-label').value = restream.label || '';
+    $('restream-lang').value = restream.language_code || 'en';
+    $('restream-priority').value = String(restream.priority ?? 100);
+    $('restream-desired-state').value = restream.desired_state || 'running';
+    $('restream-is-active').value = restream.is_active === false ? 'false' : 'true';
+    $('restream-starts-at').value = formatAdminDateTime(restream.starts_at);
+    $('restream-ends-at').value = formatAdminDateTime(restream.ends_at);
+  }
+
+  function resetRestreamForm() {
+    if (!$('restream-form')) return;
+    $('restream-form').reset();
+    $('restream-id').value = '';
+    $('restream-lang').value = 'en';
+    $('restream-priority').value = '100';
+    $('restream-desired-state').value = 'running';
+    $('restream-is-active').value = 'true';
+    $('restream-starts-at').value = '';
+    $('restream-ends-at').value = '';
+  }
+
+  async function saveRestream(event) {
+    event.preventDefault();
+    saveMsg.textContent = '';
+    saveErr.textContent = '';
+    try {
+      const id = String($('restream-id').value || '').trim();
+      const path = id ? `/api/admin/restreams/${encodeURIComponent(id)}` : '/api/admin/restreams';
+      const method = id ? 'PUT' : 'POST';
+      await adminFetch(path, { method, body: JSON.stringify(restreamFromForm()) });
+      saveMsg.textContent = 'Restream saved';
+      resetRestreamForm();
+      await loadRestreams();
+      await loadStreams();
+    } catch (error) {
+      saveErr.textContent = String(error.message || error);
+    }
+  }
+
+  async function restreamAction(id, action) {
+    saveMsg.textContent = '';
+    saveErr.textContent = '';
+    try {
+      await adminFetch(`/api/admin/restreams/${encodeURIComponent(id)}/${action}`, { method: 'POST' });
+      saveMsg.textContent = `Restream ${action} saved`;
+      await loadRestreams();
+      await loadStreams();
+    } catch (error) {
+      saveErr.textContent = String(error.message || error);
+    }
+  }
+
+  async function deleteRestream(id) {
+    if (!window.confirm(`Delete restream ${id}?`)) return;
+    saveMsg.textContent = '';
+    saveErr.textContent = '';
+    try {
+      await adminFetch(`/api/admin/restreams/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      saveMsg.textContent = 'Restream deleted';
+      await loadRestreams();
+      await loadStreams();
+    } catch (error) {
+      saveErr.textContent = String(error.message || error);
+    }
+  }
+
+  async function loadRestreams() {
+    if (!restreamsBody) return;
+    if (!token()) {
+      restreamsBody.innerHTML = '<tr><td colspan="8">Login first</td></tr>';
+      return;
+    }
+    try {
+      const payload = await adminFetch('/api/admin/restreams');
+      const restreams = Array.isArray(payload.restreams) ? payload.restreams : [];
+      if (!restreams.length) {
+        restreamsBody.innerHTML = '<tr><td colspan="8">No restreams</td></tr>';
+        return;
+      }
+      restreamsBody.innerHTML = restreams.map((restream) => `
+        <tr>
+          <td>${escapeHtml(restream.slug || restream.id || '')}</td>
+          <td>${escapeHtml(restream.match_id || '')}</td>
+          <td>${escapeHtml(restream.label || '')}</td>
+          <td>${escapeHtml(restream.desired_state || '')}${restream.is_active === false ? '<br/><span class="mono">inactive</span>' : ''}</td>
+          <td>${escapeHtml(restream.language_code || '')}</td>
+          <td class="mono">${escapeHtml(restream.output_url || '')}</td>
+          <td class="mono">${escapeHtml(restream.updated_at || '')}</td>
+          <td>
+            <div class="admin-actions wrap">
+              <button class="button secondary" type="button" data-restream-edit="${escapeHtml(restream.id)}">Edit</button>
+              <button class="button secondary" type="button" data-restream-action="${escapeHtml(restream.id)}" data-action="start">Start</button>
+              <button class="button secondary" type="button" data-restream-action="${escapeHtml(restream.id)}" data-action="stop">Stop</button>
+              <button class="button secondary" type="button" data-restream-action="${escapeHtml(restream.id)}" data-action="restart">Restart</button>
+              <button class="button secondary" type="button" data-restream-del="${escapeHtml(restream.id)}">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+      restreamsBody.querySelectorAll('[data-restream-edit]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = String(button.getAttribute('data-restream-edit') || '');
+          const restream = restreams.find((item) => String(item.id) === id);
+          if (restream) fillRestreamForm(restream);
+        });
+      });
+      restreamsBody.querySelectorAll('[data-restream-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = String(button.getAttribute('data-restream-action') || '');
+          const action = String(button.getAttribute('data-action') || '');
+          if (id && action) restreamAction(id, action);
+        });
+      });
+      restreamsBody.querySelectorAll('[data-restream-del]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = String(button.getAttribute('data-restream-del') || '');
+          if (id) deleteRestream(id);
+        });
+      });
+    } catch (error) {
+      restreamsBody.innerHTML = `<tr><td colspan="8">${escapeHtml(String(error.message || error))}</td></tr>`;
     }
   }
 
@@ -398,6 +545,7 @@
       saveMsg.textContent = `Refresh ${scope} complete`;
       await loadMonitoring();
       await loadStreams();
+      await loadRestreams();
       await loadStatuses();
     } catch (error) {
       if (refreshResult) refreshResult.textContent = String(error.message || error);
@@ -438,11 +586,14 @@
   $('login-button').addEventListener('click', login);
   $('logout-button').addEventListener('click', logout);
   $('stream-form').addEventListener('submit', saveStream);
+  if ($('restream-form')) $('restream-form').addEventListener('submit', saveRestream);
   if ($('status-form')) $('status-form').addEventListener('submit', saveStatus);
   $('reload-streams').addEventListener('click', loadStreams);
+  if ($('reload-restreams')) $('reload-restreams').addEventListener('click', loadRestreams);
   $('reload-monitoring').addEventListener('click', loadMonitoring);
   if ($('reload-statuses')) $('reload-statuses').addEventListener('click', loadStatuses);
   $('reset-form').addEventListener('click', resetForm);
+  if ($('reset-restream-form')) $('reset-restream-form').addEventListener('click', resetRestreamForm);
   if ($('reset-status')) $('reset-status').addEventListener('click', resetStatusForm);
   if ($('refresh-date')) $('refresh-date').value = new Date().toISOString().slice(0, 10);
   document.querySelectorAll('[data-refresh-scope]').forEach((button) => {
@@ -452,5 +603,6 @@
   setAuthLabel();
   loadMonitoring();
   loadStreams();
+  loadRestreams();
   loadStatuses();
 })();

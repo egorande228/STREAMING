@@ -1922,6 +1922,114 @@ test('authenticates admin login and performs stream CRUD in KV', async () => {
   assert.equal(remove.status, 200);
 });
 
+test('admin restreams create Video.js streams without exposing donor URLs publicly', async () => {
+  const kvData = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value) {
+      kvData.set(key, value);
+    },
+  };
+  const env = {
+    ADMIN_USERNAME: 'admin',
+    ADMIN_PASSWORD: 'secret',
+    ADMIN_BEARER_TOKEN: 'test-token',
+    RESTREAM_SYNC_TOKEN: 'sync-token',
+    STREAM_CONFIG_KV: kv,
+  };
+
+  const create = await routeRequest(
+    new Request('https://kinglive.test/api/admin/restreams', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer test-token',
+      },
+      body: JSON.stringify({
+        match_id: 42,
+        slug: 'Fox Sport 1 HD',
+        label: 'Fox Sport 1 HD',
+        donor_url: 'https://donor.test/live/fox/index.m3u8?token=secret',
+        language_code: 'en',
+        priority: 120,
+      }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(create.status, 200);
+  const created = await create.json();
+  assert.equal(created.restream.id, 'fox-sport-1-hd');
+  assert.equal(created.restream.output_url, 'https://hls.livekinglive.win/live/fox-sport-1-hd/index.m3u8');
+  assert.equal(created.stream.source_type, 'videojs');
+  assert.equal(created.stream.url, 'https://hls.livekinglive.win/live/fox-sport-1-hd/index.m3u8');
+
+  const streams = await routeRequest(
+    new Request('https://kinglive.test/api/admin/streams', {
+      headers: { Authorization: 'Bearer test-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(streams.status, 200);
+  const streamsBody = await streams.json();
+  assert.equal(streamsBody.streams[0].source_type, 'videojs');
+  assert.equal(streamsBody.streams[0].restream_id, 'fox-sport-1-hd');
+  assert.equal(streamsBody.streams[0].url.includes('donor.test'), false);
+
+  const publicStreams = await routeRequest(new Request('https://kinglive.test/api/streams/active'), env, {});
+  assert.equal(publicStreams.status, 200);
+  const publicBody = await publicStreams.json();
+  assert.equal(publicBody.streams['42'][0].url, 'https://hls.livekinglive.win/live/fox-sport-1-hd/index.m3u8');
+  assert.equal(JSON.stringify(publicBody).includes('donor.test'), false);
+
+  const unauthorizedDesired = await routeRequest(new Request('https://kinglive.test/api/restreams/desired'), env, {});
+  assert.equal(unauthorizedDesired.status, 401);
+
+  const desired = await routeRequest(
+    new Request('https://kinglive.test/api/restreams/desired', {
+      headers: { Authorization: 'Bearer sync-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(desired.status, 200);
+  const desiredBody = await desired.json();
+  assert.equal(desiredBody.restreams[0].donor_url, 'https://donor.test/live/fox/index.m3u8?token=secret');
+
+  const stop = await routeRequest(
+    new Request('https://kinglive.test/api/admin/restreams/fox-sport-1-hd/stop', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer test-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(stop.status, 200);
+  const stoppedStreams = await routeRequest(new Request('https://kinglive.test/api/streams/active'), env, {});
+  assert.deepEqual((await stoppedStreams.json()).streams, {});
+
+  const remove = await routeRequest(
+    new Request('https://kinglive.test/api/admin/restreams/fox-sport-1-hd', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer test-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(remove.status, 200);
+  const afterRemove = await routeRequest(
+    new Request('https://kinglive.test/api/admin/streams', {
+      headers: { Authorization: 'Bearer test-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal((await afterRemove.json()).manual_total, 0);
+});
+
 test('worker returns CORS JSON when admin KV writes fail', async () => {
   const env = {
     ADMIN_USERNAME: 'admin',

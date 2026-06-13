@@ -21,6 +21,7 @@ const GOOGLE_NEWS_FEEDS = {
 const STREAM_CONFIG_KV_KEY = 'match_streams_json';
 const MATCH_OVERRIDES_KV_KEY = 'match_overrides_json';
 const API_STREAM_OVERRIDES_KV_KEY = 'api_stream_overrides_json';
+const RESTREAM_CONFIG_KV_KEY = 'restream_configs_json';
 const CACHE_VERSION_KV_KEY = 'api_cache_version';
 const API_CACHE_NAMESPACE = 'melbet64-predictions-v1';
 const DAMI_STREAMS_KV_KEY = 'dami:streams:v1';
@@ -29,6 +30,7 @@ const DAMI_STREAMS_API_URL = 'https://dami-tv.pro/papi/api/streams';
 const DAMI_STREAMS_FALLBACK_API_URL = 'https://damitv.b-cdn.net/papi/api/streams';
 const ADMIN_STREAM_PAST_DAYS = 1;
 const ADMIN_STREAM_LOOKAHEAD_DAYS = 14;
+const RESTREAM_PUBLIC_BASE_URL = 'https://hls.livekinglive.win/live';
 const DAMI_TEAM_CODE_ALIASES = {
   ARG: 'argentina',
   AUS: 'australia',
@@ -139,6 +141,10 @@ export async function routeRequest(request, env = {}, ctx = {}) {
   }
   if (url.pathname.startsWith('/api/admin')) {
     return routeAdminRequest(request, env, ctx);
+  }
+  if (url.pathname === '/api/restreams/desired') {
+    if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+    return routeRestreamDesiredRequest(request, env);
   }
   if (url.pathname === '/api/streams/active') {
     if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
@@ -445,6 +451,12 @@ async function routeAdminRequest(request, env = {}, ctx = {}) {
     return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
   }
 
+  if (url.pathname === '/api/admin/restreams') {
+    if (request.method === 'GET') return routeAdminRestreamsList(env);
+    if (request.method === 'POST') return routeAdminRestreamsUpsert(request, env);
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
   if (url.pathname === '/api/admin/match-overrides') {
     if (request.method === 'GET') return routeAdminMatchOverridesList(env);
     if (request.method === 'POST') return routeAdminMatchOverridesUpsert(request, env);
@@ -454,6 +466,19 @@ async function routeAdminRequest(request, env = {}, ctx = {}) {
   const overrideMatchId = Number(url.pathname.match(/^\/api\/admin\/match-overrides\/(\d+)$/)?.[1]);
   if (overrideMatchId > 0) {
     if (request.method === 'DELETE') return routeAdminMatchOverridesDelete(env, overrideMatchId);
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
+  const restreamActionMatch = url.pathname.match(/^\/api\/admin\/restreams\/([^/]+)\/(start|stop|restart)$/);
+  if (restreamActionMatch) {
+    if (request.method === 'POST') return routeAdminRestreamsAction(env, restreamActionMatch[1], restreamActionMatch[2]);
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
+  const restreamId = url.pathname.match(/^\/api\/admin\/restreams\/([^/]+)$/)?.[1] || '';
+  if (restreamId) {
+    if (request.method === 'PUT') return routeAdminRestreamsUpsert(request, env, restreamId);
+    if (request.method === 'DELETE') return routeAdminRestreamsDelete(env, restreamId);
     return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
   }
 
@@ -666,6 +691,80 @@ async function routeAdminMatchOverridesDelete(env, matchId) {
   await writeRuntimeMatchOverrides(env, overrides);
   const cacheVersion = await bumpCacheVersion(env);
   return jsonResponse({ ok: true, match_id: matchId, cache_version: cacheVersion }, 200, 0);
+}
+
+async function routeAdminRestreamsList(env = {}) {
+  const restreams = Object.values(await readRuntimeRestreamConfig(env))
+    .sort((left, right) => Number(left.match_id) - Number(right.match_id) || String(left.slug).localeCompare(String(right.slug)));
+  return jsonResponse({ restreams, total: restreams.length }, 200, 0);
+}
+
+async function routeAdminRestreamsUpsert(request, env = {}, restreamId = '') {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: 'restream_kv_not_configured' }, 503, 0);
+  }
+
+  const body = await readJsonBody(request);
+  const restream = normalizeAdminRestreamPayload(body, restreamId, env);
+  if (!restream) return jsonResponse({ error: 'invalid_restream_payload' }, 400, 0);
+
+  const configs = await readRuntimeRestreamConfig(env);
+  configs[restream.id] = restream;
+  await writeRuntimeRestreamConfig(env, configs);
+  const stream = await upsertRestreamBackedStream(env, restream);
+  const cacheVersion = await bumpCacheVersion(env);
+  return jsonResponse({ ok: true, restream, stream, cache_version: cacheVersion }, 200, 0);
+}
+
+async function routeAdminRestreamsAction(env = {}, restreamId = '', action = '') {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: 'restream_kv_not_configured' }, 503, 0);
+  }
+
+  const id = normalizeRestreamId(restreamId);
+  const configs = await readRuntimeRestreamConfig(env);
+  const current = configs[id];
+  if (!current) return jsonResponse({ error: 'restream_not_found' }, 404, 0);
+
+  const desiredState = action === 'stop' ? 'stopped' : 'running';
+  const next = {
+    ...current,
+    desired_state: desiredState,
+    restart_requested_at: action === 'restart' ? new Date().toISOString() : current.restart_requested_at || null,
+    updated_at: new Date().toISOString(),
+  };
+  configs[id] = next;
+  await writeRuntimeRestreamConfig(env, configs);
+  const stream = await upsertRestreamBackedStream(env, next);
+  const cacheVersion = await bumpCacheVersion(env);
+  return jsonResponse({ ok: true, action, restream: next, stream, cache_version: cacheVersion }, 200, 0);
+}
+
+async function routeAdminRestreamsDelete(env = {}, restreamId = '') {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: 'restream_kv_not_configured' }, 503, 0);
+  }
+
+  const id = normalizeRestreamId(restreamId);
+  const configs = await readRuntimeRestreamConfig(env);
+  const current = configs[id];
+  if (!current) return jsonResponse({ error: 'restream_not_found' }, 404, 0);
+
+  delete configs[id];
+  await writeRuntimeRestreamConfig(env, configs);
+  await deleteRestreamBackedStream(env, id);
+  const cacheVersion = await bumpCacheVersion(env);
+  return jsonResponse({ ok: true, id, cache_version: cacheVersion }, 200, 0);
+}
+
+async function routeRestreamDesiredRequest(request, env = {}) {
+  if (!isAuthorizedRestreamSyncRequest(request, env)) {
+    return jsonResponse({ error: 'unauthorized' }, 401, 0);
+  }
+  const restreams = Object.values(await readRuntimeRestreamConfig(env))
+    .filter((restream) => restream.is_active !== false)
+    .sort((left, right) => String(left.slug).localeCompare(String(right.slug)));
+  return jsonResponse({ restreams, total: restreams.length, generated_at: new Date().toISOString() }, 200, 0);
 }
 
 async function readAdminAutoStreams(env = {}, ctx = {}) {
@@ -901,6 +1000,14 @@ function isAuthorizedAdminRequest(request, env = {}) {
   return auth === `Bearer ${expected}`;
 }
 
+function isAuthorizedRestreamSyncRequest(request, env = {}) {
+  const expected = String(env.RESTREAM_SYNC_TOKEN || '').trim();
+  if (!expected) return false;
+  const auth = request.headers.get('Authorization') || '';
+  const headerToken = request.headers.get('X-Restream-Token') || request.headers.get('x-restream-token') || '';
+  return auth === `Bearer ${expected}` || headerToken === expected;
+}
+
 function isCloudflareAccessAllowed(request, env = {}) {
   const requireAccess = String(env.ADMIN_REQUIRE_ACCESS || '').toLowerCase() === 'true';
   if (!requireAccess) return true;
@@ -990,6 +1097,49 @@ async function writeRuntimeApiStreamOverrides(env = {}, overrides = {}) {
   return true;
 }
 
+async function readRuntimeRestreamConfig(env = {}) {
+  if (!env.STREAM_CONFIG_KV?.get) return {};
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(RESTREAM_CONFIG_KV_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .map(([key, value]) => [normalizeRestreamId(key), normalizeStoredRestream(value, key, env)])
+        .filter(([key, value]) => key && value),
+    );
+  } catch {
+    return {};
+  }
+}
+
+async function writeRuntimeRestreamConfig(env = {}, configs = {}) {
+  if (!env.STREAM_CONFIG_KV?.put) return false;
+  await env.STREAM_CONFIG_KV.put(RESTREAM_CONFIG_KV_KEY, JSON.stringify(configs));
+  return true;
+}
+
+async function upsertRestreamBackedStream(env = {}, restream = {}) {
+  const config = await readRuntimeStreamConfig(env);
+  const streams = flattenStreamConfig(config);
+  const index = streams.findIndex((stream) => String(stream.restream_id || '') === restream.id);
+  const stream = restreamToStream(restream, index >= 0 ? streams[index] : null);
+  if (!stream) return null;
+  if (index >= 0) streams[index] = stream;
+  else streams.push(stream);
+  await writeRuntimeStreamConfig(env, expandStreamConfig(streams));
+  return stream;
+}
+
+async function deleteRestreamBackedStream(env = {}, restreamId = '') {
+  const config = await readRuntimeStreamConfig(env);
+  const streams = flattenStreamConfig(config);
+  const filtered = streams.filter((stream) => String(stream.restream_id || '') !== restreamId);
+  if (filtered.length === streams.length) return false;
+  await writeRuntimeStreamConfig(env, expandStreamConfig(filtered));
+  return true;
+}
+
 function applyStreamOverride(config = {}, env = {}) {
   const matchId = Number(env.STREAM_OVERRIDE_MATCH_ID);
   const url = String(env.STREAM_OVERRIDE_URL || '').trim();
@@ -1042,6 +1192,7 @@ function flattenStreamConfig(config = {}) {
         is_active: normalized.is_active !== false,
         starts_at: normalized.starts_at || normalized.startsAt || null,
         ends_at: normalized.ends_at || normalized.endsAt || null,
+        restream_id: normalized.restream_id || normalized.restreamId || null,
       });
     });
   }
@@ -1070,6 +1221,7 @@ function expandStreamConfig(streams = []) {
       is_active: stream.is_active !== false,
       starts_at: stream.starts_at || null,
       ends_at: stream.ends_at || null,
+      restream_id: stream.restream_id || stream.restreamId || null,
     });
   });
   return byMatch;
@@ -1099,6 +1251,107 @@ function normalizeAdminStreamPayload(payload, streamId) {
     starts_at: normalizeOptionalDateTime(payload?.starts_at),
     ends_at: normalizeOptionalDateTime(payload?.ends_at),
   };
+}
+
+function normalizeAdminRestreamPayload(payload, restreamId = '', env = {}) {
+  const matchId = Number(payload?.match_id);
+  const donorUrl = String(payload?.donor_url || payload?.input_url || '').trim();
+  const slug = normalizeRestreamSlug(payload?.slug || payload?.id || restreamId || payload?.label);
+  if (!Number.isFinite(matchId) || matchId <= 0 || !slug || !isValidRestreamUrl(donorUrl)) return null;
+
+  const now = new Date().toISOString();
+  const id = normalizeRestreamId(restreamId || slug);
+  const outputUrl = buildRestreamOutputUrl(slug, env);
+  const desiredState = normalizeRestreamDesiredState(payload?.desired_state);
+  return {
+    id,
+    slug,
+    match_id: matchId,
+    label: String(payload?.label || slugToLabel(slug)).trim().slice(0, 120),
+    donor_url: donorUrl,
+    output_url: outputUrl,
+    source_type: 'videojs',
+    quality: String(payload?.quality || '720p').trim().slice(0, 40),
+    language_code: String(payload?.language_code || 'en').trim().slice(0, 16),
+    region: String(payload?.region || 'global').trim().slice(0, 40),
+    priority: Number.isFinite(Number(payload?.priority)) ? Number(payload.priority) : 100,
+    commentary_type: String(payload?.commentary_type || 'full').trim().slice(0, 40),
+    playback_mode: normalizePlaybackMode(payload?.playback_mode || payload?.playbackMode),
+    is_active: payload?.is_active !== false,
+    desired_state: desiredState,
+    starts_at: normalizeOptionalDateTime(payload?.starts_at),
+    ends_at: normalizeOptionalDateTime(payload?.ends_at),
+    updated_at: now,
+    created_at: normalizeOptionalDateTime(payload?.created_at) || now,
+    restart_requested_at: normalizeOptionalDateTime(payload?.restart_requested_at),
+  };
+}
+
+function normalizeStoredRestream(value = {}, key = '', env = {}) {
+  const payload = { ...value, id: value?.id || key, slug: value?.slug || key };
+  return normalizeAdminRestreamPayload(payload, payload.id || key, env);
+}
+
+function restreamToStream(restream = {}, current = null) {
+  const matchId = Number(restream.match_id);
+  if (!Number.isFinite(matchId) || matchId <= 0 || !restream.output_url) return null;
+  return {
+    id: Number(current?.id) > 0 ? Number(current.id) : hashToPositiveInt(`restream:${restream.id}`),
+    match_id: matchId,
+    label: restream.label || slugToLabel(restream.slug),
+    source_type: 'videojs',
+    quality: restream.quality || '720p',
+    language_code: restream.language_code || 'en',
+    url: restream.output_url,
+    priority: Number.isFinite(Number(restream.priority)) ? Number(restream.priority) : 100,
+    region: restream.region || 'global',
+    commentary_type: restream.commentary_type || 'full',
+    playback_mode: normalizePlaybackMode(restream.playback_mode),
+    is_active: restream.is_active !== false && restream.desired_state !== 'stopped',
+    starts_at: restream.starts_at || null,
+    ends_at: restream.ends_at || null,
+    restream_id: restream.id,
+  };
+}
+
+function normalizeRestreamId(value = '') {
+  return normalizeRestreamSlug(value);
+}
+
+function normalizeRestreamSlug(value = '') {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+
+function normalizeRestreamDesiredState(value = '') {
+  const state = String(value || 'running').trim().toLowerCase();
+  return ['running', 'stopped'].includes(state) ? state : 'running';
+}
+
+function isValidRestreamUrl(value = '') {
+  try {
+    const url = new URL(String(value || ''));
+    return ['http:', 'https:'].includes(url.protocol);
+  } catch {
+    return false;
+  }
+}
+
+function buildRestreamOutputUrl(slug = '', env = {}) {
+  const base = String(env.RESTREAM_PUBLIC_BASE_URL || RESTREAM_PUBLIC_BASE_URL).replace(/\/+$/, '');
+  return `${base}/${normalizeRestreamSlug(slug)}/index.m3u8`;
+}
+
+function slugToLabel(slug = '') {
+  return String(slug || 'IPTV restream')
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part ? `${part.charAt(0).toUpperCase()}${part.slice(1)}` : '')
+    .join(' ');
 }
 
 function normalizeAdminMatchOverridePayload(payload) {
@@ -2167,6 +2420,7 @@ function normalizeStream(stream, matchId, index) {
     title: stream.title || '',
     starts_at: normalizeOptionalDateTime(stream.starts_at || stream.startsAt),
     ends_at: normalizeOptionalDateTime(stream.ends_at || stream.endsAt),
+    restream_id: stream.restream_id || stream.restreamId || null,
   };
 }
 

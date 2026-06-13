@@ -23,6 +23,7 @@
       .admin-metric strong { display: block; margin-top: 6px; color: #fff; font-size: 20px; }
       .admin-msg { color: #83f1b8; }
       .admin-err { color: #ff9aa1; }
+      .admin-help { color: #9aa7b7; font-size: 13px; margin: 6px 0 0; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
       @media (max-width: 760px) { .admin-grid, .admin-metrics { grid-template-columns: 1fr; } }
     </style>
@@ -126,6 +127,79 @@
         </form>
         <p id="save-msg" class="admin-msg"></p>
         <p id="save-err" class="admin-err"></p>
+      </section>
+
+      <section class="admin-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <div>
+            <h2 style="margin:0">IPTV Restream</h2>
+            <p class="admin-help">Paste donor IPTV URL here. The public stream URL is generated automatically for Video.js.</p>
+          </div>
+          <button id="reload-restreams" class="button secondary" type="button">Reload</button>
+        </div>
+        <form id="restream-form" class="admin-grid" style="margin-top:12px;">
+          <input id="restream-id" type="hidden" />
+          <label>
+            <div>Match ID</div>
+            <input id="restream-match-id" class="admin-input" type="number" min="1" required />
+          </label>
+          <label>
+            <div>Slug</div>
+            <input id="restream-slug" class="admin-input" placeholder="fox-sport-1-hd" required />
+          </label>
+          <label class="full">
+            <div>Donor IPTV URL</div>
+            <input id="restream-donor-url" class="admin-input" placeholder="https://..." required />
+          </label>
+          <label>
+            <div>Label</div>
+            <input id="restream-label" class="admin-input" placeholder="Fox Sport 1 HD" />
+          </label>
+          <label>
+            <div>Language</div>
+            <input id="restream-lang" class="admin-input" value="en" />
+          </label>
+          <label>
+            <div>Priority</div>
+            <input id="restream-priority" class="admin-input" type="number" value="100" />
+          </label>
+          <label>
+            <div>Desired state</div>
+            <select id="restream-desired-state" class="admin-select">
+              <option value="running">running</option>
+              <option value="stopped">stopped</option>
+            </select>
+          </label>
+          <label>
+            <div>Active</div>
+            <select id="restream-is-active" class="admin-select">
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </label>
+          <label>
+            <div>Starts at (UTC)</div>
+            <input id="restream-starts-at" class="admin-input" type="datetime-local" />
+          </label>
+          <label>
+            <div>Ends at (UTC)</div>
+            <input id="restream-ends-at" class="admin-input" type="datetime-local" />
+          </label>
+          <div class="full admin-actions wrap" style="margin-top:6px;">
+            <button class="button primary" type="submit">Save restream</button>
+            <button class="button secondary" type="button" id="reset-restream-form">Reset</button>
+          </div>
+        </form>
+        <div style="overflow:auto; margin-top:12px;">
+          <table class="admin-table">
+            <thead>
+              <tr><th>Slug</th><th>Match</th><th>Label</th><th>State</th><th>Lang</th><th>Public HLS</th><th>Updated</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="restreams-body">
+              <tr><td colspan="8">No data</td></tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section class="admin-card">

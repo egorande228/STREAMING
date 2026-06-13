@@ -34,6 +34,16 @@ test('admin can edit API-provided DAMI streams', () => {
   assert.doesNotMatch(adminHtml, /HLS resolver/);
 });
 
+test('admin exposes IPTV restream controls alongside existing stream form', () => {
+  assert.match(adminHtml, /id="stream-form"/);
+  assert.match(adminHtml, /id="restream-form"/);
+  assert.match(adminHtml, /id="restream-donor-url"/);
+  assert.match(adminHtml, /id="restreams-body"/);
+  assert.match(adminSource, /\/api\/admin\/restreams/);
+  assert.match(adminSource, /loadRestreams/);
+  assert.match(adminSource, /source_type: \$\('source-type'\)\.value/);
+});
+
 test('odds panel stays branded to MelBet only', () => {
   assert.match(appSource, /t\('melbetOdds'\)/);
   assert.doesNotMatch(appSource, /\$\{bookmaker\} odds/);

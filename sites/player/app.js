@@ -280,6 +280,16 @@
     attachTelegramPopupToStage();
   }
 
+  function showStreamUnavailable() {
+    stopViewerHeartbeat();
+    destroyHls();
+    destroyVideoJs();
+    if (stage.classList) stage.classList.remove('stage-iframe');
+    stage.innerHTML = '<div class="player-empty">Stream unavailable</div>';
+    controls.hidden = false;
+    attachTelegramPopupToStage();
+  }
+
   function attachTelegramPopupToStage() {
     if (!tgPopup || !stage) return;
     if (tgPopupDismissed || tgPopup.hidden || !tgPopup.innerHTML) return;
@@ -380,6 +390,7 @@
             language_code: preferredLang,
             region: preferredRegion,
             priority: 100 - index,
+            playback_mode: 'auto',
             is_active: true,
           };
         }
@@ -393,6 +404,7 @@
           language_code: stream.language_code || stream.languageCode || preferredLang,
           region: stream.region || preferredRegion,
           priority: typeof stream.priority === 'number' ? stream.priority : 100 - index,
+          playback_mode: stream.playback_mode || stream.playbackMode || 'auto',
           is_active: stream.is_active !== false && stream.isActive !== false,
           title: stream.title || '',
           starts_at: stream.starts_at || stream.startsAt || null,
@@ -510,7 +522,10 @@
     iframe.title = stream.title || stream.label || 'Stream player';
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
     iframe.allowFullscreen = true;
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
+    const sandbox = playbackMode(stream) === 'iframe_popups'
+      ? 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups'
+      : 'allow-scripts allow-same-origin allow-forms allow-presentation';
+    iframe.setAttribute('sandbox', sandbox);
     iframe.referrerPolicy = stream.referrer_policy || stream.referrerPolicy || 'no-referrer-when-downgrade';
     stage.appendChild(iframe);
     const shield = document.createElement('div');
@@ -626,7 +641,29 @@
     }
   }
 
-  function renderHls(stream) {
+  function damiEmbedChannelId(value) {
+    try {
+      const url = new URL(String(value || ''), window.location.href);
+      if (!/(^|\.)dami-tv\.pro$/i.test(url.hostname) || !url.pathname.startsWith('/embed')) return '';
+      const channel = url.searchParams.get('ch') || url.searchParams.get('channel');
+      return /^\d+$/.test(channel || '') ? channel : '';
+    } catch {
+      return '';
+    }
+  }
+
+  function playbackMode(stream = {}) {
+    const mode = String(stream.playback_mode || stream.playbackMode || 'auto').toLowerCase();
+    return ['auto', 'hls_resolver', 'iframe', 'iframe_popups'].includes(mode) ? mode : 'auto';
+  }
+
+  function shouldResolveDamiEmbed(stream = {}) {
+    const mode = playbackMode(stream);
+    if (mode === 'iframe' || mode === 'iframe_popups') return false;
+    return Boolean(damiEmbedChannelId(stream.url));
+  }
+
+  function renderHls(stream, onFatal) {
     destroyHls();
     destroyVideoJs();
     if (stage.classList) stage.classList.remove('stage-iframe');
@@ -663,7 +700,10 @@
       hls.attachMedia(video);
       hls.on(window.Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
       hls.on(window.Hls.Events.ERROR, (_, data) => {
-        if (data.fatal) clearPlayer();
+        if (data.fatal) {
+          if (onFatal) onFatal();
+          else clearPlayer();
+        }
       });
       return;
     }
@@ -719,7 +759,7 @@
   }
 
   async function resolveDamiChannel(stream) {
-    const channelId = damiChannelId(stream);
+    const channelId = damiChannelId(stream) || damiEmbedChannelId(stream.url);
     if (!channelId) throw new Error('Missing DAMI channel id');
     const response = await fetch(`https://dami-tv.pro/papi/tv/resolve/${channelId}?t=`, { cache: 'no-store' });
     if (!response.ok) throw new Error(`DAMI resolve returned ${response.status}`);
@@ -733,10 +773,41 @@
     };
   }
 
-  async function playStream(index) {
+  function nextSameLanguageStreamIndex(index, attempted = new Set()) {
+    const current = currentStreams[index];
+    const language = String(current?.language_code || current?.languageCode || '').toLowerCase();
+    if (!language) return -1;
+    return currentStreams.findIndex((stream, nextIndex) => {
+      if (attempted.has(nextIndex)) return false;
+      const nextLanguage = String(stream?.language_code || stream?.languageCode || '').toLowerCase();
+      return nextLanguage === language;
+    });
+  }
+
+  function fallbackToNextStream(index, attempted = new Set()) {
+    attempted.add(index);
+    const nextIndex = nextSameLanguageStreamIndex(index, attempted);
+    if (nextIndex < 0) {
+      showStreamUnavailable();
+      return;
+    }
+    sourceSelect.value = String(nextIndex);
+    void playStream(nextIndex, attempted);
+  }
+
+  async function playStream(index, attempted = new Set()) {
     const stream = currentStreams[index];
     if (!stream) return;
     titleEl.textContent = stream.title || stream.label || params.get('title') || 'Stream';
+    if (stream.source_type === 'iframe' && shouldResolveDamiEmbed(stream)) {
+      stage.innerHTML = '<div class="player-empty">Loading stream...</div>';
+      try {
+        renderHls(await resolveDamiChannel(stream), () => fallbackToNextStream(index, attempted));
+      } catch {
+        fallbackToNextStream(index, attempted);
+      }
+      return;
+    }
     if (stream.source_type === 'iframe') {
       renderIframe(stream);
       return;
@@ -744,9 +815,9 @@
     if (stream.source_type === 'dami-channel') {
       stage.innerHTML = '<div class="player-empty">Loading stream...</div>';
       try {
-        renderHls(await resolveDamiChannel(stream));
+        renderHls(await resolveDamiChannel(stream), () => fallbackToNextStream(index, attempted));
       } catch {
-        clearPlayer();
+        fallbackToNextStream(index, attempted);
       }
       return;
     }
@@ -788,6 +859,7 @@
           label: params.get('title') || 'English iframe',
           language_code: preferredLang,
           priority: 100,
+          playback_mode: 'auto',
           is_active: true,
         },
       ],

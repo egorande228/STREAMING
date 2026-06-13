@@ -2146,6 +2146,7 @@ test('admin streams list includes editable DAMI streams from upcoming fixture da
           ...autoStream,
           label: 'Bad DAMI source',
           language_code: 'und',
+          playback_mode: 'iframe',
           priority: 12,
           is_active: false,
         }),
@@ -2159,6 +2160,17 @@ test('admin streams list includes editable DAMI streams from upcoming fixture da
     assert.equal(matchResponse.status, 200);
     const matchBody = await matchResponse.json();
     assert.deepEqual(matchBody.matches[0].streams, []);
+
+    const listAfterUpdate = await routeRequest(
+      new Request('https://kinglive.test/api/admin/streams', {
+        headers: { Authorization: 'Bearer test-token' },
+      }),
+      env,
+      {},
+    );
+    const updatedBody = await listAfterUpdate.json();
+    const updatedAutoStream = updatedBody.streams.find((stream) => stream.id === autoStream.id);
+    assert.equal(updatedAutoStream?.playback_mode, 'iframe');
   } finally {
     globalThis.fetch = previousFetch;
   }

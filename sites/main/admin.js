@@ -72,7 +72,7 @@
   function logout() {
     setToken('');
     setAuthLabel();
-    streamsBody.innerHTML = '<tr><td colspan="12">Logged out</td></tr>';
+    streamsBody.innerHTML = '<tr><td colspan="13">Logged out</td></tr>';
     if (monitoringBody) monitoringBody.innerHTML = '<tr><td colspan="3">Logged out</td></tr>';
     if (statusBody) statusBody.innerHTML = '<tr><td colspan="7">Logged out</td></tr>';
   }
@@ -83,6 +83,7 @@
       label: $('stream-label').value.trim() || 'Live stream',
       url: $('stream-url').value.trim(),
       source_type: $('source-type').value,
+      playback_mode: $('playback-mode').value,
       quality: $('quality').value.trim() || '720p',
       language_code: $('lang').value.trim() || 'en',
       region: $('region').value.trim() || 'global',
@@ -100,6 +101,7 @@
     $('stream-label').value = stream.label || '';
     $('stream-url').value = stream.url || '';
     $('source-type').value = stream.source_type || 'iframe';
+    $('playback-mode').value = stream.playback_mode || 'auto';
     $('quality').value = stream.quality || '720p';
     $('lang').value = stream.language_code || 'en';
     $('region').value = stream.region || 'global';
@@ -113,6 +115,7 @@
     $('stream-form').reset();
     $('stream-id').value = '';
     $('quality').value = '720p';
+    $('playback-mode').value = 'auto';
     $('lang').value = 'en';
     $('region').value = 'global';
     $('priority').value = '100';
@@ -156,14 +159,14 @@
 
   async function loadStreams() {
     if (!token()) {
-      streamsBody.innerHTML = '<tr><td colspan="12">Login first</td></tr>';
+      streamsBody.innerHTML = '<tr><td colspan="13">Login first</td></tr>';
       return;
     }
     try {
       const payload = await adminFetch('/api/admin/streams');
       const streams = Array.isArray(payload.streams) ? payload.streams : [];
       if (!streams.length) {
-        streamsBody.innerHTML = '<tr><td colspan="12">No streams</td></tr>';
+        streamsBody.innerHTML = '<tr><td colspan="13">No streams</td></tr>';
         return;
       }
       streamsBody.innerHTML = streams
@@ -177,6 +180,7 @@
               <td>${escapeHtml(stream.origin || 'manual')}</td>
               <td>${escapeHtml(stream.match_id)}</td>
               <td>${escapeHtml(stream.source_type || '')}</td>
+              <td>${escapeHtml(stream.playback_mode || 'auto')}</td>
               <td>${escapeHtml(stream.label || '')}</td>
               <td>${escapeHtml(stream.language_code || '')}</td>
               <td class="mono">${url}</td>
@@ -209,7 +213,7 @@
         });
       });
     } catch (error) {
-      streamsBody.innerHTML = `<tr><td colspan="12">${escapeHtml(String(error.message || error))}</td></tr>`;
+      streamsBody.innerHTML = `<tr><td colspan="13">${escapeHtml(String(error.message || error))}</td></tr>`;
     }
   }
 

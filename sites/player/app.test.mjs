@@ -224,6 +224,12 @@ test('plays a match stream configured in streams.json', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843&admin=1',
     fetchImpl: (url) => {
+      if (String(url) === 'https://dami-tv.pro/papi/tv/resolve/966?t=') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ stream: '/papi/tv/playlist/resolved-arabic.m3u8' }),
+        });
+      }
       if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
         return Promise.resolve({
           ok: true,
@@ -347,21 +353,14 @@ test('starts the stream selected by the site button source params', async () => 
   const result = await runPlayer({
     href: `https://player.test/?match=19609133&lang=en&region=global&source=dami-19609133-2092607600&src=${encodeURIComponent(selectedUrl)}`,
     fetchImpl: (url) => {
-      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+      if (String(url) === 'https://dami-tv.pro/papi/tv/resolve/966?t=') {
         return Promise.resolve({
           ok: true,
-          json: () =>
-            Promise.resolve({
-              19609133: {
-                id: 1,
-                url: 'https://hls.livekinglive.win/live/fox-sport-1-hd/index.m3u8',
-                source_type: 'videojs',
-                label: 'FOX',
-                language_code: 'en',
-                priority: 100,
-              },
-            }),
+          json: () => Promise.resolve({ stream: '/papi/tv/playlist/resolved-arabic.m3u8' }),
         });
+      }
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
       }
       assert.equal(String(url), '/api/matches/19609133?lang=en&region=global');
       return Promise.resolve({
@@ -371,6 +370,15 @@ test('starts the stream selected by the site button source params', async () => 
             home_team: { name_en: 'United States' },
             away_team: { name_en: 'Paraguay' },
             streams: [
+              {
+                id: 1,
+                url: 'https://hls.livekinglive.win/live/fox-sport-1-hd/index.m3u8',
+                source_type: 'videojs',
+                label: 'FOX',
+                language_code: 'en',
+                priority: 100,
+                is_active: true,
+              },
               {
                 id: 2092607600,
                 api_stream_id: 'dami-19609133-2092607600',
@@ -386,13 +394,77 @@ test('starts the stream selected by the site button source params', async () => 
       });
     },
   });
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
 
-  const iframe = result.appended.find((element) => element.tagName === 'iframe');
-  assert.ok(iframe);
-  assert.equal(iframe.src, selectedUrl);
+  const video = result.appended.find((element) => element.tagName === 'video');
+  assert.ok(video);
+  assert.equal(video.src, 'https://dami-tv.pro/papi/tv/playlist/resolved-arabic.m3u8');
   assert.equal(result.sourceSelect.value, '1');
   assert.match(result.sourceSelect.innerHTML, /FOX/);
   assert.match(result.sourceSelect.innerHTML, /BEIN\(AR\)/);
+});
+
+test('falls back to the next same-language DAMI source when resolver fails', async () => {
+  const requests = [];
+  const result = await runPlayer({
+    href: 'https://player.test/?match=19609130&lang=ar&region=global&source=dami-19609130-primary',
+    fetchImpl: (url) => {
+      requests.push(String(url));
+      if (String(url) === 'https://dami-tv.pro/papi/tv/resolve/966?t=') {
+        return Promise.resolve({ ok: false });
+      }
+      if (String(url) === 'https://dami-tv.pro/papi/tv/resolve/967?t=') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ stream: '/papi/tv/playlist/fallback-arabic.m3u8' }),
+        });
+      }
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      assert.equal(String(url), '/api/matches/19609130?lang=ar&region=global');
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Qatar' },
+            away_team: { name_en: 'Switzerland' },
+            streams: [
+              {
+                id: 'primary',
+                api_stream_id: 'dami-19609130-primary',
+                url: 'https://dami-tv.pro/embed/?id=qatar-vs-switzerland-2391732&ch=966',
+                source_type: 'iframe',
+                label: 'Arabic primary',
+                language_code: 'ar',
+                priority: 90,
+                is_active: true,
+              },
+              {
+                id: 'backup',
+                api_stream_id: 'dami-19609130-backup',
+                url: 'https://dami-tv.pro/embed/?id=qatar-vs-switzerland-2391732&ch=967',
+                source_type: 'iframe',
+                label: 'Arabic backup',
+                language_code: 'ar',
+                priority: 80,
+                is_active: true,
+              },
+            ],
+          }),
+      });
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const video = result.appended.find((element) => element.tagName === 'video');
+  assert.ok(video);
+  assert.equal(video.src, 'https://dami-tv.pro/papi/tv/playlist/fallback-arabic.m3u8');
+  assert.equal(result.sourceSelect.value, '1');
+  assert.equal(requests.includes('https://dami-tv.pro/papi/tv/resolve/966?t='), true);
+  assert.equal(requests.includes('https://dami-tv.pro/papi/tv/resolve/967?t='), true);
 });
 
 test('sandboxes iframe streams to block popup and top navigation redirects', async () => {
@@ -428,6 +500,42 @@ test('sandboxes iframe streams to block popup and top navigation redirects', asy
   assert.match(iframe.sandbox, /allow-scripts/);
   assert.match(iframe.sandbox, /allow-same-origin/);
   assert.doesNotMatch(iframe.sandbox, /allow-popups/);
+  assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
+});
+
+test('allows sandboxed popups only when iframe popups playback mode is selected', async () => {
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    config: {
+      matchStreams: {
+        1540843: {
+          url: 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101',
+          source_type: 'iframe',
+          label: 'DAMI iframe fallback',
+          playback_mode: 'iframe_popups',
+        },
+      },
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Arsenal' },
+            away_team: { name_en: 'Atletico Madrid' },
+            streams: [],
+          }),
+      });
+    },
+  });
+
+  const iframe = result.appended.find((element) => element.tagName === 'iframe');
+  assert.ok(iframe);
+  assert.match(iframe.sandbox, /allow-popups/);
+  assert.doesNotMatch(iframe.sandbox, /allow-popups-to-escape-sandbox/);
   assert.doesNotMatch(iframe.sandbox, /allow-top-navigation/);
 });
 
@@ -552,6 +660,7 @@ test('keeps DAMI resolver working while click shield blocks ad redirects', async
           url: 'https://dami-tv.pro/embed/?id=wc/2026-06-12/kor-cze&ch=101',
           source_type: 'iframe',
           label: 'DAMI source',
+          playback_mode: 'iframe',
         },
       },
     },

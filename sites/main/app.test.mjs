@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 const appSource = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
 const indexHtml = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+const adminHtml = readFileSync(new URL('./admin.html', import.meta.url), 'utf8');
 const adminSource = readFileSync(new URL('./admin.js', import.meta.url), 'utf8');
 const apiVersion = appSource.match(/const apiVersion = '([^']+)'/)?.[1] || '';
 
@@ -26,6 +27,9 @@ test('admin can edit API-provided DAMI streams', () => {
   assert.match(adminSource, /const editable = stream\.editable !== false;/);
   assert.doesNotMatch(adminSource, /stream\.origin !== 'dami'/);
   assert.match(adminSource, /Reset override for/);
+  assert.match(adminHtml, /id="playback-mode"/);
+  assert.match(adminSource, /playback_mode: \$\('playback-mode'\)\.value/);
+  assert.match(adminSource, /stream\.playback_mode/);
 });
 
 test('odds panel stays branded to MelBet only', () => {

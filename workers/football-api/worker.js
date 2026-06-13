@@ -1009,6 +1009,7 @@ function applyStreamOverride(config = {}, env = {}) {
       priority: Number.isFinite(Number(current?.priority)) ? Number(current.priority) : 100,
       commentary_type: current?.commentary_type || 'full',
       quality: env.STREAM_OVERRIDE_QUALITY || current?.quality || '720p',
+      playback_mode: normalizePlaybackMode(current?.playback_mode || current?.playbackMode),
       is_active: true,
       starts_at: current?.starts_at || null,
       ends_at: current?.ends_at || null,
@@ -1037,6 +1038,7 @@ function flattenStreamConfig(config = {}) {
         priority: Number.isFinite(Number(normalized.priority)) ? Number(normalized.priority) : 100 - index,
         region: normalized.region || 'global',
         commentary_type: normalized.commentary_type || normalized.commentaryType || 'full',
+        playback_mode: normalizePlaybackMode(normalized.playback_mode || normalized.playbackMode),
         is_active: normalized.is_active !== false,
         starts_at: normalized.starts_at || normalized.startsAt || null,
         ends_at: normalized.ends_at || normalized.endsAt || null,
@@ -1063,6 +1065,7 @@ function expandStreamConfig(streams = []) {
       region: stream.region || 'global',
       priority: Number.isFinite(Number(stream.priority)) ? Number(stream.priority) : 100 - index,
       commentary_type: stream.commentary_type || 'full',
+      playback_mode: normalizePlaybackMode(stream.playback_mode || stream.playbackMode),
       quality: stream.quality || '720p',
       is_active: stream.is_active !== false,
       starts_at: stream.starts_at || null,
@@ -1091,6 +1094,7 @@ function normalizeAdminStreamPayload(payload, streamId) {
     priority: Number.isFinite(Number(payload?.priority)) ? Number(payload.priority) : 100,
     region: String(payload?.region || 'global').trim(),
     commentary_type: String(payload?.commentary_type || 'full').trim(),
+    playback_mode: normalizePlaybackMode(payload?.playback_mode || payload?.playbackMode),
     is_active: payload?.is_active !== false,
     starts_at: normalizeOptionalDateTime(payload?.starts_at),
     ends_at: normalizeOptionalDateTime(payload?.ends_at),
@@ -1144,11 +1148,17 @@ function normalizeApiStreamOverridePayload(payload, overrideId) {
     priority: Number.isFinite(Number(payload?.priority)) ? Number(payload.priority) : 80,
     region: String(payload?.region || 'global').trim(),
     commentary_type: String(payload?.commentary_type || 'full').trim(),
+    playback_mode: normalizePlaybackMode(payload?.playback_mode || payload?.playbackMode),
     is_active: payload?.is_active !== false,
     starts_at: normalizeOptionalDateTime(payload?.starts_at),
     ends_at: normalizeOptionalDateTime(payload?.ends_at),
     updated_at: payload?.updated_at || new Date().toISOString(),
   };
+}
+
+function normalizePlaybackMode(value) {
+  const mode = String(value || 'auto').trim().toLowerCase();
+  return ['auto', 'hls_resolver', 'iframe', 'iframe_popups'].includes(mode) ? mode : 'auto';
 }
 
 function normalizeOptionalDateTime(value) {
@@ -1919,6 +1929,7 @@ function damiStreamsForMatch(match = {}, damiStreams = [], env = {}, apiStreamOv
       quality: '720p',
       priority: 90 - index,
       commentary_type: 'full',
+      playback_mode: 'auto',
       is_active: true,
       starts_at: window.starts_at,
       ends_at: window.ends_at,
@@ -1937,6 +1948,7 @@ function damiStreamsForMatch(match = {}, damiStreams = [], env = {}, apiStreamOv
       quality: '720p',
       priority: 80 - index,
       commentary_type: 'full',
+      playback_mode: 'auto',
       is_active: true,
       starts_at: window.starts_at,
       ends_at: window.ends_at,
@@ -1953,6 +1965,7 @@ function damiStreamsForMatch(match = {}, damiStreams = [], env = {}, apiStreamOv
       quality: '720p',
       priority: 50,
       commentary_type: 'full',
+      playback_mode: 'auto',
       is_active: true,
       starts_at: window.starts_at,
       ends_at: window.ends_at,
@@ -2133,6 +2146,7 @@ function normalizeStream(stream, matchId, index) {
       language_code: 'en',
       region: 'global',
       priority: 100 - index,
+      playback_mode: 'auto',
       is_active: true,
       starts_at: null,
       ends_at: null,
@@ -2148,6 +2162,7 @@ function normalizeStream(stream, matchId, index) {
     language_code: stream.language_code || stream.languageCode || 'en',
     region: stream.region || 'global',
     priority: typeof stream.priority === 'number' ? stream.priority : 100 - index,
+    playback_mode: normalizePlaybackMode(stream.playback_mode || stream.playbackMode),
     is_active: stream.is_active !== false && stream.isActive !== false,
     title: stream.title || '',
     starts_at: normalizeOptionalDateTime(stream.starts_at || stream.startsAt),

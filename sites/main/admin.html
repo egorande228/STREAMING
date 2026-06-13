@@ -81,6 +81,15 @@
             </select>
           </label>
           <label>
+            <div>Playback mode</div>
+            <select id="playback-mode" class="admin-select">
+              <option value="auto">Auto</option>
+              <option value="hls_resolver">HLS resolver</option>
+              <option value="iframe">Iframe</option>
+              <option value="iframe_popups">Iframe + popups</option>
+            </select>
+          </label>
+          <label>
             <div>Quality</div>
             <input id="quality" class="admin-input" value="720p" />
           </label>
@@ -230,11 +239,11 @@
           <table class="admin-table">
             <thead>
               <tr>
-                <th>ID</th><th>Origin</th><th>Match</th><th>Type</th><th>Label</th><th>Lang</th><th>URL</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
+                <th>ID</th><th>Origin</th><th>Match</th><th>Type</th><th>Playback</th><th>Label</th><th>Lang</th><th>URL</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
               </tr>
             </thead>
             <tbody id="streams-body">
-              <tr><td colspan="12">No data</td></tr>
+              <tr><td colspan="13">No data</td></tr>
             </tbody>
           </table>
         </div>

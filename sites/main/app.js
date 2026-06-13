@@ -1,7 +1,7 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
-  const apiVersion = 'sportmonks-facts-v11-contacts-quiz-buttons';
+  const apiVersion = 'sportmonks-facts-v12-dami-disabled';
   const scheduleLookaheadDays = 14;
   const playerBase = String(config.playerBase || '../player').replace(/\/$/, '');
   const streamConfigUrl = config.streamConfigUrl || './stream.json';

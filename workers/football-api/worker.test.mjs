@@ -2448,6 +2448,80 @@ test('stores match chat messages in KV and rate limits posts', async () => {
   assert.deepEqual(await limited.json(), { error: 'rate_limited', retry_after: 5 });
 });
 
+test('admin can delete chat messages by message, author, and clear a room', async () => {
+  const kvData = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value) {
+      kvData.set(key, value);
+    },
+  };
+  const env = {
+    ADMIN_BEARER_TOKEN: 'test-token',
+    STREAM_CONFIG_KV: kv,
+  };
+
+  const seed = [
+    { id: 'm1', match_id: 1540843, author: 'Alex', message: 'first', created_at: '2026-06-14T10:00:00.000Z', created_at_ms: 1781431200000 },
+    { id: 'm2', match_id: 1540843, author: 'Sam', message: 'second', created_at: '2026-06-14T10:00:01.000Z', created_at_ms: 1781431201000 },
+    { id: 'm3', match_id: 1540843, author: 'Alex', message: 'third', created_at: '2026-06-14T10:00:02.000Z', created_at_ms: 1781431202000 },
+  ];
+  await kv.put('chat:1540843', JSON.stringify({ messages: seed, updated_at: seed[2].created_at }));
+
+  const list = await routeRequest(
+    new Request('https://kinglive.test/api/admin/chat/1540843', {
+      headers: { Authorization: 'Bearer test-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(list.status, 200);
+  assert.equal((await list.json()).total, 3);
+
+  const deleteOne = await routeRequest(
+    new Request('https://kinglive.test/api/admin/chat/1540843/messages/m2', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer test-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(deleteOne.status, 200);
+  assert.equal((await deleteOne.json()).deleted, 1);
+
+  const deleteAuthor = await routeRequest(
+    new Request('https://kinglive.test/api/admin/chat/1540843/authors', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer test-token',
+      },
+      body: JSON.stringify({ author: 'Alex' }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(deleteAuthor.status, 200);
+  assert.equal((await deleteAuthor.json()).deleted, 2);
+
+  const afterAuthor = await routeRequest(new Request('https://kinglive.test/api/chat/1540843'), env, {});
+  assert.equal((await afterAuthor.json()).messages.length, 0);
+
+  await kv.put('chat:1540843', JSON.stringify({ messages: seed.slice(0, 1), updated_at: seed[0].created_at }));
+  const clear = await routeRequest(
+    new Request('https://kinglive.test/api/admin/chat/1540843', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer test-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(clear.status, 200);
+  assert.equal((await clear.json()).deleted, 1);
+});
+
 test('blocks admin login when access enforcement is enabled and CF access identity is missing', async () => {
   const response = await routeRequest(
     new Request('https://kinglive.test/api/admin/login', {

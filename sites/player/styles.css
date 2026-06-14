@@ -125,6 +125,7 @@ body {
 
 .player-grid {
   display: grid;
+  align-items: start;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
   gap: 12px;
   min-width: 0;
@@ -468,6 +469,8 @@ select {
 .chat-panel {
   display: grid;
   grid-template-rows: auto minmax(260px, 1fr) auto;
+  height: clamp(420px, calc(100svh - 150px), 720px);
+  min-height: 0;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -746,7 +749,8 @@ select:focus-visible,
   }
 
   .chat-panel {
-    min-height: 380px;
+    height: 420px;
+    min-height: 0;
   }
 }
 
@@ -823,7 +827,8 @@ select:focus-visible,
   }
 
   .chat-panel {
-    min-height: 420px;
+    height: min(420px, 70svh);
+    min-height: 320px;
     border-right: 0;
     border-left: 0;
     border-radius: 0;

@@ -14,6 +14,8 @@
   const refreshResult = $('refresh-result');
   const statusBody = $('status-body');
   const settingsStatus = $('settings-status');
+  const chatBody = $('chat-body');
+  const chatAdminStatus = $('chat-admin-status');
 
   function token() {
     try {
@@ -77,8 +79,10 @@
     streamsBody.innerHTML = '<tr><td colspan="12">Logged out</td></tr>';
     if (monitoringBody) monitoringBody.innerHTML = '<tr><td colspan="3">Logged out</td></tr>';
     if (statusBody) statusBody.innerHTML = '<tr><td colspan="7">Logged out</td></tr>';
+    if (chatBody) chatBody.innerHTML = '<tr><td colspan="4">Logged out</td></tr>';
     if ($('hide-finished-matches')) $('hide-finished-matches').checked = false;
     if (settingsStatus) settingsStatus.textContent = '';
+    if (chatAdminStatus) chatAdminStatus.textContent = '';
   }
 
   function streamFromForm() {
@@ -371,6 +375,110 @@
     }
   }
 
+  function chatMatchId() {
+    return Number($('chat-match-id')?.value || 0);
+  }
+
+  async function loadChat() {
+    if (!chatBody) return;
+    if (!token()) {
+      chatBody.innerHTML = '<tr><td colspan="4">Login first</td></tr>';
+      return;
+    }
+    const matchId = chatMatchId();
+    if (!(matchId > 0)) {
+      chatBody.innerHTML = '<tr><td colspan="4">Enter match ID</td></tr>';
+      if (chatAdminStatus) chatAdminStatus.textContent = '';
+      return;
+    }
+    if (chatAdminStatus) chatAdminStatus.textContent = 'Loading...';
+    try {
+      const payload = await adminFetch(`/api/admin/chat/${matchId}`);
+      const messages = Array.isArray(payload.messages) ? payload.messages : [];
+      if (chatAdminStatus) chatAdminStatus.textContent = `${messages.length} messages`;
+      if (!messages.length) {
+        chatBody.innerHTML = '<tr><td colspan="4">No messages</td></tr>';
+        return;
+      }
+      chatBody.innerHTML = messages.map((message) => {
+        const author = message.author || 'Guest';
+        return `
+          <tr>
+            <td class="mono">${escapeHtml(formatAdminDateTime(message.created_at) || message.created_at || '')}</td>
+            <td>${escapeHtml(author)}</td>
+            <td>${escapeHtml(message.message || '')}</td>
+            <td>
+              <div class="admin-actions wrap">
+                <button class="button secondary" type="button" data-chat-delete="${escapeHtml(encodeURIComponent(message.id || ''))}">Delete</button>
+                <button class="button secondary" type="button" data-chat-author-delete="${escapeHtml(encodeURIComponent(author))}">Delete author</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      chatBody.querySelectorAll('[data-chat-delete]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const messageId = decodeURIComponent(button.getAttribute('data-chat-delete') || '');
+          if (messageId) deleteChatMessage(messageId);
+        });
+      });
+      chatBody.querySelectorAll('[data-chat-author-delete]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const author = decodeURIComponent(button.getAttribute('data-chat-author-delete') || '');
+          if (author) deleteChatAuthor(author);
+        });
+      });
+    } catch (error) {
+      if (chatAdminStatus) chatAdminStatus.textContent = String(error.message || error);
+      chatBody.innerHTML = `<tr><td colspan="4">${escapeHtml(String(error.message || error))}</td></tr>`;
+    }
+  }
+
+  async function deleteChatMessage(messageId) {
+    const matchId = chatMatchId();
+    if (!(matchId > 0) || !messageId) return;
+    if (!window.confirm('Delete this chat message?')) return;
+    if (chatAdminStatus) chatAdminStatus.textContent = 'Deleting...';
+    try {
+      const payload = await adminFetch(`/api/admin/chat/${matchId}/messages/${encodeURIComponent(messageId)}`, { method: 'DELETE' });
+      if (chatAdminStatus) chatAdminStatus.textContent = `Deleted ${payload.deleted || 0}`;
+      await loadChat();
+    } catch (error) {
+      if (chatAdminStatus) chatAdminStatus.textContent = String(error.message || error);
+    }
+  }
+
+  async function deleteChatAuthor(author) {
+    const matchId = chatMatchId();
+    if (!(matchId > 0) || !author) return;
+    if (!window.confirm(`Delete all chat messages from ${author}?`)) return;
+    if (chatAdminStatus) chatAdminStatus.textContent = 'Deleting author...';
+    try {
+      const payload = await adminFetch(`/api/admin/chat/${matchId}/authors`, {
+        method: 'POST',
+        body: JSON.stringify({ author }),
+      });
+      if (chatAdminStatus) chatAdminStatus.textContent = `Deleted ${payload.deleted || 0}`;
+      await loadChat();
+    } catch (error) {
+      if (chatAdminStatus) chatAdminStatus.textContent = String(error.message || error);
+    }
+  }
+
+  async function clearChat() {
+    const matchId = chatMatchId();
+    if (!(matchId > 0)) return;
+    if (!window.confirm(`Clear all chat messages for match #${matchId}?`)) return;
+    if (chatAdminStatus) chatAdminStatus.textContent = 'Clearing...';
+    try {
+      const payload = await adminFetch(`/api/admin/chat/${matchId}`, { method: 'DELETE' });
+      if (chatAdminStatus) chatAdminStatus.textContent = `Cleared ${payload.deleted || 0}`;
+      await loadChat();
+    } catch (error) {
+      if (chatAdminStatus) chatAdminStatus.textContent = String(error.message || error);
+    }
+  }
+
   async function loadMonitoring() {
     if (!monitoringBody || !monitoringMetrics) return;
     if (!token()) {
@@ -482,6 +590,8 @@
   $('reload-streams').addEventListener('click', loadStreams);
   $('reload-monitoring').addEventListener('click', loadMonitoring);
   if ($('reload-statuses')) $('reload-statuses').addEventListener('click', loadStatuses);
+  if ($('reload-chat')) $('reload-chat').addEventListener('click', loadChat);
+  if ($('clear-chat')) $('clear-chat').addEventListener('click', clearChat);
   if ($('save-admin-settings')) $('save-admin-settings').addEventListener('click', saveSettings);
   $('reset-form').addEventListener('click', resetForm);
   if ($('reset-status')) $('reset-status').addEventListener('click', resetStatusForm);

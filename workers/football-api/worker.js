@@ -469,6 +469,27 @@ async function routeAdminRequest(request, env = {}, ctx = {}) {
     return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
   }
 
+  const adminChatMatch = Number(url.pathname.match(/^\/api\/admin\/chat\/(\d+)$/)?.[1]);
+  if (adminChatMatch > 0) {
+    if (request.method === 'GET') return routeAdminChatList(env, adminChatMatch);
+    if (request.method === 'DELETE') return routeAdminChatClear(env, adminChatMatch);
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
+  const adminChatMessageMatch = url.pathname.match(/^\/api\/admin\/chat\/(\d+)\/messages\/([^/]+)$/);
+  if (adminChatMessageMatch) {
+    if (request.method === 'DELETE') {
+      return routeAdminChatMessageDelete(env, Number(adminChatMessageMatch[1]), decodeURIComponent(adminChatMessageMatch[2]));
+    }
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
+  const adminChatAuthorMatch = Number(url.pathname.match(/^\/api\/admin\/chat\/(\d+)\/authors$/)?.[1]);
+  if (adminChatAuthorMatch > 0) {
+    if (request.method === 'POST') return routeAdminChatAuthorDelete(request, env, adminChatAuthorMatch);
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
   const overrideMatchId = Number(url.pathname.match(/^\/api\/admin\/match-overrides\/(\d+)$/)?.[1]);
   if (overrideMatchId > 0) {
     if (request.method === 'DELETE') return routeAdminMatchOverridesDelete(env, overrideMatchId);
@@ -677,6 +698,52 @@ async function routeAdminMatchOverridesList(env) {
   return jsonResponse({ overrides: Object.values(overrides), total: Object.keys(overrides).length }, 200, 0);
 }
 
+async function routeAdminChatList(env, matchId) {
+  if (!env.STREAM_CONFIG_KV?.get) {
+    return jsonResponse({ error: 'chat_kv_not_configured' }, 503, 0);
+  }
+  const room = await readChatRoom(env, matchId);
+  return jsonResponse({ match_id: matchId, messages: room.messages, total: room.messages.length }, 200, 0);
+}
+
+async function routeAdminChatMessageDelete(env, matchId, messageId) {
+  if (!env.STREAM_CONFIG_KV?.get || !env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: 'chat_kv_not_configured' }, 503, 0);
+  }
+  const id = String(messageId || '').trim();
+  if (!id) return jsonResponse({ error: 'invalid_message_id' }, 400, 0);
+  const room = await readChatRoom(env, matchId);
+  const messages = room.messages.filter((message) => String(message.id) !== id);
+  if (messages.length === room.messages.length) return jsonResponse({ error: 'message_not_found' }, 404, 0);
+  await writeChatRoom(env, matchId, messages);
+  return jsonResponse({ ok: true, match_id: matchId, deleted: room.messages.length - messages.length, total: messages.length }, 200, 0);
+}
+
+async function routeAdminChatClear(env, matchId) {
+  if (!env.STREAM_CONFIG_KV?.get || !env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: 'chat_kv_not_configured' }, 503, 0);
+  }
+  const room = await readChatRoom(env, matchId);
+  await writeChatRoom(env, matchId, []);
+  return jsonResponse({ ok: true, match_id: matchId, deleted: room.messages.length, total: 0 }, 200, 0);
+}
+
+async function routeAdminChatAuthorDelete(request, env, matchId) {
+  if (!env.STREAM_CONFIG_KV?.get || !env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: 'chat_kv_not_configured' }, 503, 0);
+  }
+  const body = await readJsonBody(request);
+  const author = normalizeChatText(body?.author, CHAT_MAX_AUTHOR_LENGTH);
+  if (!author) return jsonResponse({ error: 'invalid_author' }, 400, 0);
+  const room = await readChatRoom(env, matchId);
+  const authorKey = author.toLowerCase();
+  const messages = room.messages.filter((message) => normalizeChatText(message.author, CHAT_MAX_AUTHOR_LENGTH).toLowerCase() !== authorKey);
+  const deleted = room.messages.length - messages.length;
+  if (!deleted) return jsonResponse({ error: 'author_not_found' }, 404, 0);
+  await writeChatRoom(env, matchId, messages);
+  return jsonResponse({ ok: true, match_id: matchId, author, deleted, total: messages.length }, 200, 0);
+}
+
 async function routeAdminMatchOverridesUpsert(request, env) {
   if (!env.STREAM_CONFIG_KV?.put) {
     return jsonResponse({ error: 'match_override_kv_not_configured' }, 503, 0);
@@ -809,7 +876,7 @@ async function routeChatRequest(request, env = {}, matchId) {
 
   const room = await readChatRoom(env, matchId);
   const messages = [...room.messages, message].slice(-CHAT_MAX_MESSAGES);
-  await env.STREAM_CONFIG_KV.put(chatRoomKey(matchId), JSON.stringify({ messages, updated_at: message.created_at }));
+  await writeChatRoom(env, matchId, messages, message.created_at);
   await env.STREAM_CONFIG_KV.put(rateKey, '1', { expirationTtl: CHAT_RATE_LIMIT_SECONDS });
 
   return jsonResponse({ ok: true, message, server_time: now }, 200, 0);
@@ -1261,6 +1328,12 @@ async function readChatRoom(env = {}, matchId) {
   } catch {
     return { messages: [] };
   }
+}
+
+async function writeChatRoom(env = {}, matchId, messages = [], updatedAt = null) {
+  const normalized = Array.isArray(messages) ? messages.map(normalizeStoredChatMessage).filter(Boolean).slice(-CHAT_MAX_MESSAGES) : [];
+  const timestamp = updatedAt || new Date().toISOString();
+  await env.STREAM_CONFIG_KV.put(chatRoomKey(matchId), JSON.stringify({ messages: normalized, updated_at: timestamp }));
 }
 
 function normalizeStoredChatMessage(message) {

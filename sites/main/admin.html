@@ -168,6 +168,14 @@
 
       <section class="admin-card">
         <h2 style="margin-top:0">Match Status Override</h2>
+        <div class="admin-actions wrap" style="margin:0 0 12px;">
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input id="hide-finished-matches" type="checkbox" />
+            <span>Hide finished matches on main</span>
+          </label>
+          <button id="save-admin-settings" class="button secondary" type="button">Save settings</button>
+          <span id="settings-status" class="mono"></span>
+        </div>
         <form id="status-form" class="admin-grid">
           <label>
             <div>Match ID</div>

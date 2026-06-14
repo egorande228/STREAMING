@@ -2205,6 +2205,92 @@ test('admin match status overrides are stored in KV and applied to match respons
   }
 });
 
+test('admin settings can hide finished matches from the main match list', async () => {
+  const previousFetch = globalThis.fetch;
+  const kvData = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value) {
+      kvData.set(key, value);
+    },
+  };
+  const env = {
+    API_FOOTBALL_KEY: 'api-football-token',
+    ADMIN_USERNAME: 'admin',
+    ADMIN_PASSWORD: 'secret',
+    ADMIN_BEARER_TOKEN: 'test-token',
+    STREAM_CONFIG_KV: kv,
+  };
+  const finishedFixture = {
+    fixture: {
+      id: 42,
+      date: '2026-06-12T19:00:00+00:00',
+      status: { short: 'FT', elapsed: 90 },
+      venue: { name: 'MetLife Stadium', city: 'New York' },
+    },
+    league: { id: 1, name: 'World Cup', round: 'Group Stage - 1' },
+    teams: {
+      home: { id: 1, name: 'Brazil', code: 'BRA', logo: 'https://logo.test/bra.png' },
+      away: { id: 2, name: 'Japan', code: 'JPN', logo: 'https://logo.test/jpn.png' },
+    },
+    goals: { home: 2, away: 1 },
+  };
+  const scheduledFixture = {
+    fixture: {
+      id: 43,
+      date: '2026-06-12T22:00:00+00:00',
+      status: { short: 'NS', elapsed: null },
+      venue: { name: 'BC Place', city: 'Vancouver' },
+    },
+    league: { id: 1, name: 'World Cup', round: 'Group Stage - 1' },
+    teams: {
+      home: { id: 3, name: 'Canada', code: 'CAN', logo: 'https://logo.test/can.png' },
+      away: { id: 4, name: 'Scotland', code: 'SCO', logo: 'https://logo.test/sco.png' },
+    },
+    goals: { home: null, away: null },
+  };
+
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    if (requestUrl.includes('v3.football.api-sports.io/fixtures?id=42')) {
+      return new Response(JSON.stringify({ response: [finishedFixture] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl.includes('v3.football.api-sports.io/fixtures')) {
+      return new Response(JSON.stringify({ response: [finishedFixture, scheduledFixture] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ response: [] }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const save = await routeRequest(
+      new Request('https://kinglive.test/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-token' },
+        body: JSON.stringify({ hide_finished_matches: true }),
+      }),
+      env,
+      {},
+    );
+    assert.equal(save.status, 200);
+    assert.equal((await save.json()).settings.hide_finished_matches, true);
+
+    const listResponse = await routeRequest(new Request('https://kinglive.test/api/matches?date=2026-06-12'), env, {});
+    assert.equal(listResponse.status, 200);
+    const list = await listResponse.json();
+    assert.deepEqual(list.matches.map((match) => match.id), [43]);
+
+    const detailResponse = await routeRequest(new Request('https://kinglive.test/api/matches/42'), env, {});
+    assert.equal(detailResponse.status, 200);
+    const detail = await detailResponse.json();
+    assert.equal(detail.id, 42);
+    assert.equal(detail.status, 'finished');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test('admin streams list includes DAMI auto streams as read-only rows', async () => {
   const previousFetch = globalThis.fetch;
   const kvData = new Map();

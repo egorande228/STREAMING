@@ -18,6 +18,7 @@ const GOOGLE_NEWS_FEEDS = {
 };
 const STREAM_CONFIG_KV_KEY = 'match_streams_json';
 const MATCH_OVERRIDES_KV_KEY = 'match_overrides_json';
+const ADMIN_SETTINGS_KV_KEY = 'admin_settings_json';
 const CACHE_VERSION_KV_KEY = 'api_cache_version';
 const DEFAULT_RESTREAM_PUBLIC_BASE_URL = 'https://hls.livekinglive.win/live';
 const API_CACHE_NAMESPACE = 'dami-labels-v2';
@@ -235,8 +236,11 @@ async function routeApiFootballRequest(url, env, ttl) {
   const fixtures = Array.isArray(payload.response) ? payload.response : [];
   const streamConfig = await readRuntimeStreamConfig(env);
   const matchOverrides = await readRuntimeMatchOverrides(env);
+  const adminSettings = await readRuntimeAdminSettings(env);
   const matches = applyMatchOverrides(fixtures.map((fixture) => normalizeFixture(fixture, env, streamConfig, matchOverrides)), env, streamConfig, matchOverrides);
-  const visibleMatches = url.pathname === '/api/matches' ? sortMatches(matches.filter(isTopLeagueMatch)) : matches;
+  const visibleMatches = url.pathname === '/api/matches'
+    ? sortMatches(applyMatchVisibility(matches.filter(isTopLeagueMatch), adminSettings))
+    : matches;
   const responseTtl = visibleMatches.length ? ttl : 30;
   return url.pathname === '/api/matches'
     ? jsonResponse({ matches: visibleMatches, total: visibleMatches.length }, 200, responseTtl)
@@ -290,7 +294,10 @@ async function routeSportmonksFootballRequest(url, env, ttl, ctx = {}) {
     applyMatchOverrides(fixtures.map((fixture) => normalizeSportmonksFixture(fixture, env, streamConfig, matchOverrides)), env, streamConfig, matchOverrides),
     env,
   );
-  const visibleMatches = url.pathname === '/api/matches' ? sortMatches(filterSportmonksWorldCupMatches(matches, env)) : matches;
+  const adminSettings = await readRuntimeAdminSettings(env);
+  const visibleMatches = url.pathname === '/api/matches'
+    ? sortMatches(applyMatchVisibility(filterSportmonksWorldCupMatches(matches, env), adminSettings))
+    : matches;
   const responseTtl = visibleMatches.length ? ttl : 30;
   return url.pathname === '/api/matches'
     ? jsonResponse({ matches: visibleMatches, total: visibleMatches.length, source: 'sportmonks' }, 200, responseTtl)
@@ -436,6 +443,12 @@ async function routeAdminRequest(request, env = {}, ctx = {}) {
 
   if (url.pathname === '/api/admin/monitoring') {
     if (request.method === 'GET') return routeAdminMonitoring(env);
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
+  if (url.pathname === '/api/admin/settings') {
+    if (request.method === 'GET') return routeAdminSettingsGet(env);
+    if (request.method === 'PUT') return routeAdminSettingsUpdate(request, env);
     return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
   }
 
@@ -610,6 +623,22 @@ async function routeAdminMonitoring(env = {}) {
     200,
     0,
   );
+}
+
+async function routeAdminSettingsGet(env = {}) {
+  const settings = await readRuntimeAdminSettings(env);
+  return jsonResponse({ settings }, 200, 0);
+}
+
+async function routeAdminSettingsUpdate(request, env = {}) {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: 'settings_kv_not_configured' }, 503, 0);
+  }
+  const body = await readJsonBody(request);
+  const settings = normalizeAdminSettings(body?.settings || body || {});
+  await writeRuntimeAdminSettings(env, settings);
+  const cacheVersion = await bumpCacheVersion(env);
+  return jsonResponse({ ok: true, settings, cache_version: cacheVersion }, 200, 0);
 }
 
 async function routeAdminLogin(request, env) {
@@ -946,6 +975,37 @@ async function writeRuntimeMatchOverrides(env = {}, overrides = {}) {
   if (!env.STREAM_CONFIG_KV?.put) return false;
   await env.STREAM_CONFIG_KV.put(MATCH_OVERRIDES_KV_KEY, JSON.stringify(overrides));
   return true;
+}
+
+async function readRuntimeAdminSettings(env = {}) {
+  const envSettings = {
+    hide_finished_matches: String(env.HIDE_FINISHED_MATCHES || '').toLowerCase() === 'true',
+  };
+  if (!env.STREAM_CONFIG_KV?.get) return normalizeAdminSettings(envSettings);
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(ADMIN_SETTINGS_KV_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return normalizeAdminSettings({ ...envSettings, ...(parsed && typeof parsed === 'object' ? parsed : {}) });
+  } catch {
+    return normalizeAdminSettings(envSettings);
+  }
+}
+
+async function writeRuntimeAdminSettings(env = {}, settings = {}) {
+  if (!env.STREAM_CONFIG_KV?.put) return false;
+  await env.STREAM_CONFIG_KV.put(ADMIN_SETTINGS_KV_KEY, JSON.stringify(normalizeAdminSettings(settings)));
+  return true;
+}
+
+function normalizeAdminSettings(value = {}) {
+  return {
+    hide_finished_matches: value?.hide_finished_matches === true,
+  };
+}
+
+function applyMatchVisibility(matches = [], settings = {}) {
+  if (!settings?.hide_finished_matches) return matches;
+  return matches.filter((match) => match?.status !== 'finished');
 }
 
 function applyStreamOverride(config = {}, env = {}) {

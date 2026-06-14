@@ -13,6 +13,7 @@
   const monitoringMeta = $('monitoring-meta');
   const refreshResult = $('refresh-result');
   const statusBody = $('status-body');
+  const settingsStatus = $('settings-status');
 
   function token() {
     try {
@@ -61,6 +62,7 @@
       });
       setToken(payload.token || '');
       setAuthLabel();
+      await loadSettings();
       await loadMonitoring();
       await loadStreams();
       await loadStatuses();
@@ -75,6 +77,8 @@
     streamsBody.innerHTML = '<tr><td colspan="11">Logged out</td></tr>';
     if (monitoringBody) monitoringBody.innerHTML = '<tr><td colspan="3">Logged out</td></tr>';
     if (statusBody) statusBody.innerHTML = '<tr><td colspan="7">Logged out</td></tr>';
+    if ($('hide-finished-matches')) $('hide-finished-matches').checked = false;
+    if (settingsStatus) settingsStatus.textContent = '';
   }
 
   function streamFromForm() {
@@ -324,6 +328,43 @@
     return `${override.home_score ?? 0} : ${override.away_score ?? 0}`;
   }
 
+  async function loadSettings() {
+    if (!$('hide-finished-matches')) return;
+    if (!token()) {
+      if (settingsStatus) settingsStatus.textContent = 'Login first';
+      return;
+    }
+    try {
+      const payload = await adminFetch('/api/admin/settings');
+      const settings = payload.settings || {};
+      $('hide-finished-matches').checked = settings.hide_finished_matches === true;
+      if (settingsStatus) settingsStatus.textContent = 'Loaded';
+    } catch (error) {
+      if (settingsStatus) settingsStatus.textContent = String(error.message || error);
+    }
+  }
+
+  async function saveSettings() {
+    if (!$('hide-finished-matches')) return;
+    saveMsg.textContent = '';
+    saveErr.textContent = '';
+    if (settingsStatus) settingsStatus.textContent = 'Saving...';
+    try {
+      const payload = await adminFetch('/api/admin/settings', {
+        method: 'PUT',
+        body: JSON.stringify({
+          hide_finished_matches: $('hide-finished-matches').checked,
+        }),
+      });
+      if (settingsStatus) settingsStatus.textContent = payload.settings?.hide_finished_matches ? 'Finished hidden' : 'Finished visible';
+      saveMsg.textContent = 'Settings saved';
+      await loadMonitoring();
+    } catch (error) {
+      if (settingsStatus) settingsStatus.textContent = String(error.message || error);
+      saveErr.textContent = String(error.message || error);
+    }
+  }
+
   async function loadMonitoring() {
     if (!monitoringBody || !monitoringMetrics) return;
     if (!token()) {
@@ -435,6 +476,7 @@
   $('reload-streams').addEventListener('click', loadStreams);
   $('reload-monitoring').addEventListener('click', loadMonitoring);
   if ($('reload-statuses')) $('reload-statuses').addEventListener('click', loadStatuses);
+  if ($('save-admin-settings')) $('save-admin-settings').addEventListener('click', saveSettings);
   $('reset-form').addEventListener('click', resetForm);
   if ($('reset-status')) $('reset-status').addEventListener('click', resetStatusForm);
   if ($('refresh-date')) $('refresh-date').value = new Date().toISOString().slice(0, 10);
@@ -443,6 +485,7 @@
   });
 
   setAuthLabel();
+  loadSettings();
   loadMonitoring();
   loadStreams();
   loadStatuses();

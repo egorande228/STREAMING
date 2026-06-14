@@ -710,7 +710,9 @@ function isDamiStreamUrl(value) {
 
 async function routePublicStreamsRequest(env) {
   const config = await readRuntimeStreamConfig(env);
-  const streams = flattenStreamConfig(config).filter((stream) => isStreamActiveNow(stream));
+  const streams = flattenStreamConfig(config)
+    .filter((stream) => isStreamActiveNow(stream))
+    .map(stripPrivateStreamFields);
   const byMatch = {};
   streams.forEach((stream) => {
     const key = String(stream.match_id);
@@ -806,14 +808,15 @@ async function routeAdminStreamsUpdate(request, env, streamId) {
     return jsonResponse({ error: 'stream_kv_not_configured' }, 503, 0);
   }
 
-  const body = await readJsonBody(request);
-  const updated = normalizeAdminStreamPayload(body, streamId, env);
-  if (!updated) return jsonResponse({ error: 'invalid_stream_payload' }, 400, 0);
-
   const config = await readRuntimeStreamConfig(env);
   const streams = flattenStreamConfig(config);
   const index = streams.findIndex((item) => Number(item.id) === streamId);
   if (index < 0) return jsonResponse({ error: 'stream_not_found' }, 404, 0);
+
+  const body = await readJsonBody(request);
+  const updated = normalizeAdminStreamPayload(body, streamId, env, streams[index]);
+  if (!updated) return jsonResponse({ error: 'invalid_stream_payload' }, 400, 0);
+
   streams[index] = updated;
   await writeRuntimeStreamConfig(env, expandStreamConfig(streams));
   return jsonResponse({ ok: true }, 200, 0);
@@ -995,6 +998,7 @@ function flattenStreamConfig(config = {}) {
         is_active: normalized.is_active !== false,
         starts_at: normalized.starts_at || normalized.startsAt || null,
         ends_at: normalized.ends_at || normalized.endsAt || null,
+        ...(normalized.restream ? { restream: normalized.restream } : {}),
       });
     });
   }
@@ -1029,7 +1033,7 @@ function expandStreamConfig(streams = []) {
   return byMatch;
 }
 
-function normalizeAdminStreamPayload(payload, streamId, env = {}) {
+function normalizeAdminStreamPayload(payload, streamId, env = {}, existingStream = null) {
   const matchId = Number(payload?.match_id);
   const url = String(payload?.url || '').trim();
   if (!Number.isFinite(matchId) || matchId <= 0 || !url) return null;
@@ -1044,7 +1048,7 @@ function normalizeAdminStreamPayload(payload, streamId, env = {}) {
     sourceType,
     url,
     env,
-  });
+  }, existingStream);
   return {
     id: streamId,
     match_id: matchId,
@@ -1063,9 +1067,28 @@ function normalizeAdminStreamPayload(payload, streamId, env = {}) {
   };
 }
 
-function normalizeRestreamFromAdminPayload(payload = {}, options = {}) {
+function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingStream = null) {
   const explicit = payload?.restream && typeof payload.restream === 'object' ? payload.restream : null;
   const donorUrl = String(explicit?.donor_url || payload?.donor_url || options.url || '').trim();
+  const existingRestream = existingStream?.restream && typeof existingStream.restream === 'object'
+    ? existingStream.restream
+    : null;
+  if (
+    existingRestream?.enabled
+    && options.sourceType === 'videojs'
+    && isPublicRestreamUrl(options.url)
+    && String(existingRestream.output_url || '') === String(options.url || '').trim()
+    && !explicit?.donor_url
+    && !payload?.donor_url
+  ) {
+    return {
+      ...existingRestream,
+      desired_state: payload?.is_active === false ? 'stopped' : String(existingRestream.desired_state || 'running'),
+      restart_requested_at: String(explicit?.restart_requested_at || payload?.restart_requested_at || existingRestream.restart_requested_at || ''),
+      channel_name: String(explicit?.channel_name || payload?.channel_name || existingRestream.channel_name || ''),
+    };
+  }
+
   const enabled = explicit?.enabled === true
     || payload?.restream_enabled === true
     || (options.sourceType === 'videojs' && isIptvDonorUrl(donorUrl));
@@ -1803,7 +1826,14 @@ function streamsForMatch(matchId, env = {}, streamConfig = null) {
 
   return streams
     .map((stream, index) => normalizeStream(stream, matchId, index))
-    .filter((stream) => isStreamActiveNow(stream));
+    .filter((stream) => isStreamActiveNow(stream))
+    .map(stripPrivateStreamFields);
+}
+
+function stripPrivateStreamFields(stream) {
+  if (!stream || typeof stream !== 'object') return stream;
+  const { restream, ...publicStream } = stream;
+  return publicStream;
 }
 
 async function applyDamiAutoStreams(matches = [], env = {}) {
@@ -2187,6 +2217,7 @@ function normalizeStream(stream, matchId, index) {
     title: stream.title || '',
     starts_at: normalizeOptionalDateTime(stream.starts_at || stream.startsAt),
     ends_at: normalizeOptionalDateTime(stream.ends_at || stream.endsAt),
+    ...(stream.restream ? { restream: stream.restream } : {}),
   };
 }
 

@@ -1946,6 +1946,86 @@ test('converts IPTV donor streams into private restream definitions', async () =
   assert.equal(restreamBody.restreams[0].output_url, 'https://hls.livekinglive.win/live/42-en-espn-2/index.m3u8');
 });
 
+test('preserves IPTV restream metadata when editing another stream', async () => {
+  const kvData = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value) {
+      kvData.set(key, value);
+    },
+  };
+  const env = {
+    ADMIN_BEARER_TOKEN: 'test-token',
+    RESTREAM_SYNC_TOKEN: 'sync-token',
+    RESTREAM_PUBLIC_BASE_URL: 'https://hls.livekinglive.win/live',
+    STREAM_CONFIG_KV: kv,
+  };
+
+  const createStream = async (label, donorUrl) => {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/admin/streams', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer test-token',
+        },
+        body: JSON.stringify({
+          match_id: 42,
+          url: donorUrl,
+          source_type: 'videojs',
+          label,
+          language_code: 'en',
+        }),
+      }),
+      env,
+      {},
+    );
+    assert.equal(response.status, 200);
+    return response.json();
+  };
+
+  const first = await createStream('TESTT', 'http://as01.plinkspile.cc/22572/index.m3u8?token=secret-token');
+  await createStream('TESTRU', 'http://as01.plinkspile.cc/128/index.m3u8?token=secret-token');
+
+  const editWithPublicUrl = await routeRequest(
+    new Request(`https://kinglive.test/api/admin/streams/${first.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer test-token',
+      },
+      body: JSON.stringify({
+        match_id: 42,
+        url: 'https://hls.livekinglive.win/live/42-en-testt/index.m3u8',
+        source_type: 'videojs',
+        label: 'TESTT',
+        language_code: 'en',
+        is_active: true,
+      }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(editWithPublicUrl.status, 200);
+
+  const restreams = await routeRequest(
+    new Request('https://kinglive.test/api/restreams', {
+      headers: { Authorization: 'Bearer sync-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(restreams.status, 200);
+  const body = await restreams.json();
+  assert.equal(body.total, 2);
+  assert.deepEqual(
+    body.restreams.map((restream) => restream.slug).sort(),
+    ['42-en-testru', '42-en-testt'],
+  );
+});
+
 test('worker returns CORS JSON when admin KV writes fail', async () => {
   const env = {
     ADMIN_USERNAME: 'admin',

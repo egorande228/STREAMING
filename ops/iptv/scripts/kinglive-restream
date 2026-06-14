@@ -28,6 +28,7 @@ RTMP_URL="${RTMP_URL:-${RESTREAM_RTMP_URL:-rtmp://127.0.0.1:1935/live/${STREAM_K
 REFERER="${REFERER:-}"
 ORIGIN="${ORIGIN:-}"
 MAX_RESTREAMS="${MAX_RESTREAMS:-2}"
+TRANSCODE_PROFILE="${TRANSCODE_PROFILE:-${RESTREAM_TRANSCODE_PROFILE:-auto}}"
 
 if ! [[ "$MAX_RESTREAMS" =~ ^[0-9]+$ ]] || [[ "$MAX_RESTREAMS" -lt 1 ]]; then
   echo "MAX_RESTREAMS must be a positive integer" >&2
@@ -56,6 +57,30 @@ codec_args=(-c copy)
 if [[ "$SOURCE_URL" == *".hls.gd/"* ]]; then
   reconnect_at_eof=()
   codec_args=(-c:v copy -c:a aac -b:a 128k)
+  if [[ "$TRANSCODE_PROFILE" == "auto" ]]; then
+    probe_codec="$(
+      ffprobe \
+        -v error \
+        -user_agent "$USER_AGENT" \
+        "${headers[@]}" \
+        -select_streams v:0 \
+        -show_entries stream=codec_name \
+        -of default=noprint_wrappers=1:nokey=1 \
+        "$SOURCE_URL" \
+        2>/dev/null \
+        | head -n 1
+    )"
+    if [[ "$probe_codec" == "hevc" || "$probe_codec" == "h265" ]]; then
+      TRANSCODE_PROFILE="h264_720p25"
+    fi
+  fi
+  if [[ "$TRANSCODE_PROFILE" == "h264_720p25" ]]; then
+    codec_args=(-vf scale=-2:720,fps=25 -c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -c:a aac -b:a 128k)
+  elif [[ "$TRANSCODE_PROFILE" == "h264_1080p25" ]]; then
+    codec_args=(-vf scale=-2:1080,fps=25 -c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -maxrate 6500k -bufsize 13000k -c:a aac -b:a 128k)
+  elif [[ "$TRANSCODE_PROFILE" == "h264_1080p50" ]]; then
+    codec_args=(-vf scale=-2:1080,fps=50 -c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -maxrate 8500k -bufsize 17000k -c:a aac -b:a 128k)
+  fi
 fi
 
 exec ffmpeg \

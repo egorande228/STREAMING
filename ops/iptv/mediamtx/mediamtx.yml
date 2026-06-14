@@ -16,9 +16,9 @@ hlsAllowOrigins:
   - "https://player-dev.pages.dev"
 hlsAlwaysRemux: yes
 hlsVariant: mpegts
-hlsSegmentCount: 6
-hlsSegmentDuration: 2s
-hlsPartDuration: 200ms
+hlsSegmentCount: 12
+hlsSegmentDuration: 6s
+hlsPartDuration: 500ms
 
 paths:
   all:

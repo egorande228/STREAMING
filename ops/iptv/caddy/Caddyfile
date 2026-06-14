@@ -1,0 +1,29 @@
+livekinglive.win {
+  encode gzip
+  root * /srv/livekinglive-player
+  try_files {path} {path}/index.html /index.html
+  file_server
+}
+
+hls.livekinglive.win {
+  encode gzip
+
+  handle_path /lb/* {
+    reverse_proxy 127.0.0.1:8090
+  }
+
+  handle /live/* {
+    # Keep a full MediaMTX HLS session on one edge. MediaMTX ties HLS
+    # sessions to the upstream client IP; per-request edge balancing causes
+    # 401 responses on main_stream.m3u8 and .ts segment requests.
+    reverse_proxy 150.251.114.54 {
+      health_uri /health
+      health_interval 5s
+      header_up Host hls.livekinglive.win
+    }
+  }
+
+  handle {
+    reverse_proxy 127.0.0.1:80
+  }
+}

@@ -31,7 +31,7 @@ export interface AdminStream {
   id: number;
   match_id: number;
   label: string;
-  source_type: 'hls' | 'iframe';
+  source_type: 'hls' | 'iframe' | 'videojs';
   quality: string;
   language_code: string;
   url: string;

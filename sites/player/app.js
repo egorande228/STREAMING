@@ -536,6 +536,40 @@
     stage.appendChild(button);
   }
 
+  function attachStreamPlayButton(video) {
+    if (!video || typeof video.play !== 'function') return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'stream-play-button';
+    button.setAttribute('aria-label', 'Play stream');
+    if (typeof button.addEventListener !== 'function') return;
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const playResult = video.play();
+      if (playResult && typeof playResult.catch === 'function') {
+        playResult.catch(() => {
+          video.muted = true;
+          const mutedPlayResult = video.play();
+          if (mutedPlayResult && typeof mutedPlayResult.catch === 'function') mutedPlayResult.catch(() => {});
+        });
+      }
+    });
+
+    const syncButton = () => {
+      button.hidden = !video.paused && !video.ended;
+    };
+    if (typeof video.addEventListener === 'function') {
+      video.addEventListener('play', syncButton);
+      video.addEventListener('playing', syncButton);
+      video.addEventListener('pause', syncButton);
+      video.addEventListener('ended', syncButton);
+      video.addEventListener('error', syncButton);
+    }
+    syncButton();
+    stage.appendChild(button);
+  }
+
   function toggleStageFullscreen(event) {
     if (event) {
       event.preventDefault();
@@ -655,6 +689,7 @@
     video.poster = params.get('poster') || '';
     stage.appendChild(video);
     if (!isVideoJsLike) attachPlayerBrandOverlays();
+    attachStreamPlayButton(video);
     attachPlayerFullscreenButton();
     attachTelegramPopupToStage();
 
@@ -714,6 +749,7 @@
     video.muted = /dami-tv\.pro/i.test(stream.url || '');
     video.poster = params.get('poster') || '';
     stage.appendChild(video);
+    attachStreamPlayButton(video);
     attachPlayerFullscreenButton();
     attachTelegramPopupToStage();
 

@@ -199,6 +199,45 @@ body {
   background: #000;
 }
 
+.stream-play-button {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 11;
+  display: grid;
+  width: clamp(64px, 8vw, 92px);
+  height: clamp(64px, 8vw, 92px);
+  place-items: center;
+  border: 2px solid rgba(255, 212, 61, 0.9);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.72);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.5);
+  color: #ffd43d;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+}
+
+.stream-play-button[hidden] {
+  display: none;
+}
+
+.stream-play-button::before {
+  width: 0;
+  height: 0;
+  margin-left: 6px;
+  border-top: clamp(14px, 1.9vw, 20px) solid transparent;
+  border-bottom: clamp(14px, 1.9vw, 20px) solid transparent;
+  border-left: clamp(22px, 2.7vw, 32px) solid currentColor;
+  content: "";
+}
+
+.stream-play-button:hover,
+.stream-play-button:focus-visible {
+  border-color: #fff2a3;
+  background: rgba(0, 0, 0, 0.84);
+  outline: 0;
+}
+
 .third-party-shield {
   position: absolute;
   top: 0;

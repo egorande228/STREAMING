@@ -52,8 +52,10 @@ if [[ -n "$REFERER" || -n "$ORIGIN" ]]; then
 fi
 
 reconnect_at_eof=(-reconnect_at_eof 1)
+codec_args=(-c copy)
 if [[ "$SOURCE_URL" == *".hls.gd/"* ]]; then
   reconnect_at_eof=()
+  codec_args=(-c:v copy -c:a aac -b:a 128k)
 fi
 
 exec ffmpeg \
@@ -72,6 +74,6 @@ exec ffmpeg \
   -i "$SOURCE_URL" \
   -map 0:v:0? \
   -map 0:a:0? \
-  -c copy \
+  "${codec_args[@]}" \
   -f flv \
   "$RTMP_URL"

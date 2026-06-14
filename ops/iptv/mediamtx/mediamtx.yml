@@ -4,6 +4,9 @@
 
 logLevel: info
 
+readTimeout: 45s
+writeTimeout: 45s
+
 rtmp: yes
 rtmpAddress: :1935
 

@@ -1,7 +1,7 @@
 const runtimeConfig = window.KINGLIVE_RUNTIME || {};
 const unifiedApiBase = String(runtimeConfig.apiBase || window.KINGLIVE_API_BASE || 'https://kinglive-football-api.figurator228.workers.dev').replace(/\/$/, '');
 const isDevHost = /(^|[.-])dev([.-]|$)|\.pages\.dev$/i.test(window.location.hostname || '');
-const defaultPlayerBase = 'https://player-dev.pages.dev';
+const defaultPlayerBase = 'https://livekinglive.win';
 const playerBase = String(runtimeConfig.playerBase || window.KINGLIVE_PLAYER_BASE || defaultPlayerBase).replace(/\/$/, '');
 
 window.KINGLIVE_MAIN_CONFIG = {

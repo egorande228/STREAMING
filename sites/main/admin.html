@@ -8,23 +8,211 @@
     <script src="./config.js"></script>
     <script defer src="./admin.js"></script>
     <style>
-      .admin-shell { max-width: 980px; margin: 24px auto; padding: 0 16px 40px; }
-      .admin-card { background: #0d1218; border: 1px solid #222c37; border-radius: 14px; padding: 18px; margin-bottom: 14px; }
-      .admin-grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .admin-grid .full { grid-column: 1 / -1; }
-      .admin-input, .admin-select { width: 100%; height: 40px; border-radius: 10px; border: 1px solid #2e3b4a; background: #111a24; color: #fff; padding: 0 12px; }
-      .admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-      .admin-table th, .admin-table td { border-bottom: 1px solid #222c37; padding: 10px 8px; text-align: left; vertical-align: top; }
-      .admin-actions { display: flex; gap: 8px; }
-      .admin-actions.wrap { flex-wrap: wrap; }
-      .admin-metrics { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 12px; }
-      .admin-metric { border: 1px solid #222c37; border-radius: 8px; background: #111a24; padding: 12px; }
-      .admin-metric span { display: block; color: #9aa7b7; font-size: 11px; font-weight: 800; text-transform: uppercase; }
-      .admin-metric strong { display: block; margin-top: 6px; color: #fff; font-size: 20px; }
-      .admin-msg { color: #83f1b8; }
-      .admin-err { color: #ff9aa1; }
+      .admin-shell {
+        width: calc(100% - 32px);
+        max-width: 1360px;
+        margin: 28px auto 48px;
+      }
+      .admin-hero,
+      .admin-card {
+        border: 1px solid rgba(244, 239, 226, 0.14);
+        border-radius: 8px;
+        background: rgba(12, 14, 10, 0.88);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+      }
+      .admin-hero {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) minmax(320px, 2fr);
+        gap: 18px;
+        align-items: end;
+        padding: 22px;
+        margin-bottom: 18px;
+      }
+      .admin-title {
+        display: grid;
+        gap: 7px;
+      }
+      .admin-title h1,
+      .admin-card h2 {
+        margin: 0;
+        font-family: var(--font-display);
+        letter-spacing: 0;
+      }
+      .admin-kicker {
+        color: var(--gold);
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+      .admin-login-grid {
+        display: grid;
+        grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) auto auto minmax(120px, auto);
+        gap: 10px;
+        align-items: end;
+      }
+      .admin-section {
+        margin-top: 24px;
+      }
+      .admin-section-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+      .admin-section-label::after {
+        content: "";
+        height: 1px;
+        flex: 1;
+        background: linear-gradient(90deg, rgba(245, 196, 0, 0.45), transparent);
+      }
+      .admin-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        gap: 16px;
+        align-items: start;
+      }
+      .admin-card {
+        padding: 18px;
+      }
+      .admin-card + .admin-card {
+        margin-top: 16px;
+      }
+      .admin-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .admin-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .admin-grid .full {
+        grid-column: 1 / -1;
+      }
+      .admin-input,
+      .admin-select {
+        width: 100%;
+        height: 42px;
+        border: 1px solid rgba(244, 239, 226, 0.16);
+        border-radius: 8px;
+        background: rgba(244, 239, 226, 0.055);
+        color: var(--text);
+        padding: 0 12px;
+        font: inherit;
+      }
+      .admin-input:focus,
+      .admin-select:focus {
+        border-color: var(--gold-line);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(245, 196, 0, 0.12);
+      }
+      .admin-input[type="file"] {
+        padding: 9px 12px;
+      }
+      .admin-fieldset {
+        border: 1px solid rgba(244, 239, 226, 0.12);
+        border-radius: 8px;
+        padding: 14px;
+        background: rgba(244, 239, 226, 0.025);
+      }
+      .admin-fieldset legend {
+        color: var(--gold);
+        font-size: 11px;
+        font-weight: 900;
+        padding: 0 8px;
+        text-transform: uppercase;
+      }
+      .admin-table-wrap {
+        overflow: auto;
+        border: 1px solid rgba(244, 239, 226, 0.12);
+        border-radius: 8px;
+        background: rgba(244, 239, 226, 0.025);
+      }
+      .admin-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .admin-table th,
+      .admin-table td {
+        border-bottom: 1px solid rgba(244, 239, 226, 0.1);
+        padding: 10px 9px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .admin-table th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: #0c0e0a;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+      .admin-table tr:last-child td {
+        border-bottom: 0;
+      }
+      .admin-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .admin-actions.wrap {
+        flex-wrap: wrap;
+      }
+      .admin-form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 4px;
+      }
+      .admin-metrics {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .admin-metric {
+        border: 1px solid rgba(244, 239, 226, 0.12);
+        border-radius: 8px;
+        background: rgba(244, 239, 226, 0.045);
+        padding: 12px;
+      }
+      .admin-metric span {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+      .admin-metric strong {
+        display: block;
+        margin-top: 6px;
+        color: var(--text);
+        font-size: 22px;
+      }
+      .admin-msg { color: #83f1b8; margin-top: 10px; }
+      .admin-err { color: #ff9aa1; margin-top: 10px; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-      @media (max-width: 760px) { .admin-grid, .admin-metrics { grid-template-columns: 1fr; } }
+      @media (max-width: 1080px) {
+        .admin-hero,
+        .admin-layout,
+        .admin-login-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 760px) {
+        .admin-shell { width: calc(100% - 20px); margin-top: 16px; }
+        .admin-grid,
+        .admin-metrics { grid-template-columns: 1fr; }
+        .admin-form-actions { flex-wrap: wrap; }
+      }
     </style>
   </head>
   <body>
@@ -37,9 +225,12 @@
     </header>
 
     <main class="admin-shell">
-      <section class="admin-card" id="login-card">
-        <h1 style="margin-top:0">Admin Login</h1>
-        <div class="admin-grid">
+      <section class="admin-hero" id="login-card">
+        <div class="admin-title">
+          <span class="admin-kicker">Control Panel</span>
+          <h1>KingLive Admin</h1>
+        </div>
+        <div class="admin-login-grid">
           <label>
             <div>Username</div>
             <input id="login-username" class="admin-input" value="kinglive-admin" />
@@ -48,16 +239,19 @@
             <div>Password</div>
             <input id="login-password" class="admin-input" type="password" />
           </label>
-        </div>
-        <div style="margin-top:12px; display:flex; gap:10px; align-items:center;">
           <button id="login-button" class="button primary" type="button">Sign in</button>
           <button id="logout-button" class="button secondary" type="button">Logout</button>
           <span id="auth-status" class="mono"></span>
         </div>
       </section>
 
-      <section class="admin-card">
-        <h2 style="margin-top:0">Stream Form</h2>
+      <div class="admin-section">
+        <div class="admin-section-label">Streams</div>
+        <div class="admin-layout">
+          <section class="admin-card">
+        <div class="admin-card-header">
+          <h2>Stream Form</h2>
+        </div>
         <form id="stream-form" class="admin-grid">
           <input id="stream-id" type="hidden" />
           <label>
@@ -157,21 +351,22 @@
             <div>Ends at (UTC)</div>
             <input id="ends-at" class="admin-input" type="datetime-local" />
           </label>
-          <div class="full" style="display:flex; gap:10px; margin-top:6px;">
+          <div class="full admin-form-actions">
             <button class="button primary" type="submit">Save stream</button>
             <button class="button secondary" type="button" id="reset-form">Reset</button>
           </div>
         </form>
         <p id="save-msg" class="admin-msg"></p>
         <p id="save-err" class="admin-err"></p>
-      </section>
+          </section>
 
-      <section class="admin-card">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-          <h2 style="margin:0">Banner Upload</h2>
+          <div>
+            <section class="admin-card">
+        <div class="admin-card-header">
+          <h2>Banner Upload</h2>
           <button id="reload-overlays" class="button secondary" type="button">Reload banners</button>
         </div>
-        <form id="overlay-form" class="admin-grid" style="margin-top:12px;">
+        <form id="overlay-form" class="admin-grid">
           <label>
             <div>Name</div>
             <input id="overlay-name" class="admin-input" placeholder="Match banner" />
@@ -180,12 +375,12 @@
             <div>PNG file</div>
             <input id="overlay-file" class="admin-input" type="file" accept="image/png" />
           </label>
-          <div class="full admin-actions wrap" style="margin-top:6px;">
+          <div class="full admin-actions wrap">
             <button class="button primary" type="submit">Upload banner</button>
             <span id="overlay-status" class="mono"></span>
           </div>
         </form>
-        <div style="overflow:auto; margin-top:10px;">
+        <div class="admin-table-wrap" style="margin-top:12px;">
           <table class="admin-table">
             <thead>
               <tr><th>Name</th><th>File</th><th>Size</th><th>Actions</th></tr>
@@ -195,11 +390,11 @@
             </tbody>
           </table>
         </div>
-      </section>
+            </section>
 
-      <section class="admin-card">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-          <h2 style="margin:0">Monitoring</h2>
+            <section class="admin-card">
+        <div class="admin-card-header">
+          <h2>Monitoring</h2>
           <button id="reload-monitoring" class="button secondary" type="button">Reload</button>
         </div>
         <div id="monitoring-metrics" class="admin-metrics">
@@ -208,7 +403,7 @@
           <div class="admin-metric"><span>API calls</span><strong>0</strong></div>
           <div class="admin-metric"><span>Cache hits</span><strong>0</strong></div>
         </div>
-        <div style="overflow:auto; margin-top:10px;">
+        <div class="admin-table-wrap" style="margin-top:12px;">
           <table class="admin-table">
             <thead>
               <tr><th>Match</th><th>Viewers</th><th>Streams</th></tr>
@@ -219,17 +414,23 @@
           </table>
         </div>
         <p id="monitoring-meta" class="mono"></p>
-      </section>
+            </section>
+          </div>
+        </div>
+      </div>
 
-      <section class="admin-card">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-          <h2 style="margin:0">Chat Moderation</h2>
+      <div class="admin-section">
+        <div class="admin-section-label">Operations</div>
+        <div class="admin-layout">
+          <section class="admin-card">
+        <div class="admin-card-header">
+          <h2>Chat Moderation</h2>
           <div class="admin-actions">
             <button id="reload-chat" class="button secondary" type="button">Load chat</button>
             <button id="clear-chat" class="button secondary" type="button">Clear chat</button>
           </div>
         </div>
-        <div class="admin-grid" style="margin-top:12px;">
+        <div class="admin-grid">
           <label>
             <div>Match ID</div>
             <input id="chat-match-id" class="admin-input" type="number" min="1" placeholder="Match ID" />
@@ -238,7 +439,7 @@
             <span id="chat-admin-status" class="mono"></span>
           </div>
         </div>
-        <div style="overflow:auto; margin-top:10px;">
+        <div class="admin-table-wrap" style="margin-top:12px;">
           <table class="admin-table">
             <thead>
               <tr><th>Time</th><th>Author</th><th>Message</th><th>Actions</th></tr>
@@ -248,10 +449,12 @@
             </tbody>
           </table>
         </div>
-      </section>
+          </section>
 
-      <section class="admin-card">
-        <h2 style="margin-top:0">API Refresh</h2>
+          <section class="admin-card">
+        <div class="admin-card-header">
+          <h2>API Refresh</h2>
+        </div>
         <div class="admin-grid">
           <label>
             <div>Date</div>
@@ -262,7 +465,7 @@
             <input id="refresh-match-id" class="admin-input" type="number" min="1" placeholder="Optional" />
           </label>
         </div>
-        <div class="admin-actions" style="flex-wrap:wrap; margin-top:12px;">
+        <div class="admin-actions wrap" style="margin-top:12px;">
           <button class="button secondary" type="button" data-refresh-scope="all">Refresh all</button>
           <button class="button secondary" type="button" data-refresh-scope="matches">Refresh today</button>
           <button class="button secondary" type="button" data-refresh-scope="match">Refresh match</button>
@@ -270,11 +473,17 @@
           <button class="button secondary" type="button" data-refresh-scope="dami">Refresh DAMI</button>
         </div>
         <pre id="refresh-result" class="mono" style="white-space:pre-wrap; overflow:auto; max-height:220px; margin-top:12px;">No refresh yet</pre>
-      </section>
+          </section>
+        </div>
+      </div>
 
-      <section class="admin-card">
-        <h2 style="margin-top:0">Match Status Override</h2>
-        <div class="admin-actions wrap" style="margin:0 0 12px;">
+      <div class="admin-section">
+        <div class="admin-section-label">Match Control</div>
+        <section class="admin-card">
+        <div class="admin-card-header">
+          <h2>Match Status Override</h2>
+        </div>
+        <div class="admin-actions wrap" style="margin-bottom:12px;">
           <label style="display:flex; align-items:center; gap:8px;">
             <input id="hide-finished-matches" type="checkbox" />
             <span>Hide finished matches on main</span>
@@ -317,13 +526,13 @@
             <div>Note</div>
             <input id="status-note" class="admin-input" placeholder="Why this override exists" />
           </label>
-          <div class="full admin-actions wrap" style="margin-top:6px;">
+          <div class="full admin-actions wrap">
             <button class="button primary" type="submit">Save status</button>
             <button class="button secondary" type="button" id="reset-status">Reset</button>
             <button class="button secondary" type="button" id="reload-statuses">Reload statuses</button>
           </div>
         </form>
-        <div style="overflow:auto; margin-top:10px;">
+        <div class="admin-table-wrap" style="margin-top:12px;">
           <table class="admin-table">
             <thead>
               <tr><th>Match</th><th>Status</th><th>Minute</th><th>Score</th><th>Scheduled</th><th>Updated</th><th>Actions</th></tr>
@@ -333,14 +542,17 @@
             </tbody>
           </table>
         </div>
-      </section>
+        </section>
+      </div>
 
-      <section class="admin-card">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-          <h2 style="margin:0">Streams</h2>
+      <div class="admin-section">
+        <div class="admin-section-label">Current Rows</div>
+        <section class="admin-card">
+        <div class="admin-card-header">
+          <h2>Streams</h2>
           <button id="reload-streams" class="button secondary" type="button">Reload</button>
         </div>
-        <div style="overflow:auto; margin-top:10px;">
+        <div class="admin-table-wrap">
           <table class="admin-table">
             <thead>
               <tr>
@@ -352,7 +564,8 @@
             </tbody>
           </table>
         </div>
-      </section>
+        </section>
+      </div>
     </main>
   </body>
 </html>

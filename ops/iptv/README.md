@@ -31,6 +31,7 @@ The launcher supports both paths so existing channel env files can keep working.
 Sharavoz account/session limits are the real constraint. Start with one channel only.
 If one channel works alone but two fail, use separate donor accounts/tokens or keep only one active restream.
 The launcher refuses to start more than `MAX_RESTREAMS=2` simultaneous FFmpeg restreams by default.
+For two simultaneous IPTV restreams, prefer `h264_720p25` on unstable or heavy donor channels.
 
 ## Install On Origin VPS
 
@@ -75,4 +76,7 @@ For a restreamed IPTV channel use:
 ```text
 URL: https://hls.livekinglive.win/live/<slug>/index.m3u8
 Source type: videojs
+Transcode profile: auto
 ```
+
+Use `h264_720p25` when a donor channel is unstable, HEVC-heavy, or too large for smooth playback.

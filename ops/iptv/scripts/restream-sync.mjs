@@ -61,6 +61,7 @@ export async function applyDesiredState(restreams, state, options) {
       donorHash: item.donorHash,
       outputUrl: item.outputUrl,
       channelName: item.channelName,
+      transcodeProfile: item.transcodeProfile,
       resolvedChannelTitle: item.resolvedChannelTitle || '',
       restartRequestedAt: item.restartRequestedAt,
       updatedAt: new Date().toISOString(),
@@ -103,6 +104,7 @@ export function normalizeRestream(restream, options) {
     rtmpUrl: `${options.rtmpBaseUrl.replace(/\/+$/, '')}/${slug}`,
     label: String(restream?.label || slug).trim(),
     channelName: String(restream?.channel_name || restream?.channelName || '').trim(),
+    transcodeProfile: normalizeTranscodeProfile(restream?.transcode_profile || restream?.transcodeProfile),
     resolvedInputUrl: donorUrl,
     desiredState,
     isActive: restream?.is_active !== false,
@@ -119,6 +121,7 @@ export function renderEnvFile(item) {
     `RESTREAM_INPUT_URL=${shellQuote(item.resolvedInputUrl || item.donorUrl)}`,
     `RESTREAM_DONOR_URL=${shellQuote(item.donorUrl)}`,
     `RESTREAM_CHANNEL_NAME=${shellQuote(item.channelName || '')}`,
+    ...(item.transcodeProfile ? [`RESTREAM_TRANSCODE_PROFILE=${shellQuote(item.transcodeProfile)}`] : []),
     `RESTREAM_RTMP_URL=${shellQuote(item.rtmpUrl)}`,
     `RESTREAM_PUBLIC_URL=${shellQuote(item.outputUrl)}`,
     '',
@@ -333,7 +336,13 @@ function configChanged(next, current) {
   return next.donorHash !== current.donorHash
     || next.outputUrl !== current.outputUrl
     || next.isActive !== current.isActive
-    || next.channelName !== current.channelName;
+    || next.channelName !== current.channelName
+    || next.transcodeProfile !== current.transcodeProfile;
+}
+
+function normalizeTranscodeProfile(value) {
+  const profile = String(value || '').trim();
+  return ['auto', 'h264_720p25', 'h264_1080p25', 'h264_1080p50'].includes(profile) ? profile : '';
 }
 
 function normalizeSlug(value) {

@@ -894,6 +894,7 @@ async function routeRestreamSyncList(request, env = {}) {
         desired_state: entry?.is_active === false ? 'stopped' : String(restream.desired_state || 'running'),
         is_active: entry?.is_active !== false,
         channel_name: String(restream.channel_name || ''),
+        transcode_profile: normalizeRestreamTranscodeProfile(restream.transcode_profile),
         restart_requested_at: String(restream.restart_requested_at || ''),
       });
     });
@@ -1146,6 +1147,9 @@ function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingS
       desired_state: payload?.is_active === false ? 'stopped' : String(existingRestream.desired_state || 'running'),
       restart_requested_at: String(explicit?.restart_requested_at || payload?.restart_requested_at || existingRestream.restart_requested_at || ''),
       channel_name: String(explicit?.channel_name || payload?.channel_name || existingRestream.channel_name || ''),
+      transcode_profile: normalizeRestreamTranscodeProfile(
+        explicit?.transcode_profile || payload?.transcode_profile || existingRestream.transcode_profile,
+      ),
     };
   }
 
@@ -1169,7 +1173,13 @@ function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingS
     desired_state: payload?.is_active === false ? 'stopped' : String(explicit?.desired_state || payload?.desired_state || 'running'),
     restart_requested_at: String(explicit?.restart_requested_at || payload?.restart_requested_at || ''),
     channel_name: String(explicit?.channel_name || payload?.channel_name || ''),
+    transcode_profile: normalizeRestreamTranscodeProfile(explicit?.transcode_profile || payload?.transcode_profile),
   };
+}
+
+function normalizeRestreamTranscodeProfile(value) {
+  const profile = String(value || '').trim();
+  return ['auto', 'h264_720p25', 'h264_1080p25', 'h264_1080p50'].includes(profile) ? profile : '';
 }
 
 function isIptvDonorUrl(value) {

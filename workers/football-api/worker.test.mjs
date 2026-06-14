@@ -1977,6 +1977,9 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
         source_type: 'videojs',
         label: 'English',
         language_code: 'en',
+        restream: {
+          transcode_profile: 'h264_720p25',
+        },
       }),
     }),
     env,
@@ -2003,6 +2006,7 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
   assert.equal(restreamBody.restreams[0].slug, '19609156-en-english');
   assert.equal(restreamBody.restreams[0].donor_url, donorUrl);
   assert.equal(restreamBody.restreams[0].output_url, 'https://hls.livekinglive.win/live/19609156-en-english/index.m3u8');
+  assert.equal(restreamBody.restreams[0].transcode_profile, 'h264_720p25');
 });
 
 test('preserves IPTV restream metadata when editing another stream', async () => {
@@ -2035,8 +2039,11 @@ test('preserves IPTV restream metadata when editing another stream', async () =>
           url: donorUrl,
           source_type: 'videojs',
           label,
-          language_code: 'en',
-        }),
+        language_code: 'en',
+        restream: {
+          transcode_profile: 'h264_1080p25',
+        },
+      }),
       }),
       env,
       {},
@@ -2082,6 +2089,10 @@ test('preserves IPTV restream metadata when editing another stream', async () =>
   assert.deepEqual(
     body.restreams.map((restream) => restream.slug).sort(),
     ['42-en-testru', '42-en-testt'],
+  );
+  assert.equal(
+    body.restreams.find((restream) => restream.slug === '42-en-testt')?.transcode_profile,
+    'h264_1080p25',
   );
 });
 

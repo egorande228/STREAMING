@@ -85,6 +85,15 @@
             <input id="quality" class="admin-input" value="720p" />
           </label>
           <label>
+            <div>Transcode profile</div>
+            <select id="transcode-profile" class="admin-select">
+              <option value="auto">auto</option>
+              <option value="h264_720p25">h264 720p25</option>
+              <option value="h264_1080p25">h264 1080p25</option>
+              <option value="h264_1080p50">h264 1080p50</option>
+            </select>
+          </label>
+          <label>
             <div>Language</div>
             <input id="lang" class="admin-input" value="en" />
           </label>
@@ -238,11 +247,11 @@
           <table class="admin-table">
             <thead>
               <tr>
-                <th>ID</th><th>Origin</th><th>Match</th><th>Type</th><th>Label</th><th>URL</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
+                <th>ID</th><th>Origin</th><th>Match</th><th>Type</th><th>Label</th><th>URL</th><th>Profile</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
               </tr>
             </thead>
             <tbody id="streams-body">
-              <tr><td colspan="11">No data</td></tr>
+              <tr><td colspan="12">No data</td></tr>
             </tbody>
           </table>
         </div>

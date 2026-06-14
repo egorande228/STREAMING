@@ -74,7 +74,7 @@
   function logout() {
     setToken('');
     setAuthLabel();
-    streamsBody.innerHTML = '<tr><td colspan="11">Logged out</td></tr>';
+    streamsBody.innerHTML = '<tr><td colspan="12">Logged out</td></tr>';
     if (monitoringBody) monitoringBody.innerHTML = '<tr><td colspan="3">Logged out</td></tr>';
     if (statusBody) statusBody.innerHTML = '<tr><td colspan="7">Logged out</td></tr>';
     if ($('hide-finished-matches')) $('hide-finished-matches').checked = false;
@@ -88,6 +88,9 @@
       url: $('stream-url').value.trim(),
       source_type: $('source-type').value,
       quality: $('quality').value.trim() || '720p',
+      restream: {
+        transcode_profile: $('transcode-profile').value || 'auto',
+      },
       language_code: $('lang').value.trim() || 'en',
       region: $('region').value.trim() || 'global',
       priority: Number($('priority').value || 100),
@@ -105,6 +108,7 @@
     $('stream-url').value = stream.url || '';
     $('source-type').value = stream.source_type || 'iframe';
     $('quality').value = stream.quality || '720p';
+    $('transcode-profile').value = stream.restream?.transcode_profile || 'auto';
     $('lang').value = stream.language_code || 'en';
     $('region').value = stream.region || 'global';
     $('priority').value = String(stream.priority ?? 100);
@@ -117,6 +121,7 @@
     $('stream-form').reset();
     $('stream-id').value = '';
     $('quality').value = '720p';
+    $('transcode-profile').value = 'auto';
     $('lang').value = 'en';
     $('region').value = 'global';
     $('priority').value = '100';
@@ -159,14 +164,14 @@
 
   async function loadStreams() {
     if (!token()) {
-      streamsBody.innerHTML = '<tr><td colspan="11">Login first</td></tr>';
+      streamsBody.innerHTML = '<tr><td colspan="12">Login first</td></tr>';
       return;
     }
     try {
       const payload = await adminFetch('/api/admin/streams');
       const streams = Array.isArray(payload.streams) ? payload.streams : [];
       if (!streams.length) {
-        streamsBody.innerHTML = '<tr><td colspan="11">No streams</td></tr>';
+        streamsBody.innerHTML = '<tr><td colspan="12">No streams</td></tr>';
         return;
       }
       streamsBody.innerHTML = streams
@@ -181,6 +186,7 @@
               <td>${escapeHtml(stream.source_type || '')}</td>
               <td>${escapeHtml(stream.label || '')}</td>
               <td class="mono">${url}</td>
+              <td>${escapeHtml(stream.restream?.transcode_profile || '')}</td>
               <td>${escapeHtml(stream.priority ?? '')}</td>
               <td>${stream.is_active === false ? 'false' : 'true'}</td>
               <td class="mono">${escapeHtml(stream.starts_at || '')}<br/>${escapeHtml(stream.ends_at || '')}</td>
@@ -210,7 +216,7 @@
         });
       });
     } catch (error) {
-      streamsBody.innerHTML = `<tr><td colspan="11">${escapeHtml(String(error.message || error))}</td></tr>`;
+      streamsBody.innerHTML = `<tr><td colspan="12">${escapeHtml(String(error.message || error))}</td></tr>`;
     }
   }
 

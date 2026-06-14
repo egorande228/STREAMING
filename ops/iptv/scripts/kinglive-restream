@@ -51,13 +51,18 @@ if [[ -n "$REFERER" || -n "$ORIGIN" ]]; then
   headers=(-headers "$header_blob")
 fi
 
+reconnect_at_eof=(-reconnect_at_eof 1)
+if [[ "$SOURCE_URL" == *".hls.gd/"* ]]; then
+  reconnect_at_eof=()
+fi
+
 exec ffmpeg \
   -hide_banner \
   -loglevel info \
   -nostdin \
   -reconnect 1 \
   -reconnect_streamed 1 \
-  -reconnect_at_eof 1 \
+  "${reconnect_at_eof[@]}" \
   -reconnect_on_network_error 1 \
   -reconnect_on_http_error 4xx,5xx \
   -reconnect_delay_max 5 \

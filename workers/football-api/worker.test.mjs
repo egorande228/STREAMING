@@ -1946,6 +1946,65 @@ test('converts IPTV donor streams into private restream definitions', async () =
   assert.equal(restreamBody.restreams[0].output_url, 'https://hls.livekinglive.win/live/42-en-espn-2/index.m3u8');
 });
 
+test('converts hls.gd IPTV donor streams into private restream definitions', async () => {
+  const kvData = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value) {
+      kvData.set(key, value);
+    },
+  };
+  const env = {
+    ADMIN_BEARER_TOKEN: 'test-token',
+    RESTREAM_SYNC_TOKEN: 'sync-token',
+    RESTREAM_PUBLIC_BASE_URL: 'https://hls.livekinglive.win/live',
+    STREAM_CONFIG_KV: kv,
+  };
+
+  const donorUrl = 'https://8.hls.gd/ch1197/index.m3u8?token=secret-token';
+  const create = await routeRequest(
+    new Request('https://kinglive.test/api/admin/streams', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer test-token',
+      },
+      body: JSON.stringify({
+        match_id: 19609156,
+        url: donorUrl,
+        source_type: 'videojs',
+        label: 'English',
+        language_code: 'en',
+      }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(create.status, 200);
+
+  const publicStreams = await routeRequest(new Request('https://kinglive.test/api/streams/active'), env, {});
+  assert.equal(publicStreams.status, 200);
+  const publicBody = await publicStreams.json();
+  assert.equal(publicBody.streams['19609156'][0].url, 'https://hls.livekinglive.win/live/19609156-en-english/index.m3u8');
+  assert.equal(JSON.stringify(publicBody).includes('secret-token'), false);
+
+  const restreams = await routeRequest(
+    new Request('https://kinglive.test/api/restreams', {
+      headers: { Authorization: 'Bearer sync-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(restreams.status, 200);
+  const restreamBody = await restreams.json();
+  assert.equal(restreamBody.total, 1);
+  assert.equal(restreamBody.restreams[0].slug, '19609156-en-english');
+  assert.equal(restreamBody.restreams[0].donor_url, donorUrl);
+  assert.equal(restreamBody.restreams[0].output_url, 'https://hls.livekinglive.win/live/19609156-en-english/index.m3u8');
+});
+
 test('preserves IPTV restream metadata when editing another stream', async () => {
   const kvData = new Map();
   const kv = {

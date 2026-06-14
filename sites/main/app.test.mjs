@@ -232,6 +232,95 @@ test('keeps live streamed matches from the previous local date on the main page'
   assert.match(gridHtml, /Spain vs Cape Verde Islands/);
 });
 
+test('keeps previous UTC-date matches that are today in local time on the main page', async (t) => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const today = localDateKey();
+  const previousDate = addUtcDays(today, -1);
+  const localTodayHour = Array.from({ length: 24 }, (_, hour) => hour)
+    .find((hour) => localDateKey(new Date(`${previousDate}T${String(hour).padStart(2, '0')}:00:00Z`)) === today);
+  if (localTodayHour == null) {
+    t.skip('Local timezone has no previous UTC-date hour that maps to today');
+    return;
+  }
+  const localTodayMatch = {
+    id: 19609157,
+    scheduled_at: `${previousDate}T${String(localTodayHour).padStart(2, '0')}:00:00Z`,
+    status: 'scheduled',
+    stage: 'Group Stage',
+    home_team: { name_en: "Côte d'Ivoire" },
+    away_team: { name_en: 'Ecuador' },
+  };
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: '',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll(selector) {
+        return selector === '[data-ad-slot]' ? [] : [];
+      },
+    },
+    fetch(url) {
+      const request = String(url);
+      if (request.endsWith('/stream.json') || request.endsWith('stream.json')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      }
+      if (request.includes('/api/streams/active')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ match_ids: [], streams: {} }),
+        });
+      }
+      const matches = request.includes(`date=${previousDate}`) ? [localTodayMatch] : [];
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ matches }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /Côte d&#039;Ivoire vs Ecuador/);
+});
+
 test('keeps scheduled status visible when a future match already has streams', async () => {
   let gridHtml = '';
   const matchGrid = {

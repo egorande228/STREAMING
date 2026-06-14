@@ -1,7 +1,7 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
-  const apiVersion = 'sportmonks-facts-v12-dami-disabled';
+  const apiVersion = 'sportmonks-facts-v13-local-date-carryover';
   const scheduleLookaheadDays = 14;
   const playerBase = String(config.playerBase || '../player').replace(/\/$/, '');
   const streamConfigUrl = config.streamConfigUrl || './stream.json';
@@ -549,9 +549,9 @@
     const todayResult = await fetchMatchesForDate(today, options);
     const upcomingDates = Array.from({ length: scheduleLookaheadDays }, (_, index) => addUtcDays(today, index + 1));
     const upcomingResults = await Promise.all(upcomingDates.map((date) => fetchMatchesForDate(date, options)));
-    const liveCarryoverMatches = previousResult.matches.filter(isLiveCarryoverMatch);
+    const previousLocalDateMatches = previousResult.matches.filter((match) => matchLocalDateKey(match) === today || isLiveCarryoverMatch(match));
     const upcomingMatches = [
-      ...liveCarryoverMatches,
+      ...previousLocalDateMatches,
       ...todayResult.matches,
       ...upcomingResults.flatMap((result) => result.matches),
     ];

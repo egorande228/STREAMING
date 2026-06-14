@@ -660,16 +660,16 @@
     if (window.Hls && window.Hls.isSupported()) {
       hls = new window.Hls({
         enableWorker: true,
-        lowLatencyMode: true,
+        lowLatencyMode: false,
         xhrSetup: usesCredentialedHls(stream.url)
           ? (xhr) => {
               xhr.withCredentials = true;
             }
           : undefined,
-        liveSyncDurationCount: 1,
-        liveMaxLatencyDurationCount: 2,
-        backBufferLength: 20,
-        maxBufferLength: 8,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 5,
+        backBufferLength: 30,
+        maxBufferLength: 20,
       });
       hls.loadSource(stream.url);
       hls.attachMedia(video);

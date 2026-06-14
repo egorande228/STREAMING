@@ -1979,6 +1979,13 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
         language_code: 'en',
         restream: {
           transcode_profile: 'h264_720p25',
+          overlay: {
+            enabled: true,
+            image: 'kinglive_player_leaderboard.png',
+            position: 'top-right',
+            width: 420,
+            margin: 24,
+          },
         },
       }),
     }),
@@ -2007,6 +2014,130 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
   assert.equal(restreamBody.restreams[0].donor_url, donorUrl);
   assert.equal(restreamBody.restreams[0].output_url, 'https://hls.livekinglive.win/live/19609156-en-english/index.m3u8');
   assert.equal(restreamBody.restreams[0].transcode_profile, 'h264_720p25');
+  assert.deepEqual(restreamBody.restreams[0].overlay, {
+    enabled: true,
+    image: 'kinglive_player_leaderboard.png',
+    position: 'top-right',
+    width: 420,
+    margin: 24,
+  });
+});
+
+test('admin can upload custom overlay banners for restream sync', async () => {
+  const kvData = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value) {
+      kvData.set(key, value);
+    },
+    async delete(key) {
+      kvData.delete(key);
+    },
+  };
+  const env = {
+    ADMIN_BEARER_TOKEN: 'test-token',
+    RESTREAM_SYNC_TOKEN: 'sync-token',
+    RESTREAM_PUBLIC_BASE_URL: 'https://hls.livekinglive.win/live',
+    STREAM_CONFIG_KV: kv,
+  };
+  const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p94AAAAASUVORK5CYII=';
+
+  const upload = await routeRequest(
+    new Request('https://kinglive.test/api/admin/overlays', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer test-token',
+      },
+      body: JSON.stringify({
+        name: 'My Match Banner',
+        data_url: `data:image/png;base64,${pngBase64}`,
+      }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(upload.status, 200);
+  const uploaded = await upload.json();
+  const overlayId = uploaded.overlay.id;
+  assert.match(overlayId, /^custom-my-match-banner-[a-z0-9-]+\.png$/);
+  assert.equal(uploaded.overlay.name, 'My Match Banner');
+
+  const list = await routeRequest(
+    new Request('https://kinglive.test/api/admin/overlays', {
+      headers: { Authorization: 'Bearer test-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(list.status, 200);
+  const listBody = await list.json();
+  assert.equal(listBody.uploaded.some((overlay) => overlay.id === overlayId), true);
+
+  const restreamOverlays = await routeRequest(
+    new Request('https://kinglive.test/api/restream-overlays', {
+      headers: { Authorization: 'Bearer sync-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(restreamOverlays.status, 200);
+  const syncBody = await restreamOverlays.json();
+  assert.equal(syncBody.total, 1);
+  assert.equal(syncBody.overlays[0].id, overlayId);
+  assert.equal(syncBody.overlays[0].data_base64, pngBase64);
+
+  const donorUrl = 'https://8.hls.gd/ch1197/index.m3u8?token=secret-token';
+  const create = await routeRequest(
+    new Request('https://kinglive.test/api/admin/streams', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer test-token',
+      },
+      body: JSON.stringify({
+        match_id: 19609156,
+        url: donorUrl,
+        source_type: 'videojs',
+        label: 'English',
+        language_code: 'en',
+        restream: {
+          overlay: {
+            enabled: true,
+            image: overlayId,
+            position: 'bottom-center',
+            width: 500,
+            margin: 18,
+          },
+        },
+      }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(create.status, 200);
+
+  const restreams = await routeRequest(
+    new Request('https://kinglive.test/api/restreams', {
+      headers: { Authorization: 'Bearer sync-token' },
+    }),
+    env,
+    {},
+  );
+  const restreamBody = await restreams.json();
+  assert.equal(restreamBody.restreams[0].overlay.image, overlayId);
+
+  const deleteInUse = await routeRequest(
+    new Request(`https://kinglive.test/api/admin/overlays/${encodeURIComponent(overlayId)}`, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer test-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(deleteInUse.status, 409);
 });
 
 test('preserves IPTV restream metadata when editing another stream', async () => {
@@ -2042,6 +2173,13 @@ test('preserves IPTV restream metadata when editing another stream', async () =>
         language_code: 'en',
         restream: {
           transcode_profile: 'h264_1080p25',
+          overlay: {
+            enabled: true,
+            image: 'kinglive_banner_1554x192_fixed.png',
+            position: 'bottom-center',
+            width: 500,
+            margin: 18,
+          },
         },
       }),
       }),
@@ -2093,6 +2231,16 @@ test('preserves IPTV restream metadata when editing another stream', async () =>
   assert.equal(
     body.restreams.find((restream) => restream.slug === '42-en-testt')?.transcode_profile,
     'h264_1080p25',
+  );
+  assert.deepEqual(
+    body.restreams.find((restream) => restream.slug === '42-en-testt')?.overlay,
+    {
+      enabled: true,
+      image: 'kinglive_banner_1554x192_fixed.png',
+      position: 'bottom-center',
+      width: 500,
+      margin: 18,
+    },
   );
 });
 

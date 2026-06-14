@@ -8,18 +8,20 @@ const DEFAULT_CONFIG_DIR = '/etc/kinglive/restreams';
 const DEFAULT_STATE_FILE = '/var/lib/kinglive-restream-sync/state.json';
 const DEFAULT_SYSTEMD_PREFIX = 'kinglive-restream@';
 const DEFAULT_RTMP_BASE_URL = 'rtmp://127.0.0.1:1935/live';
+const DEFAULT_OVERLAY_DIR = '/opt/kinglive/overlays';
 
 async function main() {
   const options = parseArgs(process.argv.slice(2), process.env);
   if (!options.apiUrl) throw new Error('RESTREAM_API_URL is required');
   if (!options.token) throw new Error('RESTREAM_SYNC_TOKEN is required');
 
+  const overlayActions = await syncOverlayAssets(options);
   const desired = await fetchDesiredRestreams(options);
   const state = await readJsonFile(options.stateFile, { managed: {} });
   const actions = await applyDesiredState(desired, state, options);
   await writeJsonFile(options.stateFile, state);
 
-  for (const action of actions) {
+  for (const action of [...overlayActions, ...actions]) {
     console.log(action);
   }
 }
@@ -62,6 +64,7 @@ export async function applyDesiredState(restreams, state, options) {
       outputUrl: item.outputUrl,
       channelName: item.channelName,
       transcodeProfile: item.transcodeProfile,
+      overlayKey: item.overlayKey,
       resolvedChannelTitle: item.resolvedChannelTitle || '',
       restartRequestedAt: item.restartRequestedAt,
       updatedAt: new Date().toISOString(),
@@ -95,7 +98,7 @@ export function normalizeRestream(restream, options) {
 
   const desiredState = String(restream?.desired_state || 'running').toLowerCase() === 'stopped' ? 'stopped' : 'running';
   const outputUrl = String(restream?.output_url || `${options.publicBaseUrl}/${slug}/index.m3u8`).trim();
-  return {
+  const item = {
     slug,
     matchId,
     donorUrl,
@@ -105,11 +108,15 @@ export function normalizeRestream(restream, options) {
     label: String(restream?.label || slug).trim(),
     channelName: String(restream?.channel_name || restream?.channelName || '').trim(),
     transcodeProfile: normalizeTranscodeProfile(restream?.transcode_profile || restream?.transcodeProfile),
+    overlay: normalizeOverlay(restream?.overlay),
+    overlayDir: options.overlayDir || DEFAULT_OVERLAY_DIR,
     resolvedInputUrl: donorUrl,
     desiredState,
     isActive: restream?.is_active !== false,
     restartRequestedAt: String(restream?.restart_requested_at || ''),
   };
+  item.overlayKey = item.overlay ? JSON.stringify(item.overlay) : '';
+  return item;
 }
 
 export function renderEnvFile(item) {
@@ -122,6 +129,16 @@ export function renderEnvFile(item) {
     `RESTREAM_DONOR_URL=${shellQuote(item.donorUrl)}`,
     `RESTREAM_CHANNEL_NAME=${shellQuote(item.channelName || '')}`,
     ...(item.transcodeProfile ? [`RESTREAM_TRANSCODE_PROFILE=${shellQuote(item.transcodeProfile)}`] : []),
+    ...(item.overlay?.enabled
+      ? [
+          `RESTREAM_OVERLAY_ENABLED='true'`,
+          `RESTREAM_OVERLAY_IMAGE=${shellQuote(item.overlay.image)}`,
+          `RESTREAM_OVERLAY_DIR=${shellQuote(item.overlayDir || DEFAULT_OVERLAY_DIR)}`,
+          `RESTREAM_OVERLAY_POSITION=${shellQuote(item.overlay.position)}`,
+          `RESTREAM_OVERLAY_WIDTH=${shellQuote(String(item.overlay.width))}`,
+          `RESTREAM_OVERLAY_MARGIN=${shellQuote(String(item.overlay.margin))}`,
+        ]
+      : []),
     `RESTREAM_RTMP_URL=${shellQuote(item.rtmpUrl)}`,
     `RESTREAM_PUBLIC_URL=${shellQuote(item.outputUrl)}`,
     '',
@@ -140,6 +157,61 @@ async function fetchDesiredRestreams(options) {
   }
   const payload = await response.json();
   return Array.isArray(payload?.restreams) ? payload.restreams : [];
+}
+
+export async function syncOverlayAssets(options) {
+  if (!options.overlayApiUrl) return [];
+  let payload;
+  try {
+    const response = await fetch(options.overlayApiUrl, {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${options.token}`,
+      },
+    });
+    if (response.status === 404) return [];
+    if (!response.ok) throw new Error(`overlay API failed: ${response.status}`);
+    payload = await response.json();
+  } catch (error) {
+    if (options.verbose) console.warn(error.message || error);
+    return [];
+  }
+
+  const overlays = Array.isArray(payload?.overlays) ? payload.overlays : [];
+  const actions = [];
+  for (const overlay of overlays) {
+    const item = normalizeOverlayAsset(overlay);
+    if (!item) continue;
+    const changed = await writeOverlayAssetFile(item, options);
+    if (changed) actions.push(`synced overlay ${item.id}`);
+  }
+  return actions;
+}
+
+function normalizeOverlayAsset(value = {}) {
+  const id = normalizeOverlayImage(value.id);
+  const dataBase64 = String(value.data_base64 || value.dataBase64 || '').trim();
+  if (!id || !isCustomOverlayImage(id) || !dataBase64) return null;
+  if (!looksLikePngBase64(dataBase64)) return null;
+  return {
+    id,
+    data: Buffer.from(dataBase64, 'base64'),
+  };
+}
+
+async function writeOverlayAssetFile(item, options) {
+  const path = join(options.overlayDir, item.id);
+  let current = null;
+  try {
+    current = await readFile(path);
+  } catch {}
+  if (current && current.equals(item.data)) return false;
+  if (options.dryRun) return false;
+  await mkdir(dirname(path), { recursive: true, mode: 0o755 });
+  const tmp = `${path}.tmp-${process.pid}`;
+  await writeFile(tmp, item.data, { mode: 0o644 });
+  await rename(tmp, path);
+  return true;
 }
 
 export async function resolvePlaylistChannel(item, options = {}) {
@@ -306,19 +378,33 @@ function parseArgs(args, env) {
   }
 
   const apiUrl = values.get('api-url') || env.RESTREAM_API_URL || '';
+  const overlayApiUrl = values.get('overlay-api-url') || env.RESTREAM_OVERLAY_API_URL || inferOverlayApiUrl(apiUrl);
   const publicBaseUrl = values.get('public-base-url') || env.RESTREAM_PUBLIC_BASE_URL || inferPublicBaseUrl(apiUrl);
   return {
     apiUrl,
+    overlayApiUrl,
     token: values.get('token') || env.RESTREAM_SYNC_TOKEN || '',
     configDir: values.get('config-dir') || env.RESTREAM_CONFIG_DIR || DEFAULT_CONFIG_DIR,
     stateFile: values.get('state-file') || env.RESTREAM_STATE_FILE || DEFAULT_STATE_FILE,
     systemdPrefix: values.get('systemd-prefix') || env.RESTREAM_SYSTEMD_PREFIX || DEFAULT_SYSTEMD_PREFIX,
     rtmpBaseUrl: values.get('rtmp-base-url') || env.RESTREAM_RTMP_BASE_URL || DEFAULT_RTMP_BASE_URL,
+    overlayDir: values.get('overlay-dir') || env.RESTREAM_OVERLAY_DIR || DEFAULT_OVERLAY_DIR,
     publicBaseUrl,
     systemctlBin: values.get('systemctl-bin') || env.SYSTEMCTL_BIN || 'systemctl',
     dryRun: values.has('dry-run') || env.RESTREAM_DRY_RUN === 'true',
     noSystemd: values.has('no-systemd') || env.RESTREAM_NO_SYSTEMD === 'true',
   };
+}
+
+function inferOverlayApiUrl(apiUrl) {
+  try {
+    const url = new URL(apiUrl);
+    url.pathname = '/api/restream-overlays';
+    url.search = '';
+    return url.toString();
+  } catch {
+    return '';
+  }
 }
 
 function inferPublicBaseUrl(apiUrl) {
@@ -337,7 +423,8 @@ function configChanged(next, current) {
     || next.outputUrl !== current.outputUrl
     || next.isActive !== current.isActive
     || next.channelName !== current.channelName
-    || next.transcodeProfile !== current.transcodeProfile;
+    || next.transcodeProfile !== current.transcodeProfile
+    || next.overlayKey !== current.overlayKey;
 }
 
 function normalizeTranscodeProfile(value) {
@@ -352,6 +439,67 @@ function normalizeSlug(value) {
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 80);
+}
+
+function normalizeOverlay(value) {
+  if (!value || typeof value !== 'object') return null;
+  const enabled = value.enabled === true || String(value.enabled || '').toLowerCase() === 'true';
+  if (!enabled) return null;
+  const image = normalizeOverlayImage(value.image);
+  if (!image) return null;
+  return {
+    enabled: true,
+    image,
+    position: normalizeOverlayPosition(value.position),
+    width: clampInteger(value.width, 80, 1000, 420),
+    margin: clampInteger(value.margin, 0, 200, 24),
+  };
+}
+
+function normalizeOverlayImage(value) {
+  const image = String(value || '').trim();
+  const allowed = new Set([
+    'kinglive_player_leaderboard.png',
+    'kinglive_banner_1554x192_fixed.png',
+    'kinglive_top_banner_1554x192.png',
+    'melbet_top_banner_1554x192.png',
+    'melbet_banner_1870x245_safe_player.png',
+  ]);
+  return allowed.has(image) || isCustomOverlayImage(image) ? image : '';
+}
+
+function isCustomOverlayImage(value) {
+  return /^custom-[a-z0-9][a-z0-9-]{0,70}\.png$/.test(String(value || ''));
+}
+
+function looksLikePngBase64(value) {
+  try {
+    const bytes = Buffer.from(String(value || '').slice(0, 16), 'base64');
+    return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  } catch {
+    return false;
+  }
+}
+
+function normalizeOverlayPosition(value) {
+  const position = String(value || '').trim();
+  return [
+    'top-left',
+    'top-center',
+    'top-right',
+    'center',
+    'bottom-left',
+    'bottom-center',
+    'bottom-right',
+  ].includes(position)
+    ? position
+    : 'top-right';
+}
+
+function clampInteger(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(number)));
 }
 
 function isHttpUrl(value) {

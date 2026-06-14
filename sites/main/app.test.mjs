@@ -8,6 +8,20 @@ const indexHtml = readFileSync(new URL('./index.html', import.meta.url), 'utf8')
 const adminSource = readFileSync(new URL('./admin.js', import.meta.url), 'utf8');
 const apiVersion = appSource.match(/const apiVersion = '([^']+)'/)?.[1] || '';
 
+function localDateKey(date = new Date()) {
+  return [
+    String(date.getFullYear()),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+function addUtcDays(date, days) {
+  const next = new Date(`${date}T00:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next.toISOString().slice(0, 10);
+}
+
 test('does not render a public refresh matches button', () => {
   assert.doesNotMatch(indexHtml, /id="refresh-matches"/);
   assert.doesNotMatch(indexHtml, /Refresh now/);
@@ -40,7 +54,7 @@ test('renders same-day matches beyond the first six API results', async () => {
     addEventListener() {},
   };
   const adSlots = [];
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
   const fillerMatches = Array.from({ length: 6 }, (_, index) => ({
     id: index + 1,
     scheduled_at: `${today}T12:0${index}:00+00:00`,
@@ -110,6 +124,114 @@ test('renders same-day matches beyond the first six API results', async () => {
   assert.match(gridHtml, /Arsenal vs Atletico Madrid/);
 });
 
+test('keeps live streamed matches from the previous local date on the main page', async () => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const today = localDateKey();
+  const previousDate = addUtcDays(today, -1);
+  const carryoverMatch = {
+    id: 19609138,
+    scheduled_at: `${previousDate}T20:00:00Z`,
+    status: 'live',
+    stage: 'Group Stage',
+    minute: 51,
+    home_score: 1,
+    away_score: 0,
+    home_team: { name_en: 'Netherlands' },
+    away_team: { name_en: 'Japan' },
+    streams: [
+      {
+        id: 9,
+        url: 'https://hls.livekinglive.win/live/19609138-en-english/index.m3u8',
+        source_type: 'videojs',
+        label: 'English',
+        language_code: 'en',
+        is_active: true,
+      },
+    ],
+  };
+  const todayMatch = {
+    id: 19609162,
+    scheduled_at: `${today}T16:00:00Z`,
+    status: 'scheduled',
+    stage: 'Group Stage',
+    home_team: { name_en: 'Spain' },
+    away_team: { name_en: 'Cape Verde Islands' },
+  };
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: '',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll(selector) {
+        return selector === '[data-ad-slot]' ? [] : [];
+      },
+    },
+    fetch(url) {
+      const request = String(url);
+      if (request.endsWith('/stream.json') || request.endsWith('stream.json')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      }
+      if (request.includes('/api/streams/active')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ match_ids: ['19609138'], streams: { 19609138: [carryoverMatch.streams[0]] } }),
+        });
+      }
+      const matches = request.includes(`date=${previousDate}`)
+        ? [carryoverMatch]
+        : (request.includes(`date=${today}`) ? [todayMatch] : []);
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ matches }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /Netherlands vs Japan/);
+  assert.match(gridHtml, /English/);
+  assert.match(gridHtml, /Spain vs Cape Verde Islands/);
+});
+
 test('keeps scheduled status visible when a future match already has streams', async () => {
   let gridHtml = '';
   const matchGrid = {
@@ -127,7 +249,7 @@ test('keeps scheduled status visible when a future match already has streams', a
     innerHTML: '',
     addEventListener() {},
   };
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
 
   const context = {
     URL,
@@ -215,7 +337,7 @@ test('falls back to upcoming schedule when today has no matches', async () => {
     innerHTML: '',
     addEventListener() {},
   };
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
   const tomorrow = new Date(`${today}T00:00:00Z`);
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   const tomorrowText = tomorrow.toISOString().slice(0, 10);
@@ -307,7 +429,7 @@ test('includes upcoming schedule even when today has matches', async () => {
     innerHTML: '',
     addEventListener() {},
   };
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
   const tomorrow = new Date(`${today}T00:00:00Z`);
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   const tomorrowText = tomorrow.toISOString().slice(0, 10);
@@ -431,7 +553,7 @@ test('does not reuse empty daily match cache after API recovers', async () => {
       return Array.from(storage.keys())[index] ?? null;
     },
   };
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
   const recoveredMatch = {
     id: 19609127,
     scheduled_at: `${today}T19:00:00+00:00`,
@@ -529,7 +651,7 @@ test('sends site locale with match API requests', async () => {
       listeners.set(`modal:${type}`, handler);
     },
   };
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
   const requests = [];
 
   const context = {
@@ -641,7 +763,7 @@ test('renders finished match score in the match list', async () => {
     innerHTML: '',
     addEventListener() {},
   };
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
 
   const context = {
     URL,
@@ -1010,7 +1132,7 @@ test('opens match details with stats and only shows player button when stream ex
       listeners.set(`modal:${type}`, handler);
     },
   };
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
   const requests = [];
 
   const context = {
@@ -1328,7 +1450,7 @@ test('auto-opens deeplinked match and live popup refresh stops on close', async 
   const intervals = [];
   const cleared = [];
   const requests = [];
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
   let detailCall = 0;
   const matchGrid = {
     get innerHTML() {

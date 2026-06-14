@@ -16,6 +16,15 @@
   const settingsStatus = $('settings-status');
   const chatBody = $('chat-body');
   const chatAdminStatus = $('chat-admin-status');
+  const overlayBody = $('overlay-body');
+  const overlayStatus = $('overlay-status');
+  const fallbackOverlays = [
+    { id: 'kinglive_player_leaderboard.png', name: 'KingLive player', builtin: true },
+    { id: 'kinglive_banner_1554x192_fixed.png', name: 'KingLive wide', builtin: true },
+    { id: 'kinglive_top_banner_1554x192.png', name: 'KingLive top', builtin: true },
+    { id: 'melbet_top_banner_1554x192.png', name: 'Melbet top', builtin: true },
+    { id: 'melbet_banner_1870x245_safe_player.png', name: 'Melbet safe player', builtin: true },
+  ];
 
   function token() {
     try {
@@ -65,6 +74,7 @@
       setToken(payload.token || '');
       setAuthLabel();
       await loadSettings();
+      await loadOverlays();
       await loadMonitoring();
       await loadStreams();
       await loadStatuses();
@@ -80,12 +90,16 @@
     if (monitoringBody) monitoringBody.innerHTML = '<tr><td colspan="3">Logged out</td></tr>';
     if (statusBody) statusBody.innerHTML = '<tr><td colspan="7">Logged out</td></tr>';
     if (chatBody) chatBody.innerHTML = '<tr><td colspan="4">Logged out</td></tr>';
+    if (overlayBody) overlayBody.innerHTML = '<tr><td colspan="4">Logged out</td></tr>';
+    if (overlayStatus) overlayStatus.textContent = '';
+    updateOverlaySelect(fallbackOverlays);
     if ($('hide-finished-matches')) $('hide-finished-matches').checked = false;
     if (settingsStatus) settingsStatus.textContent = '';
     if (chatAdminStatus) chatAdminStatus.textContent = '';
   }
 
   function streamFromForm() {
+    const overlayEnabled = $('overlay-enabled').value === 'true';
     return {
       match_id: Number($('match-id').value),
       label: $('stream-label').value.trim() || 'Live stream',
@@ -94,6 +108,13 @@
       quality: $('quality').value.trim() || '720p',
       restream: {
         transcode_profile: $('transcode-profile').value || 'auto',
+        overlay: {
+          enabled: overlayEnabled,
+          image: $('overlay-image').value,
+          position: $('overlay-position').value,
+          width: Number($('overlay-width').value || 420),
+          margin: Number($('overlay-margin').value || 24),
+        },
       },
       language_code: $('lang').value.trim() || 'en',
       region: $('region').value.trim() || 'global',
@@ -113,6 +134,12 @@
     $('source-type').value = stream.source_type || 'iframe';
     $('quality').value = stream.quality || '720p';
     $('transcode-profile').value = stream.restream?.transcode_profile || 'auto';
+    const overlay = stream.restream?.overlay || {};
+    $('overlay-enabled').value = overlay.enabled ? 'true' : 'false';
+    $('overlay-image').value = overlay.image || 'kinglive_player_leaderboard.png';
+    $('overlay-position').value = overlay.position || 'top-right';
+    $('overlay-width').value = String(overlay.width || 420);
+    $('overlay-margin').value = String(overlay.margin ?? 24);
     $('lang').value = stream.language_code || 'en';
     $('region').value = stream.region || 'global';
     $('priority').value = String(stream.priority ?? 100);
@@ -126,6 +153,11 @@
     $('stream-id').value = '';
     $('quality').value = '720p';
     $('transcode-profile').value = 'auto';
+    $('overlay-enabled').value = 'false';
+    $('overlay-image').value = 'kinglive_player_leaderboard.png';
+    $('overlay-position').value = 'top-right';
+    $('overlay-width').value = '420';
+    $('overlay-margin').value = '24';
     $('lang').value = 'en';
     $('region').value = 'global';
     $('priority').value = '100';
@@ -168,20 +200,24 @@
 
   async function loadStreams() {
     if (!token()) {
-      streamsBody.innerHTML = '<tr><td colspan="12">Login first</td></tr>';
+      streamsBody.innerHTML = '<tr><td colspan="13">Login first</td></tr>';
       return;
     }
     try {
       const payload = await adminFetch('/api/admin/streams');
       const streams = Array.isArray(payload.streams) ? payload.streams : [];
       if (!streams.length) {
-        streamsBody.innerHTML = '<tr><td colspan="12">No streams</td></tr>';
+        streamsBody.innerHTML = '<tr><td colspan="13">No streams</td></tr>';
         return;
       }
       streamsBody.innerHTML = streams
         .map((stream) => {
           const url = escapeHtml(stream.url || '');
           const editable = stream.editable !== false && stream.origin !== 'dami';
+          const overlay = stream.restream?.overlay;
+          const overlayLabel = overlay?.enabled
+            ? `${escapeHtml(overlay.image || 'banner')}<br/>${escapeHtml(overlay.position || 'top-right')} ${escapeHtml(overlay.width || 420)}px`
+            : '';
           return `
             <tr>
               <td>${escapeHtml(stream.id)}</td>
@@ -191,6 +227,7 @@
               <td>${escapeHtml(stream.label || '')}</td>
               <td class="mono">${url}</td>
               <td>${escapeHtml(stream.restream?.transcode_profile || '')}</td>
+              <td class="mono">${overlayLabel}</td>
               <td>${escapeHtml(stream.priority ?? '')}</td>
               <td>${stream.is_active === false ? 'false' : 'true'}</td>
               <td class="mono">${escapeHtml(stream.starts_at || '')}<br/>${escapeHtml(stream.ends_at || '')}</td>
@@ -220,8 +257,116 @@
         });
       });
     } catch (error) {
-      streamsBody.innerHTML = `<tr><td colspan="12">${escapeHtml(String(error.message || error))}</td></tr>`;
+      streamsBody.innerHTML = `<tr><td colspan="13">${escapeHtml(String(error.message || error))}</td></tr>`;
     }
+  }
+
+  async function loadOverlays() {
+    updateOverlaySelect(fallbackOverlays);
+    if (!overlayBody) return;
+    if (!token()) {
+      overlayBody.innerHTML = '<tr><td colspan="4">Login first</td></tr>';
+      return;
+    }
+    try {
+      const payload = await adminFetch('/api/admin/overlays');
+      const overlays = Array.isArray(payload.overlays) ? payload.overlays : fallbackOverlays;
+      updateOverlaySelect(overlays);
+      const uploaded = overlays.filter((overlay) => overlay && overlay.builtin !== true);
+      if (!uploaded.length) {
+        overlayBody.innerHTML = '<tr><td colspan="4">No uploaded banners</td></tr>';
+        return;
+      }
+      overlayBody.innerHTML = uploaded
+        .map((overlay) => `
+          <tr>
+            <td>${escapeHtml(overlay.name || overlay.id)}</td>
+            <td class="mono">${escapeHtml(overlay.id)}</td>
+            <td>${escapeHtml(formatBytes(overlay.size || 0))}</td>
+            <td><button class="button secondary" type="button" data-overlay-del="${escapeHtml(overlay.id)}">Delete</button></td>
+          </tr>
+        `)
+        .join('');
+      overlayBody.querySelectorAll('[data-overlay-del]').forEach((button) => {
+        button.addEventListener('click', () => deleteOverlay(button.getAttribute('data-overlay-del')));
+      });
+    } catch (error) {
+      overlayBody.innerHTML = `<tr><td colspan="4">${escapeHtml(String(error.message || error))}</td></tr>`;
+    }
+  }
+
+  function updateOverlaySelect(overlays) {
+    const select = $('overlay-image');
+    if (!select) return;
+    const current = select.value || 'kinglive_player_leaderboard.png';
+    const list = Array.isArray(overlays) && overlays.length ? overlays : fallbackOverlays;
+    select.innerHTML = list
+      .map((overlay) => {
+        const label = overlay.builtin ? overlay.name : `${overlay.name || overlay.id} (uploaded)`;
+        return `<option value="${escapeHtml(overlay.id)}">${escapeHtml(label)}</option>`;
+      })
+      .join('');
+    select.value = list.some((overlay) => overlay.id === current) ? current : 'kinglive_player_leaderboard.png';
+  }
+
+  async function uploadOverlay(event) {
+    event.preventDefault();
+    if (!overlayStatus) return;
+    overlayStatus.textContent = '';
+    saveErr.textContent = '';
+    try {
+      const file = $('overlay-file')?.files?.[0];
+      if (!file) throw new Error('Choose PNG file');
+      if (file.type && file.type !== 'image/png') throw new Error('PNG only');
+      if (file.size > 1_500_000) throw new Error('PNG is too large');
+      overlayStatus.textContent = 'Uploading...';
+      const dataUrl = await readFileAsDataUrl(file);
+      const payload = await adminFetch('/api/admin/overlays', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: $('overlay-name')?.value.trim() || file.name,
+          data_url: dataUrl,
+        }),
+      });
+      $('overlay-file').value = '';
+      $('overlay-name').value = '';
+      overlayStatus.textContent = 'Uploaded';
+      if (payload.overlay?.id) $('overlay-image').value = payload.overlay.id;
+      await loadOverlays();
+      if (payload.overlay?.id) $('overlay-image').value = payload.overlay.id;
+    } catch (error) {
+      overlayStatus.textContent = '';
+      saveErr.textContent = String(error.message || error);
+    }
+  }
+
+  async function deleteOverlay(id) {
+    if (!id || !window.confirm(`Delete banner ${id}?`)) return;
+    overlayStatus.textContent = '';
+    saveErr.textContent = '';
+    try {
+      await adminFetch(`/api/admin/overlays/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      overlayStatus.textContent = 'Deleted';
+      await loadOverlays();
+    } catch (error) {
+      saveErr.textContent = String(error.message || error);
+    }
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(reader.error || new Error('Could not read file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function formatBytes(value) {
+    const bytes = Number(value) || 0;
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   function statusFromForm() {
@@ -592,6 +737,8 @@
   if ($('reload-statuses')) $('reload-statuses').addEventListener('click', loadStatuses);
   if ($('reload-chat')) $('reload-chat').addEventListener('click', loadChat);
   if ($('clear-chat')) $('clear-chat').addEventListener('click', clearChat);
+  if ($('overlay-form')) $('overlay-form').addEventListener('submit', uploadOverlay);
+  if ($('reload-overlays')) $('reload-overlays').addEventListener('click', loadOverlays);
   if ($('save-admin-settings')) $('save-admin-settings').addEventListener('click', saveSettings);
   $('reset-form').addEventListener('click', resetForm);
   if ($('reset-status')) $('reset-status').addEventListener('click', resetStatusForm);
@@ -601,6 +748,7 @@
   });
 
   setAuthLabel();
+  loadOverlays();
   loadSettings();
   loadMonitoring();
   loadStreams();

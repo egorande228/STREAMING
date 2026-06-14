@@ -19,8 +19,18 @@ const GOOGLE_NEWS_FEEDS = {
 const STREAM_CONFIG_KV_KEY = 'match_streams_json';
 const MATCH_OVERRIDES_KV_KEY = 'match_overrides_json';
 const ADMIN_SETTINGS_KV_KEY = 'admin_settings_json';
+const OVERLAY_ASSETS_INDEX_KV_KEY = 'restream_overlay_assets_index_json';
+const OVERLAY_ASSET_KV_PREFIX = 'restream_overlay_asset:';
 const CACHE_VERSION_KV_KEY = 'api_cache_version';
 const DEFAULT_RESTREAM_PUBLIC_BASE_URL = 'https://hls.livekinglive.win/live';
+const MAX_OVERLAY_ASSET_BYTES = 1_500_000;
+const BUILTIN_RESTREAM_OVERLAYS = [
+  { id: 'kinglive_player_leaderboard.png', name: 'KingLive player', builtin: true },
+  { id: 'kinglive_banner_1554x192_fixed.png', name: 'KingLive wide', builtin: true },
+  { id: 'kinglive_top_banner_1554x192.png', name: 'KingLive top', builtin: true },
+  { id: 'melbet_top_banner_1554x192.png', name: 'Melbet top', builtin: true },
+  { id: 'melbet_banner_1870x245_safe_player.png', name: 'Melbet safe player', builtin: true },
+];
 const API_CACHE_NAMESPACE = 'dami-labels-v2';
 const DAMI_STREAMS_KV_KEY = 'dami:streams:v1';
 const DAMI_STREAMS_TTL_SECONDS = 60;
@@ -140,6 +150,10 @@ export async function routeRequest(request, env = {}, ctx = {}) {
   if (url.pathname === '/api/restreams') {
     if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
     return routeRestreamSyncList(request, env);
+  }
+  if (url.pathname === '/api/restream-overlays') {
+    if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+    return routeRestreamOverlayAssetsList(request, env);
   }
   if (url.pathname === '/api/streams/active') {
     if (request.method !== 'GET') return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
@@ -463,6 +477,18 @@ async function routeAdminRequest(request, env = {}, ctx = {}) {
     return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
   }
 
+  if (url.pathname === '/api/admin/overlays') {
+    if (request.method === 'GET') return routeAdminOverlaysList(env);
+    if (request.method === 'POST') return routeAdminOverlaysCreate(request, env);
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
+  const overlayId = url.pathname.match(/^\/api\/admin\/overlays\/([^/]+)$/)?.[1];
+  if (overlayId) {
+    if (request.method === 'DELETE') return routeAdminOverlaysDelete(env, decodeURIComponent(overlayId));
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
   if (url.pathname === '/api/admin/match-overrides') {
     if (request.method === 'GET') return routeAdminMatchOverridesList(env);
     if (request.method === 'POST') return routeAdminMatchOverridesUpsert(request, env);
@@ -691,6 +717,60 @@ async function routeAdminStreamsList(env, ctx = {}) {
   const autoStreams = await readAdminAutoStreams(env, ctx);
   const allStreams = [...streams, ...autoStreams];
   return jsonResponse({ streams: allStreams, total: allStreams.length, manual_total: streams.length, auto_total: autoStreams.length }, 200, 0);
+}
+
+async function routeAdminOverlaysList(env = {}) {
+  const uploaded = await readOverlayAssetIndex(env);
+  return jsonResponse({
+    overlays: [...BUILTIN_RESTREAM_OVERLAYS, ...uploaded],
+    builtin: BUILTIN_RESTREAM_OVERLAYS,
+    uploaded,
+  }, 200, 0);
+}
+
+async function routeAdminOverlaysCreate(request, env = {}) {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: 'stream_kv_not_configured' }, 503, 0);
+  }
+
+  const body = await readJsonBody(request);
+  const parsed = parseOverlayUploadPayload(body);
+  if (!parsed.ok) return jsonResponse({ error: parsed.error }, parsed.status || 400, 0);
+
+  const uploaded = await readOverlayAssetIndex(env);
+  const id = uniqueOverlayAssetId(parsed.slug, uploaded);
+  const entry = {
+    id,
+    name: parsed.name,
+    builtin: false,
+    mime: 'image/png',
+    size: parsed.size,
+    created_at: new Date().toISOString(),
+  };
+  uploaded.push(entry);
+  await env.STREAM_CONFIG_KV.put(`${OVERLAY_ASSET_KV_PREFIX}${id}`, parsed.base64);
+  await writeOverlayAssetIndex(env, uploaded);
+  return jsonResponse({ ok: true, overlay: entry, overlays: [...BUILTIN_RESTREAM_OVERLAYS, ...uploaded] }, 200, 0);
+}
+
+async function routeAdminOverlaysDelete(env = {}, overlayId = '') {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: 'stream_kv_not_configured' }, 503, 0);
+  }
+
+  const id = normalizeOverlayImage(overlayId);
+  if (!id || !isCustomOverlayImage(id)) return jsonResponse({ error: 'overlay_not_found' }, 404, 0);
+
+  const config = await readRuntimeStreamConfig(env);
+  const inUse = flattenStreamConfig(config).some((stream) => stream?.restream?.overlay?.image === id);
+  if (inUse) return jsonResponse({ error: 'overlay_in_use' }, 409, 0);
+
+  const uploaded = await readOverlayAssetIndex(env);
+  const next = uploaded.filter((item) => item.id !== id);
+  if (next.length === uploaded.length) return jsonResponse({ error: 'overlay_not_found' }, 404, 0);
+  await writeOverlayAssetIndex(env, next);
+  await deleteKvKey(env, `${OVERLAY_ASSET_KV_PREFIX}${id}`);
+  return jsonResponse({ ok: true, overlays: [...BUILTIN_RESTREAM_OVERLAYS, ...next] }, 200, 0);
 }
 
 async function routeAdminMatchOverridesList(env) {
@@ -962,12 +1042,33 @@ async function routeRestreamSyncList(request, env = {}) {
         is_active: entry?.is_active !== false,
         channel_name: String(restream.channel_name || ''),
         transcode_profile: normalizeRestreamTranscodeProfile(restream.transcode_profile),
+        overlay: normalizeRestreamOverlay(restream.overlay),
         restart_requested_at: String(restream.restart_requested_at || ''),
       });
     });
   }
 
   return jsonResponse({ restreams, total: restreams.length, generated_at: new Date().toISOString() }, 200, 0);
+}
+
+async function routeRestreamOverlayAssetsList(request, env = {}) {
+  const expected = String(env.RESTREAM_SYNC_TOKEN || '').trim();
+  if (!expected) return jsonResponse({ error: 'restream_sync_not_configured' }, 503, 0);
+  const auth = request.headers.get('Authorization') || '';
+  if (auth !== `Bearer ${expected}`) return jsonResponse({ error: 'unauthorized' }, 401, 0);
+
+  const uploaded = await readOverlayAssetIndex(env);
+  const overlays = [];
+  for (const entry of uploaded) {
+    if (!entry?.id || !isCustomOverlayImage(entry.id)) continue;
+    const dataBase64 = await env.STREAM_CONFIG_KV?.get(`${OVERLAY_ASSET_KV_PREFIX}${entry.id}`);
+    if (!dataBase64) continue;
+    overlays.push({
+      ...entry,
+      data_base64: dataBase64,
+    });
+  }
+  return jsonResponse({ overlays, total: overlays.length, generated_at: new Date().toISOString() }, 200, 0);
 }
 
 function isAuthorizedAdminRequest(request, env = {}) {
@@ -1021,6 +1122,117 @@ async function writeRuntimeStreamConfig(env = {}, config = {}) {
   if (!env.STREAM_CONFIG_KV?.put) return false;
   await env.STREAM_CONFIG_KV.put(STREAM_CONFIG_KV_KEY, JSON.stringify(config));
   return true;
+}
+
+async function readOverlayAssetIndex(env = {}) {
+  if (!env.STREAM_CONFIG_KV?.get) return [];
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(OVERLAY_ASSETS_INDEX_KV_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return (Array.isArray(parsed) ? parsed : [])
+      .map(normalizeOverlayAssetEntry)
+      .filter(Boolean)
+      .sort((left, right) => String(left.created_at || '').localeCompare(String(right.created_at || '')));
+  } catch {
+    return [];
+  }
+}
+
+async function writeOverlayAssetIndex(env = {}, entries = []) {
+  if (!env.STREAM_CONFIG_KV?.put) return false;
+  const normalized = entries.map(normalizeOverlayAssetEntry).filter(Boolean);
+  await env.STREAM_CONFIG_KV.put(OVERLAY_ASSETS_INDEX_KV_KEY, JSON.stringify(normalized));
+  return true;
+}
+
+function normalizeOverlayAssetEntry(value = {}) {
+  const id = normalizeOverlayImage(value.id);
+  if (!id || !isCustomOverlayImage(id)) return null;
+  const name = String(value.name || id).trim().slice(0, 80) || id;
+  const size = Number(value.size);
+  return {
+    id,
+    name,
+    builtin: false,
+    mime: 'image/png',
+    size: Number.isFinite(size) && size > 0 ? Math.round(size) : 0,
+    created_at: normalizeOptionalDateTime(value.created_at) || '',
+  };
+}
+
+function parseOverlayUploadPayload(payload = {}) {
+  const dataUrl = String(payload?.data_url || payload?.dataUrl || '').trim();
+  const match = dataUrl.match(/^data:image\/png;base64,([A-Za-z0-9+/=\s]+)$/);
+  if (!match) return { ok: false, error: 'overlay_png_required', status: 400 };
+  const base64 = match[1].replace(/\s+/g, '');
+  const size = base64DecodedSize(base64);
+  if (!size) return { ok: false, error: 'overlay_empty', status: 400 };
+  if (size > MAX_OVERLAY_ASSET_BYTES) return { ok: false, error: 'overlay_too_large', status: 413 };
+  if (!looksLikePngBase64(base64)) return { ok: false, error: 'overlay_png_required', status: 400 };
+  return {
+    ok: true,
+    base64,
+    size,
+    name: normalizeOverlayUploadDisplayName(payload?.name || payload?.filename || 'Custom banner'),
+    slug: normalizeOverlayUploadSlug(payload?.name || payload?.filename || 'custom-banner.png'),
+  };
+}
+
+function normalizeOverlayUploadDisplayName(value) {
+  return String(value || 'Custom banner')
+    .trim()
+    .replace(/\.[^.]+$/, '')
+    .replace(/\s+/g, ' ')
+    .slice(0, 80) || 'Custom banner';
+}
+
+function normalizeOverlayUploadSlug(value) {
+  const base = String(value || 'custom-banner.png')
+    .trim()
+    .replace(/\.[^.]+$/, '')
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+    .slice(0, 42);
+  return base || 'custom-banner';
+}
+
+function uniqueOverlayAssetId(name, entries = []) {
+  const existing = new Set(entries.map((entry) => entry.id));
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const id = `custom-${name}-${Date.now().toString(36)}-${randomOverlaySuffix()}.png`;
+    if (!existing.has(id)) return id;
+  }
+  return `custom-${name}-${Date.now().toString(36)}.png`;
+}
+
+function randomOverlaySuffix() {
+  try {
+    const bytes = new Uint8Array(4);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return Date.now().toString(16).slice(-8).padStart(8, '0');
+  }
+}
+
+function base64DecodedSize(value) {
+  const text = String(value || '').trim();
+  if (!text) return 0;
+  const padding = text.endsWith('==') ? 2 : text.endsWith('=') ? 1 : 0;
+  return Math.floor((text.length * 3) / 4) - padding;
+}
+
+function looksLikePngBase64(value) {
+  try {
+    const bytes = atob(value.slice(0, 16));
+    return bytes.charCodeAt(0) === 0x89
+      && bytes.charCodeAt(1) === 0x50
+      && bytes.charCodeAt(2) === 0x4e
+      && bytes.charCodeAt(3) === 0x47;
+  } catch {
+    return false;
+  }
 }
 
 async function readRuntimeMatchOverrides(env = {}) {
@@ -1201,6 +1413,8 @@ function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingS
   const existingRestream = existingStream?.restream && typeof existingStream.restream === 'object'
     ? existingStream.restream
     : null;
+  const overlayInputProvided = hasOwn(explicit || {}, 'overlay') || hasOwn(payload || {}, 'overlay');
+  const overlayInput = hasOwn(explicit || {}, 'overlay') ? explicit.overlay : payload?.overlay;
   if (
     existingRestream?.enabled
     && options.sourceType === 'videojs'
@@ -1209,7 +1423,7 @@ function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingS
     && !explicit?.donor_url
     && !payload?.donor_url
   ) {
-    return {
+    const nextRestream = {
       ...existingRestream,
       desired_state: payload?.is_active === false ? 'stopped' : String(existingRestream.desired_state || 'running'),
       restart_requested_at: String(explicit?.restart_requested_at || payload?.restart_requested_at || existingRestream.restart_requested_at || ''),
@@ -1218,6 +1432,10 @@ function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingS
         explicit?.transcode_profile || payload?.transcode_profile || existingRestream.transcode_profile,
       ),
     };
+    const overlay = normalizeRestreamOverlay(overlayInputProvided ? overlayInput : existingRestream.overlay);
+    if (overlay) nextRestream.overlay = overlay;
+    else delete nextRestream.overlay;
+    return nextRestream;
   }
 
   const enabled = explicit?.enabled === true
@@ -1232,7 +1450,7 @@ function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingS
   );
   if (!slug) return null;
   const publicBase = String(options.env?.RESTREAM_PUBLIC_BASE_URL || DEFAULT_RESTREAM_PUBLIC_BASE_URL).replace(/\/+$/, '');
-  return {
+  const restream = {
     enabled: true,
     slug,
     donor_url: donorUrl,
@@ -1242,11 +1460,64 @@ function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingS
     channel_name: String(explicit?.channel_name || payload?.channel_name || ''),
     transcode_profile: normalizeRestreamTranscodeProfile(explicit?.transcode_profile || payload?.transcode_profile),
   };
+  const overlay = normalizeRestreamOverlay(overlayInputProvided ? overlayInput : explicit?.overlay);
+  if (overlay) restream.overlay = overlay;
+  return restream;
 }
 
 function normalizeRestreamTranscodeProfile(value) {
   const profile = String(value || '').trim();
   return ['auto', 'h264_720p25', 'h264_1080p25', 'h264_1080p50'].includes(profile) ? profile : '';
+}
+
+function normalizeRestreamOverlay(value) {
+  if (!value || typeof value !== 'object') return null;
+  const enabled = value.enabled === true || String(value.enabled || '').toLowerCase() === 'true';
+  if (!enabled) return null;
+  const image = normalizeOverlayImage(value.image);
+  if (!image) return null;
+  return {
+    enabled: true,
+    image,
+    position: normalizeOverlayPosition(value.position),
+    width: clampInteger(value.width, 80, 1000, 420),
+    margin: clampInteger(value.margin, 0, 200, 24),
+  };
+}
+
+function normalizeOverlayImage(value) {
+  const image = String(value || '').trim();
+  const allowed = new Set(BUILTIN_RESTREAM_OVERLAYS.map((overlay) => overlay.id));
+  return allowed.has(image) || isCustomOverlayImage(image) ? image : '';
+}
+
+function isCustomOverlayImage(value) {
+  return /^custom-[a-z0-9][a-z0-9-]{0,70}\.png$/.test(String(value || ''));
+}
+
+function normalizeOverlayPosition(value) {
+  const position = String(value || '').trim();
+  return [
+    'top-left',
+    'top-center',
+    'top-right',
+    'center',
+    'bottom-left',
+    'bottom-center',
+    'bottom-right',
+  ].includes(position)
+    ? position
+    : 'top-right';
+}
+
+function clampInteger(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(number)));
+}
+
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object, key);
 }
 
 function isIptvDonorUrl(value) {

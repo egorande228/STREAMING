@@ -506,7 +506,7 @@
   }
 
   function matchCacheMaxAge(matches, date) {
-    if (date === new Date().toISOString().slice(0, 10)) return 45_000;
+    if (date === todayLocalKey() || date === new Date().toISOString().slice(0, 10)) return 45_000;
     const live = Array.isArray(matches) && matches.some((item) => item?.status === 'live' || item?.status === 'half_time');
     return live ? 45_000 : 24 * 60 * 60 * 1000;
   }
@@ -544,22 +544,44 @@
   }
 
   async function fetchScheduleMatches(today, options = {}) {
+    const previousDate = addUtcDays(today, -1);
+    const previousResult = await fetchMatchesForDate(previousDate, options);
     const todayResult = await fetchMatchesForDate(today, options);
     const upcomingDates = Array.from({ length: scheduleLookaheadDays }, (_, index) => addUtcDays(today, index + 1));
     const upcomingResults = await Promise.all(upcomingDates.map((date) => fetchMatchesForDate(date, options)));
+    const liveCarryoverMatches = previousResult.matches.filter(isLiveCarryoverMatch);
     const upcomingMatches = [
+      ...liveCarryoverMatches,
       ...todayResult.matches,
       ...upcomingResults.flatMap((result) => result.matches),
     ];
     const cachedMatches = [
+      ...previousResult.cachedMatches,
       ...todayResult.cachedMatches,
       ...upcomingResults.flatMap((result) => result.cachedMatches),
     ];
 
     return {
-      matches: upcomingMatches.sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || ''))),
+      matches: uniqueMatchesById(upcomingMatches)
+        .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || ''))),
       cachedMatches,
     };
+  }
+
+  function isLiveCarryoverMatch(match) {
+    const status = String(match?.status || '');
+    if (status !== 'live' && status !== 'half_time') return false;
+    return streamsForMatch(match).length > 0;
+  }
+
+  function uniqueMatchesById(matches) {
+    const seen = new Set();
+    return (Array.isArray(matches) ? matches : []).filter((match) => {
+      const id = String(match?.id || '');
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
   }
 
   function localizedNewsUrl() {
@@ -856,7 +878,7 @@
   }
 
   function shouldShowPlayerButtons(match = {}) {
-    return matchLocalDateKey(match) === localDateKey(new Date());
+    return matchLocalDateKey(match) === localDateKey(new Date()) || isLiveCarryoverMatch(match);
   }
 
   function renderStreamButtons(match, title, options = {}) {
@@ -1933,7 +1955,7 @@
   async function loadMatches(options = {}) {
     if (!grid) return;
     renderMatchSkeleton();
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayLocalKey();
 
     try {
       const schedule = await fetchScheduleMatches(today, options);

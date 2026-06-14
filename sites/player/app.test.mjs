@@ -299,6 +299,9 @@ test('uses Video.js only for streams explicitly marked as videojs', async () => 
 
   assert.equal(videoJsCalled, true);
   assert.ok(result.appended.find((element) => element.className.includes('video-js')));
+  assert.match(result.getStageClassName(), /stage-videojs/);
+  assert.equal(result.appended.some((element) => String(element.className).includes('player-brand-overlay')), false);
+  assert.ok(result.appended.find((element) => element.className === 'player-fullscreen-button'));
 });
 
 test('uses hls.js with credentials for KingLive HLS streams marked as videojs', async () => {
@@ -355,6 +358,9 @@ test('uses hls.js with credentials for KingLive HLS streams marked as videojs', 
   assert.equal(video.crossOrigin, 'use-credentials');
   assert.equal(typeof calls.find((call) => call.type === 'options').options.xhrSetup, 'function');
   assert.equal(calls.find((call) => call.type === 'source').src, 'https://hls.livekinglive.win/live/test/index.m3u8');
+  assert.match(result.getStageClassName(), /stage-videojs/);
+  assert.equal(result.appended.some((element) => String(element.className).includes('player-brand-overlay')), false);
+  assert.ok(result.appended.find((element) => element.className === 'player-fullscreen-button'));
 });
 
 test('merges configured player streams with match API streams', async () => {

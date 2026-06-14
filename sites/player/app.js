@@ -486,7 +486,10 @@
   function renderIframe(stream) {
     destroyHls();
     destroyVideoJs();
-    if (stage.classList) stage.classList.add('stage-iframe');
+    if (stage.classList) {
+      stage.classList.add('stage-iframe');
+      stage.classList.remove('stage-videojs');
+    }
     stage.innerHTML = '';
     const isDami = isDamiEmbedUrl(stream.url);
     const iframe = document.createElement('iframe');
@@ -633,10 +636,15 @@
     }
   }
 
-  function renderHls(stream) {
+  function renderHls(stream, options = {}) {
     destroyHls();
     destroyVideoJs();
-    if (stage.classList) stage.classList.remove('stage-iframe');
+    const isVideoJsLike = options.videojs === true || stream.source_type === 'videojs';
+    if (stage.classList) {
+      stage.classList.remove('stage-iframe');
+      if (isVideoJsLike) stage.classList.add('stage-videojs');
+      else stage.classList.remove('stage-videojs');
+    }
     stage.innerHTML = '';
     const video = document.createElement('video');
     video.controls = true;
@@ -646,7 +654,7 @@
     video.muted = /dami-tv\.pro/i.test(stream.url || '');
     video.poster = params.get('poster') || '';
     stage.appendChild(video);
-    attachPlayerBrandOverlays();
+    if (!isVideoJsLike) attachPlayerBrandOverlays();
     attachPlayerFullscreenButton();
     attachTelegramPopupToStage();
 
@@ -685,13 +693,16 @@
 
   function renderVideoJs(stream) {
     if (usesCredentialedHls(stream.url) && window.Hls && window.Hls.isSupported()) {
-      renderHls(stream);
+      renderHls(stream, { videojs: true });
       return;
     }
 
     destroyHls();
     destroyVideoJs();
-    if (stage.classList) stage.classList.remove('stage-iframe');
+    if (stage.classList) {
+      stage.classList.remove('stage-iframe');
+      stage.classList.add('stage-videojs');
+    }
     stage.innerHTML = '';
     const video = document.createElement('video');
     video.className = 'video-js vjs-default-skin vjs-big-play-centered';
@@ -703,7 +714,6 @@
     video.muted = /dami-tv\.pro/i.test(stream.url || '');
     video.poster = params.get('poster') || '';
     stage.appendChild(video);
-    attachPlayerBrandOverlays();
     attachPlayerFullscreenButton();
     attachTelegramPopupToStage();
 

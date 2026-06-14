@@ -29,6 +29,12 @@ REFERER="${REFERER:-}"
 ORIGIN="${ORIGIN:-}"
 MAX_RESTREAMS="${MAX_RESTREAMS:-2}"
 TRANSCODE_PROFILE="${TRANSCODE_PROFILE:-${RESTREAM_TRANSCODE_PROFILE:-auto}}"
+OVERLAY_ENABLED="${OVERLAY_ENABLED:-${RESTREAM_OVERLAY_ENABLED:-false}}"
+OVERLAY_IMAGE="${OVERLAY_IMAGE:-${RESTREAM_OVERLAY_IMAGE:-}}"
+OVERLAY_DIR="${OVERLAY_DIR:-${RESTREAM_OVERLAY_DIR:-/opt/kinglive/overlays}}"
+OVERLAY_POSITION="${OVERLAY_POSITION:-${RESTREAM_OVERLAY_POSITION:-top-right}}"
+OVERLAY_WIDTH="${OVERLAY_WIDTH:-${RESTREAM_OVERLAY_WIDTH:-420}}"
+OVERLAY_MARGIN="${OVERLAY_MARGIN:-${RESTREAM_OVERLAY_MARGIN:-24}}"
 
 if ! [[ "$MAX_RESTREAMS" =~ ^[0-9]+$ ]] || [[ "$MAX_RESTREAMS" -lt 1 ]]; then
   echo "MAX_RESTREAMS must be a positive integer" >&2
@@ -53,7 +59,13 @@ if [[ -n "$REFERER" || -n "$ORIGIN" ]]; then
 fi
 
 reconnect_at_eof=(-reconnect_at_eof 1)
+extra_inputs=()
+map_args=(-map 0:v:0? -map 0:a:0?)
+filter_args=()
 codec_args=(-c copy)
+video_filter=""
+video_encoder_args=()
+audio_encoder_args=()
 if [[ "$SOURCE_URL" == *".hls.gd/"* ]]; then
   reconnect_at_eof=()
   codec_args=(-c:v copy -c:a aac -b:a 128k)
@@ -74,13 +86,75 @@ if [[ "$SOURCE_URL" == *".hls.gd/"* ]]; then
       TRANSCODE_PROFILE="h264_720p25"
     fi
   fi
-  if [[ "$TRANSCODE_PROFILE" == "h264_720p25" ]]; then
-    codec_args=(-vf scale=-2:720,fps=25 -c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -c:a aac -b:a 128k)
-  elif [[ "$TRANSCODE_PROFILE" == "h264_1080p25" ]]; then
-    codec_args=(-vf scale=-2:1080,fps=25 -c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -maxrate 6500k -bufsize 13000k -c:a aac -b:a 128k)
-  elif [[ "$TRANSCODE_PROFILE" == "h264_1080p50" ]]; then
-    codec_args=(-vf scale=-2:1080,fps=50 -c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -maxrate 8500k -bufsize 17000k -c:a aac -b:a 128k)
+fi
+
+overlay_enabled="false"
+if [[ "${OVERLAY_ENABLED,,}" == "true" || "$OVERLAY_ENABLED" == "1" || "${OVERLAY_ENABLED,,}" == "yes" ]]; then
+  overlay_enabled="true"
+fi
+
+if [[ "$overlay_enabled" == "true" ]]; then
+  if [[ ! "$OVERLAY_IMAGE" =~ ^[A-Za-z0-9._-]+\.png$ ]]; then
+    echo "Invalid overlay image: ${OVERLAY_IMAGE}" >&2
+    exit 65
   fi
+  overlay_path="${OVERLAY_DIR%/}/${OVERLAY_IMAGE}"
+  if [[ ! -r "$overlay_path" ]]; then
+    echo "Missing readable overlay image: ${overlay_path}" >&2
+    exit 66
+  fi
+  if ! [[ "$OVERLAY_WIDTH" =~ ^[0-9]+$ ]] || [[ "$OVERLAY_WIDTH" -lt 80 || "$OVERLAY_WIDTH" -gt 1000 ]]; then
+    echo "RESTREAM_OVERLAY_WIDTH must be between 80 and 1000" >&2
+    exit 65
+  fi
+  if ! [[ "$OVERLAY_MARGIN" =~ ^[0-9]+$ ]] || [[ "$OVERLAY_MARGIN" -gt 200 ]]; then
+    echo "RESTREAM_OVERLAY_MARGIN must be between 0 and 200" >&2
+    exit 65
+  fi
+  if [[ ! "$TRANSCODE_PROFILE" =~ ^h264_ ]]; then
+    TRANSCODE_PROFILE="h264_720p25"
+  fi
+fi
+
+case "$TRANSCODE_PROFILE" in
+  h264_720p25)
+    video_filter="scale=-2:720,fps=25"
+    video_encoder_args=(-c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -g 50 -keyint_min 50 -sc_threshold 0)
+    audio_encoder_args=(-c:a aac -b:a 128k)
+    ;;
+  h264_1080p25)
+    video_filter="scale=-2:1080,fps=25"
+    video_encoder_args=(-c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -g 50 -keyint_min 50 -sc_threshold 0 -maxrate 6500k -bufsize 13000k)
+    audio_encoder_args=(-c:a aac -b:a 128k)
+    ;;
+  h264_1080p50)
+    video_filter="scale=-2:1080,fps=50"
+    video_encoder_args=(-c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -g 100 -keyint_min 100 -sc_threshold 0 -maxrate 8500k -bufsize 17000k)
+    audio_encoder_args=(-c:a aac -b:a 128k)
+    ;;
+esac
+
+if [[ "$overlay_enabled" == "true" ]]; then
+  case "$OVERLAY_POSITION" in
+    top-left) overlay_x="$OVERLAY_MARGIN"; overlay_y="$OVERLAY_MARGIN" ;;
+    top-center) overlay_x="(W-w)/2"; overlay_y="$OVERLAY_MARGIN" ;;
+    top-right) overlay_x="W-w-${OVERLAY_MARGIN}"; overlay_y="$OVERLAY_MARGIN" ;;
+    center) overlay_x="(W-w)/2"; overlay_y="(H-h)/2" ;;
+    bottom-left) overlay_x="$OVERLAY_MARGIN"; overlay_y="H-h-${OVERLAY_MARGIN}" ;;
+    bottom-center) overlay_x="(W-w)/2"; overlay_y="H-h-${OVERLAY_MARGIN}" ;;
+    bottom-right) overlay_x="W-w-${OVERLAY_MARGIN}"; overlay_y="H-h-${OVERLAY_MARGIN}" ;;
+    *)
+      echo "Invalid overlay position: ${OVERLAY_POSITION}" >&2
+      exit 65
+      ;;
+  esac
+  extra_inputs=(-loop 1 -i "$overlay_path")
+  filter_args=(-filter_complex "[0:v]${video_filter}[base];[1:v]scale=${OVERLAY_WIDTH}:-1[ov];[base][ov]overlay=${overlay_x}:${overlay_y}:format=auto[v]")
+  map_args=(-map "[v]" -map 0:a:0?)
+  codec_args=("${video_encoder_args[@]}" "${audio_encoder_args[@]}")
+elif [[ -n "$video_filter" ]]; then
+  filter_args=(-vf "$video_filter")
+  codec_args=("${video_encoder_args[@]}" "${audio_encoder_args[@]}")
 fi
 
 exec ffmpeg \
@@ -97,8 +171,9 @@ exec ffmpeg \
   -user_agent "$USER_AGENT" \
   "${headers[@]}" \
   -i "$SOURCE_URL" \
-  -map 0:v:0? \
-  -map 0:a:0? \
+  "${extra_inputs[@]}" \
+  "${map_args[@]}" \
+  "${filter_args[@]}" \
   "${codec_args[@]}" \
   -f flv \
   "$RTMP_URL"

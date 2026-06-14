@@ -94,6 +94,43 @@
             </select>
           </label>
           <label>
+            <div>Burn banner</div>
+            <select id="overlay-enabled" class="admin-select">
+              <option value="false">off</option>
+              <option value="true">on</option>
+            </select>
+          </label>
+          <label>
+            <div>Banner image</div>
+            <select id="overlay-image" class="admin-select">
+              <option value="kinglive_player_leaderboard.png">KingLive player</option>
+              <option value="kinglive_banner_1554x192_fixed.png">KingLive wide</option>
+              <option value="kinglive_top_banner_1554x192.png">KingLive top</option>
+              <option value="melbet_top_banner_1554x192.png">Melbet top</option>
+              <option value="melbet_banner_1870x245_safe_player.png">Melbet safe player</option>
+            </select>
+          </label>
+          <label>
+            <div>Banner position</div>
+            <select id="overlay-position" class="admin-select">
+              <option value="top-right">top right</option>
+              <option value="top-center">top center</option>
+              <option value="top-left">top left</option>
+              <option value="center">center</option>
+              <option value="bottom-right">bottom right</option>
+              <option value="bottom-center">bottom center</option>
+              <option value="bottom-left">bottom left</option>
+            </select>
+          </label>
+          <label>
+            <div>Banner width</div>
+            <input id="overlay-width" class="admin-input" type="number" min="80" max="1000" value="420" />
+          </label>
+          <label>
+            <div>Banner margin</div>
+            <input id="overlay-margin" class="admin-input" type="number" min="0" max="200" value="24" />
+          </label>
+          <label>
             <div>Language</div>
             <input id="lang" class="admin-input" value="en" />
           </label>
@@ -127,6 +164,37 @@
         </form>
         <p id="save-msg" class="admin-msg"></p>
         <p id="save-err" class="admin-err"></p>
+      </section>
+
+      <section class="admin-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <h2 style="margin:0">Banner Upload</h2>
+          <button id="reload-overlays" class="button secondary" type="button">Reload banners</button>
+        </div>
+        <form id="overlay-form" class="admin-grid" style="margin-top:12px;">
+          <label>
+            <div>Name</div>
+            <input id="overlay-name" class="admin-input" placeholder="Match banner" />
+          </label>
+          <label>
+            <div>PNG file</div>
+            <input id="overlay-file" class="admin-input" type="file" accept="image/png" />
+          </label>
+          <div class="full admin-actions wrap" style="margin-top:6px;">
+            <button class="button primary" type="submit">Upload banner</button>
+            <span id="overlay-status" class="mono"></span>
+          </div>
+        </form>
+        <div style="overflow:auto; margin-top:10px;">
+          <table class="admin-table">
+            <thead>
+              <tr><th>Name</th><th>File</th><th>Size</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="overlay-body">
+              <tr><td colspan="4">No uploaded banners</td></tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section class="admin-card">
@@ -276,11 +344,11 @@
           <table class="admin-table">
             <thead>
               <tr>
-                <th>ID</th><th>Origin</th><th>Match</th><th>Type</th><th>Label</th><th>URL</th><th>Profile</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
+                <th>ID</th><th>Origin</th><th>Match</th><th>Type</th><th>Label</th><th>URL</th><th>Profile</th><th>Overlay</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
               </tr>
             </thead>
             <tbody id="streams-body">
-              <tr><td colspan="12">No data</td></tr>
+              <tr><td colspan="13">No data</td></tr>
             </tbody>
           </table>
         </div>

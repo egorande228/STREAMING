@@ -649,11 +649,7 @@
     }
     stage.innerHTML = '';
     const video = document.createElement('video');
-    const nativeManagedHls =
-      usesManagedHls(stream.url) &&
-      isAppleTouchBrowser() &&
-      typeof video.canPlayType === 'function' &&
-      video.canPlayType('application/vnd.apple.mpegurl');
+    const nativeManagedHls = usesManagedHls(stream.url) && isAppleTouchBrowser();
     const playbackUrl = nativeManagedHls ? withManagedHlsCookieCheck(stream.url) : stream.url;
     configureVideoElement(video, stream.url, { crossOrigin: !nativeManagedHls });
     stage.appendChild(video);

@@ -11,7 +11,7 @@ window.KINGLIVE_MAIN_CONFIG = {
   playerBase,
   streamConfigUrl: './stream.json',
   newsApiUrl: `${unifiedApiBase}/api/news?limit=6&v=20260518-main-unified`,
-  sponsorUrl: 'https://refpa3665.com/L?tag=d_5674754m_66329c_KINGLIVE2026&site=5674754&ad=66329',
+  sponsorUrl: 'https://qweqr.sbs/jJQN6M',
   defaultLocale: 'en',
   adSlots: {},
 };

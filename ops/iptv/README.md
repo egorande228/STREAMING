@@ -30,8 +30,9 @@ The launcher supports both paths so existing channel env files can keep working.
 
 Sharavoz account/session limits are the real constraint. Start with one channel only.
 If one channel works alone but two fail, use separate donor accounts/tokens or keep only one active restream.
-The launcher refuses to start more than `MAX_RESTREAMS=2` simultaneous FFmpeg restreams by default.
-For two simultaneous IPTV restreams, prefer `h264_720p25` on unstable or heavy donor channels.
+The launcher refuses to start more than `MAX_RESTREAMS=3` simultaneous FFmpeg restreams by default.
+Manual overrides are capped at `MAX_RESTREAMS=4`.
+For multiple simultaneous IPTV restreams, prefer `h264_720p25` on unstable or heavy donor channels.
 
 ## Install On Origin VPS
 

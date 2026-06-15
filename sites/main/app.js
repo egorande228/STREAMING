@@ -846,10 +846,18 @@
       : [];
   }
 
+  function isFirstPartyVideoStream(stream = {}) {
+    const type = String(stream.source_type || stream.sourceType || inferStreamType(stream.url)).toLowerCase();
+    return type === 'videojs' || type === 'hls';
+  }
+
   function displayStreamsForMatch(match = {}) {
     const byLanguage = new Map();
     const withoutLanguage = [];
-    streamsForMatch(match).forEach((stream, index) => {
+    const activeStreams = streamsForMatch(match);
+    const videoStreams = activeStreams.filter(isFirstPartyVideoStream);
+    const streams = videoStreams.length ? videoStreams : activeStreams;
+    streams.forEach((stream, index) => {
       const language = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
       const priority = Number.isFinite(Number(stream.priority)) ? Number(stream.priority) : 100 - index;
       const normalized = { ...stream, priority };

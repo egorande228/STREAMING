@@ -124,6 +124,109 @@ test('renders same-day matches beyond the first six API results', async () => {
   assert.match(gridHtml, /Arsenal vs Atletico Madrid/);
 });
 
+test('main stream buttons prefer videojs and hide iframe reserves', async () => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const today = localDateKey();
+  const match = {
+    id: 19609139,
+    scheduled_at: `${today}T19:00:00+00:00`,
+    status: 'live',
+    stage: 'Group Stage',
+    home_team: { name_en: 'France' },
+    away_team: { name_en: 'Brazil' },
+    streams: [
+      {
+        id: 8,
+        url: 'https://hls.livekinglive.win/live/19609139-es-spanish/index.m3u8',
+        source_type: 'videojs',
+        label: 'Spanish',
+        language_code: 'es',
+        priority: 100,
+        is_active: true,
+      },
+      {
+        id: 7,
+        url: 'https://1.goheali.com/splayer/Live1.php',
+        source_type: 'iframe',
+        label: 'multilang reserv',
+        language_code: 'multilang',
+        priority: 80,
+        is_active: true,
+      },
+    ],
+  };
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: '',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch(url) {
+      const request = String(url);
+      if (request.includes('/streams/active')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ match_ids: ['19609139'], streams: { 19609139: match.streams } }),
+        });
+      }
+      if (request.endsWith('/stream.json') || request.endsWith('stream.json')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      }
+      const matches = request.includes(`date=${today}`) ? [match] : [];
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ matches }) });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /France vs Brazil/);
+  assert.match(gridHtml, /source=8/);
+  assert.match(gridHtml, /type=videojs/);
+  assert.doesNotMatch(gridHtml, /goheali/);
+  assert.doesNotMatch(gridHtml, /multilang reserv/);
+});
+
 test('keeps live streamed matches from the previous local date on the main page', async () => {
   let gridHtml = '';
   const matchGrid = {

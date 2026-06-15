@@ -418,6 +418,56 @@ test('uses hls.js without credentials for KingLive HLS streams marked as videojs
   assert.ok(result.appended.find((element) => element.className === 'player-fullscreen-button'));
 });
 
+test('uses native iOS HLS for KingLive HLS streams marked as videojs', async () => {
+  let videoJsCalled = false;
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    config: {
+      matchStreams: {
+        1540843: {
+          url: 'https://hls.livekinglive.win/live/test/index.m3u8',
+          source_type: 'videojs',
+          label: 'KingLive HLS',
+        },
+      },
+    },
+    timers: {
+      nativeHlsSupport: true,
+      videojs: () => {
+        videoJsCalled = true;
+      },
+    },
+    navigatorOverrides: {
+      userAgent:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/125.0.0.0 Mobile/15E148 Safari/604.1',
+      platform: 'iPhone',
+      maxTouchPoints: 5,
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ home_team: { name_en: 'A' }, away_team: { name_en: 'B' } }),
+      });
+    },
+  });
+
+  const video = result.appended.find((element) => element.tagName === 'video');
+  assert.equal(videoJsCalled, false);
+  assert.equal(video.src, 'https://hls.livekinglive.win/live/test/index.m3u8?cookieCheck=1');
+  assert.equal(video.crossOrigin, undefined);
+  assert.equal(video.autoplay, true);
+  assert.equal(video.muted, true);
+  assert.equal(video.playsInline, true);
+  assert.equal(video.playsinline, '');
+  assert.equal(video['webkit-playsinline'], '');
+  assert.match(result.getStageClassName(), /stage-videojs/);
+  assert.equal(result.appended.some((element) => String(element.className).includes('player-brand-overlay')), false);
+  assert.ok(result.appended.find((element) => element.className === 'player-fullscreen-button'));
+});
+
 test('merges configured player streams with match API streams', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843&lang=en&region=global',

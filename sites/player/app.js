@@ -553,6 +553,43 @@
     }
   }
 
+  function isAppleTouchBrowser() {
+    const nav = window.navigator || navigator || {};
+    const userAgent = String(nav.userAgent || '');
+    const platform = String(nav.platform || '');
+    return /iP(hone|od|ad)/i.test(userAgent) || (platform === 'MacIntel' && Number(nav.maxTouchPoints || 0) > 1);
+  }
+
+  function withManagedHlsCookieCheck(value) {
+    try {
+      const url = new URL(String(value || ''), window.location.href);
+      if (url.hostname === 'hls.livekinglive.win') url.searchParams.set('cookieCheck', '1');
+      return url.toString();
+    } catch {
+      return value;
+    }
+  }
+
+  function configureVideoElement(video, streamUrl, options = {}) {
+    if (!video) return;
+    if (typeof video.setAttribute === 'function') {
+      video.setAttribute('autoplay', '');
+      video.setAttribute('playsinline', '');
+      video.setAttribute('webkit-playsinline', '');
+      if (shouldStartMuted(streamUrl)) video.setAttribute('muted', '');
+    }
+    video.controls = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    video.muted = shouldStartMuted(streamUrl);
+    video.defaultMuted = video.muted;
+    if (options.crossOrigin !== false) {
+      video.crossOrigin = usesCredentialedHls(streamUrl) ? 'use-credentials' : 'anonymous';
+    }
+    video.poster = params.get('poster') || '';
+  }
+
   function shouldStartMuted(value) {
     return /dami-tv\.pro/i.test(value || '') || usesManagedHls(value);
   }
@@ -612,12 +649,13 @@
     }
     stage.innerHTML = '';
     const video = document.createElement('video');
-    video.controls = true;
-    video.autoplay = true;
-    video.playsInline = true;
-    video.crossOrigin = usesCredentialedHls(stream.url) ? 'use-credentials' : 'anonymous';
-    video.muted = shouldStartMuted(stream.url);
-    video.poster = params.get('poster') || '';
+    const nativeManagedHls =
+      usesManagedHls(stream.url) &&
+      isAppleTouchBrowser() &&
+      typeof video.canPlayType === 'function' &&
+      video.canPlayType('application/vnd.apple.mpegurl');
+    const playbackUrl = nativeManagedHls ? withManagedHlsCookieCheck(stream.url) : stream.url;
+    configureVideoElement(video, stream.url, { crossOrigin: !nativeManagedHls });
     stage.appendChild(video);
     if (!isVideoJsLike) attachPlayerBrandOverlays();
     attachStreamPlayButton(video);
@@ -625,8 +663,15 @@
     attachTelegramPopupToStage();
 
     const preferHlsJs = /dami-tv\.pro/i.test(stream.url || '') || usesManagedHls(stream.url);
+    if (nativeManagedHls) {
+      video.src = playbackUrl;
+      requestMutedPlayback(video);
+      startManagedPlaybackWatch(video);
+      return;
+    }
+
     if (!preferHlsJs && video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = stream.url;
+      video.src = playbackUrl;
       video.play().catch(() => {});
       return;
     }
@@ -646,7 +691,7 @@
         backBufferLength: 30,
         maxBufferLength: 20,
       });
-      hls.loadSource(stream.url);
+      hls.loadSource(playbackUrl);
       hls.attachMedia(video);
       if (managedHls) startManagedPlaybackWatch(video);
       hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
@@ -659,11 +704,11 @@
       return;
     }
 
-    video.src = stream.url;
+    video.src = playbackUrl;
   }
 
   function renderVideoJs(stream) {
-    if (usesManagedHls(stream.url) && window.Hls && window.Hls.isSupported()) {
+    if (usesManagedHls(stream.url) && (isAppleTouchBrowser() || (window.Hls && window.Hls.isSupported()))) {
       renderHls(stream, { videojs: true });
       return;
     }
@@ -677,13 +722,7 @@
     stage.innerHTML = '';
     const video = document.createElement('video');
     video.className = 'video-js vjs-default-skin vjs-big-play-centered';
-    video.controls = true;
-    video.autoplay = true;
-    video.playsInline = true;
-    video.preload = 'auto';
-    video.crossOrigin = usesCredentialedHls(stream.url) ? 'use-credentials' : 'anonymous';
-    video.muted = shouldStartMuted(stream.url);
-    video.poster = params.get('poster') || '';
+    configureVideoElement(video, stream.url);
     stage.appendChild(video);
     attachStreamPlayButton(video);
     attachPlayerFullscreenButton();

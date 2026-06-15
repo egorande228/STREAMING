@@ -32,6 +32,7 @@
   let currentStreams = [];
   let hls;
   let videoJsPlayer = null;
+  let managedPlaybackTimer = null;
 
   const isAdmin = params.get('admin') === '1';
   const viewerClientId = getViewerClientId();
@@ -347,6 +348,7 @@
   }
 
   function destroyHls() {
+    stopManagedPlaybackWatch();
     if (hls) {
       hls.destroy();
       hls = null;
@@ -555,6 +557,50 @@
     return /dami-tv\.pro/i.test(value || '') || usesManagedHls(value);
   }
 
+  function stopManagedPlaybackWatch() {
+    if (managedPlaybackTimer) {
+      clearInterval(managedPlaybackTimer);
+      managedPlaybackTimer = null;
+    }
+  }
+
+  function requestMutedPlayback(video) {
+    if (!video || typeof video.play !== 'function') return;
+    video.muted = true;
+    const result = video.play();
+    if (result && typeof result.catch === 'function') result.catch(() => {});
+  }
+
+  function startManagedPlaybackWatch(video) {
+    stopManagedPlaybackWatch();
+    if (!video || typeof video.play !== 'function') return;
+    let lastTime = -1;
+    let stalledTicks = 0;
+    let ticks = 0;
+    const tick = () => {
+      ticks += 1;
+      const currentTime = Number(video.currentTime || 0);
+      if (video.paused) {
+        requestMutedPlayback(video);
+      } else if (currentTime === lastTime && Number(video.readyState || 0) >= 2) {
+        stalledTicks += 1;
+        if (stalledTicks >= 2 && hls && Number.isFinite(hls.liveSyncPosition) && hls.liveSyncPosition > 0) {
+          try {
+            video.currentTime = Math.max(0, hls.liveSyncPosition - 1);
+          } catch {}
+          requestMutedPlayback(video);
+          stalledTicks = 0;
+        }
+      } else {
+        stalledTicks = 0;
+      }
+      lastTime = currentTime;
+      if (ticks >= 40) stopManagedPlaybackWatch();
+    };
+    tick();
+    managedPlaybackTimer = setInterval(tick, 1500);
+  }
+
   function renderHls(stream, options = {}) {
     destroyHls();
     destroyVideoJs();
@@ -586,6 +632,7 @@
     }
 
     if (window.Hls && window.Hls.isSupported()) {
+      const managedHls = usesManagedHls(stream.url);
       hls = new window.Hls({
         enableWorker: true,
         lowLatencyMode: false,
@@ -601,7 +648,11 @@
       });
       hls.loadSource(stream.url);
       hls.attachMedia(video);
-      hls.on(window.Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+      if (managedHls) startManagedPlaybackWatch(video);
+      hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+        if (managedHls) requestMutedPlayback(video);
+        else video.play().catch(() => {});
+      });
       hls.on(window.Hls.Events.ERROR, (_, data) => {
         if (data.fatal) clearPlayer();
       });

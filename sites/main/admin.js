@@ -205,6 +205,18 @@
     }
   }
 
+  function previewHlsUrl(value) {
+    try {
+      const url = new URL(String(value || ''));
+      if (/\.m3u8$/i.test(url.pathname) && !url.searchParams.has('cookieCheck')) {
+        url.searchParams.set('cookieCheck', '1');
+      }
+      return url.toString();
+    } catch {
+      return String(value || '');
+    }
+  }
+
   function scheduleOverlayStreamPreview() {
     window.clearTimeout(overlayPreviewTimer);
     overlayPreviewTimer = window.setTimeout(loadOverlayStreamPreview, 450);
@@ -259,8 +271,9 @@
     video.onloadeddata = startOverlayFrameCapture;
     video.oncanplay = startOverlayFrameCapture;
     video.onplaying = startOverlayFrameCapture;
+    const hlsUrl = previewHlsUrl(rawUrl);
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = rawUrl;
+      video.src = hlsUrl;
       video.play().catch(() => {});
       return;
     }
@@ -269,7 +282,7 @@
       overlayPreviewHls.on(window.Hls.Events.ERROR, (event, data) => {
         if (data?.fatal) clearOverlayStreamPreview('Stream preview failed to load');
       });
-      overlayPreviewHls.loadSource(rawUrl);
+      overlayPreviewHls.loadSource(hlsUrl);
       overlayPreviewHls.attachMedia(video);
       overlayPreviewHls.on(window.Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {});

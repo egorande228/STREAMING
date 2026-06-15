@@ -410,6 +410,7 @@ test('uses hls.js without credentials for KingLive HLS streams marked as videojs
   const video = result.appended.find((element) => element.tagName === 'video');
   assert.equal(videoJsCalled, false);
   assert.equal(video.crossOrigin, 'anonymous');
+  assert.equal(video.muted, true);
   assert.equal(calls.find((call) => call.type === 'options').options.xhrSetup, undefined);
   assert.equal(calls.find((call) => call.type === 'source').src, 'https://hls.livekinglive.win/live/test/index.m3u8');
   assert.match(result.getStageClassName(), /stage-videojs/);

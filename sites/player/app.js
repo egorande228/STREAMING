@@ -551,6 +551,10 @@
     }
   }
 
+  function shouldStartMuted(value) {
+    return /dami-tv\.pro/i.test(value || '') || usesManagedHls(value);
+  }
+
   function renderHls(stream, options = {}) {
     destroyHls();
     destroyVideoJs();
@@ -566,7 +570,7 @@
     video.autoplay = true;
     video.playsInline = true;
     video.crossOrigin = usesCredentialedHls(stream.url) ? 'use-credentials' : 'anonymous';
-    video.muted = /dami-tv\.pro/i.test(stream.url || '');
+    video.muted = shouldStartMuted(stream.url);
     video.poster = params.get('poster') || '';
     stage.appendChild(video);
     if (!isVideoJsLike) attachPlayerBrandOverlays();
@@ -627,7 +631,7 @@
     video.playsInline = true;
     video.preload = 'auto';
     video.crossOrigin = usesCredentialedHls(stream.url) ? 'use-credentials' : 'anonymous';
-    video.muted = /dami-tv\.pro/i.test(stream.url || '');
+    video.muted = shouldStartMuted(stream.url);
     video.poster = params.get('poster') || '';
     stage.appendChild(video);
     attachStreamPlayButton(video);

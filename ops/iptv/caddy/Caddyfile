@@ -13,14 +13,10 @@ hls.livekinglive.win {
   }
 
   handle /live/* {
-    # Keep a full MediaMTX HLS session on one edge. MediaMTX ties HLS
-    # sessions to the upstream client IP; per-request edge balancing causes
-    # 401 responses on main_stream.m3u8 and .ts segment requests.
-    reverse_proxy 150.251.114.54 {
-      health_uri /health
-      health_interval 5s
-      header_up Host hls.livekinglive.win
-    }
+    # Caddy runs in host networking on the origin VPS. Route /live through
+    # the local HLS cache so a remote edge outage cannot make the main HLS
+    # hostname return 503 while MediaMTX is healthy.
+    reverse_proxy 127.0.0.1:80
   }
 
   handle {

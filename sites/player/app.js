@@ -18,6 +18,7 @@
   const tgPopup = document.getElementById('tg-popup');
   const adSlots = config.adSlots || {};
   const tgPopupConfig = config.tgPopup || {};
+  const socialLinksByLang = config.socialLinksByLang || {};
   const allowDirectStreamParams = config.allowDirectStreamParams === true;
   let matchStreams = config.matchStreams || {};
   let tgPopupDismissed = false;
@@ -168,6 +169,45 @@
     return normalizeLanguageCode(stream.language_code || stream.languageCode || stream.lang || stream.language || '')
       || normalizeLanguageCode(stream.label || '')
       || normalizeLanguageCode(stream.title || '');
+  }
+
+  function setupSocialDock() {
+    if (typeof document.querySelector !== 'function') return;
+    const dock = document.querySelector('[data-social-dock]');
+    const panel = document.querySelector('[data-social-panel]');
+    const toggle = document.querySelector('[data-social-toggle]');
+    if (!dock || !panel) return;
+    const links = socialLinksByLang[normalizedPreferredLang] || socialLinksByLang.en || [];
+    panel.innerHTML = links
+      .map((item) => {
+        const icon = socialIcon(item.brand);
+        if (!item.url) {
+          return `<span class="social-link disabled" title="${escapeHtml(item.label)}">${icon}<span>${escapeHtml(item.label)}</span></span>`;
+        }
+        return `
+          <a class="social-link ${escapeHtml(item.brand)}" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.label)}" aria-label="${escapeHtml(item.label)}">
+            ${icon}<span>${escapeHtml(item.label)}</span>
+          </a>
+        `;
+      })
+      .join('');
+    if (toggle) {
+      toggle.addEventListener('click', () => {
+        const expanded = dock.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      });
+    }
+  }
+
+  function socialIcon(brand = '') {
+    const icons = {
+      telegram: '<svg viewBox="0 0 24 24" focusable="false"><path d="M21.5 4.3 18.4 19c-.2 1.1-.9 1.4-1.8.9l-5-3.7-2.4 2.3c-.3.3-.5.5-1 .5l.4-5.1 9.3-8.4c.4-.4-.1-.6-.6-.2L5.8 12.6.9 11.1c-1.1-.3-1.1-1.1.2-1.6L20.2 2.2c.9-.3 1.7.2 1.3 2.1Z"/></svg>',
+      youtube: '<svg viewBox="0 0 24 24" focusable="false"><path d="M22.3 7.1a3 3 0 0 0-2.1-2.1C18.4 4.5 12 4.5 12 4.5s-6.4 0-8.2.5a3 3 0 0 0-2.1 2.1A31 31 0 0 0 1.2 12a31 31 0 0 0 .5 4.9 3 3 0 0 0 2.1 2.1c1.8.5 8.2.5 8.2.5s6.4 0 8.2-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.9 31 31 0 0 0-.5-4.9ZM9.8 15.3V8.7l5.8 3.3-5.8 3.3Z"/></svg>',
+      tiktok: '<svg viewBox="0 0 24 24" focusable="false"><path d="M16.2 3c.4 3 2.1 4.8 4.8 5v3.3a8.3 8.3 0 0 1-4.7-1.5v6.5c0 3.3-2.3 5.7-5.7 5.7a5.5 5.5 0 0 1-5.8-5.4c0-3.5 2.8-5.9 6.5-5.4v3.5c-1.7-.5-3.1.4-3.1 1.9 0 1.2 1 2.1 2.3 2.1 1.4 0 2.3-.9 2.3-2.6V3h3.4Z"/></svg>',
+      facebook: '<svg viewBox="0 0 24 24" focusable="false"><path d="M15.7 8.2h-2.3V6.7c0-.6.4-.8.8-.8h1.4V3.1L13.4 3c-2.4 0-3.8 1.5-3.8 4v1.2H7.1v3h2.5V21h3.8v-9.8h2.1l.2-3Z"/></svg>',
+      instagram: '<svg viewBox="0 0 24 24" focusable="false"><path d="M7.3 2.8h9.4c2.5 0 4.5 2 4.5 4.5v9.4c0 2.5-2 4.5-4.5 4.5H7.3c-2.5 0-4.5-2-4.5-4.5V7.3c0-2.5 2-4.5 4.5-4.5Zm0 3A1.5 1.5 0 0 0 5.8 7.3v9.4a1.5 1.5 0 0 0 1.5 1.5h9.4a1.5 1.5 0 0 0 1.5-1.5V7.3a1.5 1.5 0 0 0-1.5-1.5H7.3Zm4.7 2.6a3.6 3.6 0 1 1 0 7.2 3.6 3.6 0 0 1 0-7.2Zm0 2.2a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8Zm4-2.4a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Z"/></svg>',
+    };
+    return `<span class="social-mark ${escapeHtml(brand)}" aria-hidden="true">${icons[brand] || icons.telegram}</span>`;
   }
 
   function streamLabel(stream, index) {
@@ -859,6 +899,7 @@
     const key = adSlotKeys[slot.dataset.adSlot];
     if (key && adSlots[key]) slot.innerHTML = adSlots[key];
   });
+  setupSocialDock();
   if (!isPreviewMode) detectAdblock();
 
   (async function boot() {

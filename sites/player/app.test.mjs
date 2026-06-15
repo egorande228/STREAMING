@@ -18,6 +18,29 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
     value: '0',
     addEventListener() {},
   };
+  const socialDockClasses = new Set(['social-dock']);
+  const socialDock = {
+    classList: {
+      toggle(value) {
+        if (socialDockClasses.has(value)) {
+          socialDockClasses.delete(value);
+          return false;
+        }
+        socialDockClasses.add(value);
+        return true;
+      },
+    },
+  };
+  const socialPanel = { innerHTML: '' };
+  const socialToggle = {
+    attributes: {},
+    addEventListener(type, handler) {
+      elementListeners.set(`social-toggle:${type}`, handler);
+    },
+    setAttribute(name, value) {
+      this.attributes[name] = String(value);
+    },
+  };
   const copyEmbed = {
     textContent: 'Copy iframe',
     addEventListener() {},
@@ -159,6 +182,12 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
         if (id === 'tg-popup') return tgPopup;
         return null;
       },
+      querySelector(selector) {
+        if (selector === '[data-social-dock]') return socialDock;
+        if (selector === '[data-social-panel]') return socialPanel;
+        if (selector === '[data-social-toggle]') return socialToggle;
+        return null;
+      },
       querySelectorAll() {
         return [];
       },
@@ -193,6 +222,8 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
     getStageClassName: () => stage.className,
     hasDocumentClass: (value) => documentElementClasses.has(value),
     sourceSelect,
+    socialPanel,
+    socialToggle,
     stageClassName: stage.className,
     stageHtml,
     tgPopup,
@@ -526,6 +557,47 @@ test('filters source list to the language selected on main', async () => {
   assert.doesNotMatch(result.sourceSelect.innerHTML, /English/);
   assert.doesNotMatch(result.sourceSelect.innerHTML, /Arabic/);
   assert.equal(result.sourceSelect.hidden, true);
+});
+
+test('renders social contacts for the selected player language', async () => {
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843&lang=ar',
+    config: {
+      socialLinksByLang: {
+        ar: [
+          { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcup2026arabworld' },
+          { brand: 'youtube', label: 'YouTube', url: 'https://www.youtube.com/@worldcup_arabia' },
+        ],
+        en: [
+          { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcuplive_international' },
+        ],
+      },
+      matchStreams: {
+        1540843: {
+          url: 'https://trusted.test/arabic.m3u8',
+          source_type: 'hls',
+          label: 'Arabic',
+          language_code: 'ar',
+        },
+      },
+    },
+    fetchImpl: (url) => {
+      assert.equal(String(url), '/api/matches/1540843?lang=ar&region=global');
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'A' },
+            away_team: { name_en: 'B' },
+            streams: [],
+          }),
+      });
+    },
+  });
+
+  assert.match(result.socialPanel.innerHTML, /worldcup2026arabworld/);
+  assert.match(result.socialPanel.innerHTML, /worldcup_arabia/);
+  assert.doesNotMatch(result.socialPanel.innerHTML, /worldcuplive_international/);
 });
 
 test('renders iframe streams with browser sandbox restrictions', async () => {

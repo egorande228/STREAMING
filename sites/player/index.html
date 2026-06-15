@@ -14,7 +14,7 @@
     <script src="./assets/vendor/hlsjs/hls.min.js?v=1.6.15"></script>
     <script src="./assets/vendor/videojs/video.min.js?v=8.23.4"></script>
     <script defer src="./url-propagation.js"></script>
-    <script defer src="./app.js?v=player-lang-filter-20260615"></script>
+    <script defer src="./app.js?v=player-contacts-20260615"></script>
   </head>
   <body>
     <main class="shell">
@@ -64,6 +64,12 @@
         </aside>
       </section>
       <div class="tg-popup" id="tg-popup" hidden></div>
+      <aside class="social-dock" data-social-dock aria-label="Social contacts">
+        <button class="social-dock-toggle" type="button" data-social-toggle aria-expanded="false" aria-label="Social contacts">
+          <span>+</span>
+        </button>
+        <div class="social-dock-panel" data-social-panel></div>
+      </aside>
     </main>
   </body>
 </html>

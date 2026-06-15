@@ -35,6 +35,25 @@ window.KINGLIVE_PLAYER_CONFIG = {
   streamConfigUrl: './streams.json',
   defaultLang: 'en',
   defaultRegion: 'global',
+  socialLinksByLang: {
+    ar: [
+      { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcup2026arabworld' },
+      { brand: 'youtube', label: 'YouTube', url: 'https://www.youtube.com/@worldcup_arabia' },
+      { brand: 'tiktok', label: 'TikTok', url: 'https://www.tiktok.com/@2026melbetworldcuparabia?_r=1&_t=ZS-96xaxd2saoP' },
+      { brand: 'facebook', label: 'Facebook', url: 'https://www.facebook.com/share/18nunR1PmA/?mibextid=wwXIfr' },
+      { brand: 'instagram', label: 'Instagram', url: 'https://www.instagram.com/2026melbetfifaworldcuparabia?igsh=aDZsY3R6eHhxYzkx&utm_source=qr' },
+    ],
+    en: [
+      { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcuplive_international' },
+      { brand: 'facebook', label: 'Facebook', url: 'https://facebook.com/worldcupliveinternationalll' },
+      { brand: 'instagram', label: 'Instagram', url: 'https://www.instagram.com/worldcuplive_international/' },
+    ],
+    es: [
+      { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcuplive_international' },
+      { brand: 'facebook', label: 'Facebook', url: 'https://facebook.com/worldcupliveinternationalll' },
+      { brand: 'instagram', label: 'Instagram', url: 'https://www.instagram.com/worldcuplive_international/' },
+    ],
+  },
   tgPopup: {
     enabled: true,
     title: 'World Cup Telegram',

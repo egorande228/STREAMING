@@ -1524,7 +1524,13 @@ function isIptvDonorUrl(value) {
   try {
     const url = new URL(String(value || ''));
     const host = url.hostname.toLowerCase();
-    return host.includes('plinkspile.cc') || host.includes('hls.gd') || host.includes('sharavoz') || host.includes('rv77.pw');
+    return (
+      host.includes('plinkspile.cc') ||
+      host.includes('hls.gd') ||
+      host.includes('sharavoz') ||
+      host.includes('rv77.pw') ||
+      host.includes('tvportal4k')
+    );
   } catch {
     return false;
   }

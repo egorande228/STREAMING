@@ -2023,6 +2023,65 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
   });
 });
 
+test('converts tvportal4k IPTV donor streams into private restream definitions', async () => {
+  const kvData = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value) {
+      kvData.set(key, value);
+    },
+  };
+  const env = {
+    ADMIN_BEARER_TOKEN: 'test-token',
+    RESTREAM_SYNC_TOKEN: 'sync-token',
+    RESTREAM_PUBLIC_BASE_URL: 'https://hls.livekinglive.win/live',
+    STREAM_CONFIG_KV: kv,
+  };
+
+  const donorUrl = 'http://tvportal4k.xyz/live/user/pass/1948768.m3u8';
+  const create = await routeRequest(
+    new Request('https://kinglive.test/api/admin/streams', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer test-token',
+      },
+      body: JSON.stringify({
+        match_id: 19609157,
+        url: donorUrl,
+        source_type: 'videojs',
+        label: 'Spanish',
+        language_code: 'es',
+      }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(create.status, 200);
+
+  const publicStreams = await routeRequest(new Request('https://kinglive.test/api/streams/active'), env, {});
+  assert.equal(publicStreams.status, 200);
+  const publicBody = await publicStreams.json();
+  assert.equal(publicBody.streams['19609157'][0].url, 'https://hls.livekinglive.win/live/19609157-es-spanish/index.m3u8');
+  assert.equal(JSON.stringify(publicBody).includes('tvportal4k.xyz'), false);
+
+  const restreams = await routeRequest(
+    new Request('https://kinglive.test/api/restreams', {
+      headers: { Authorization: 'Bearer sync-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(restreams.status, 200);
+  const restreamBody = await restreams.json();
+  assert.equal(restreamBody.total, 1);
+  assert.equal(restreamBody.restreams[0].slug, '19609157-es-spanish');
+  assert.equal(restreamBody.restreams[0].donor_url, donorUrl);
+  assert.equal(restreamBody.restreams[0].output_url, 'https://hls.livekinglive.win/live/19609157-es-spanish/index.m3u8');
+});
+
 test('admin can upload custom overlay banners for restream sync', async () => {
   const kvData = new Map();
   const kv = {

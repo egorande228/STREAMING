@@ -199,7 +199,7 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
         if (tagName === 'div' || tagName === 'button' || tagName === 'span') return makeElement(tagName);
         return {
           tagName,
-          canPlayType: () => '',
+          canPlayType: () => (timers.nativeHlsSupport ? 'probably' : ''),
           play: () => Promise.resolve(),
           setAttribute(name, value) {
             this[name] = String(value);
@@ -357,7 +357,7 @@ test('uses Video.js only for streams explicitly marked as videojs', async () => 
   assert.ok(result.appended.find((element) => element.className === 'player-fullscreen-button'));
 });
 
-test('uses hls.js with credentials for KingLive HLS streams marked as videojs', async () => {
+test('uses hls.js without credentials for KingLive HLS streams marked as videojs', async () => {
   const calls = [];
   class MockHls {
     static Events = { MANIFEST_PARSED: 'manifest' };
@@ -391,6 +391,7 @@ test('uses hls.js with credentials for KingLive HLS streams marked as videojs', 
     },
     timers: {
       Hls: MockHls,
+      nativeHlsSupport: true,
       videojs: () => {
         videoJsCalled = true;
       },
@@ -408,8 +409,8 @@ test('uses hls.js with credentials for KingLive HLS streams marked as videojs', 
 
   const video = result.appended.find((element) => element.tagName === 'video');
   assert.equal(videoJsCalled, false);
-  assert.equal(video.crossOrigin, 'use-credentials');
-  assert.equal(typeof calls.find((call) => call.type === 'options').options.xhrSetup, 'function');
+  assert.equal(video.crossOrigin, 'anonymous');
+  assert.equal(calls.find((call) => call.type === 'options').options.xhrSetup, undefined);
   assert.equal(calls.find((call) => call.type === 'source').src, 'https://hls.livekinglive.win/live/test/index.m3u8');
   assert.match(result.getStageClassName(), /stage-videojs/);
   assert.equal(result.appended.some((element) => String(element.className).includes('player-brand-overlay')), false);

@@ -539,6 +539,10 @@
   }
 
   function usesCredentialedHls(value) {
+    return false;
+  }
+
+  function usesManagedHls(value) {
     try {
       const url = new URL(String(value || ''), window.location.href);
       return url.hostname === 'hls.livekinglive.win';
@@ -570,7 +574,7 @@
     attachPlayerFullscreenButton();
     attachTelegramPopupToStage();
 
-    const preferHlsJs = /dami-tv\.pro/i.test(stream.url || '');
+    const preferHlsJs = /dami-tv\.pro/i.test(stream.url || '') || usesManagedHls(stream.url);
     if (!preferHlsJs && video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = stream.url;
       video.play().catch(() => {});
@@ -604,7 +608,7 @@
   }
 
   function renderVideoJs(stream) {
-    if (usesCredentialedHls(stream.url) && window.Hls && window.Hls.isSupported()) {
+    if (usesManagedHls(stream.url) && window.Hls && window.Hls.isSupported()) {
       renderHls(stream, { videojs: true });
       return;
     }

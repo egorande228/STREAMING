@@ -69,8 +69,10 @@ codec_args=(-c copy)
 video_filter=""
 video_encoder_args=()
 audio_encoder_args=()
-if [[ "$SOURCE_URL" == *".hls.gd/"* ]]; then
+if [[ "$SOURCE_URL" =~ \.m3u8($|\?) ]]; then
   reconnect_at_eof=()
+fi
+if [[ "$SOURCE_URL" == *".hls.gd/"* ]]; then
   audio_filter_args=(-af "aresample=async=1:first_pts=0")
   codec_args=(-c:v copy -c:a aac -b:a 128k)
   if [[ "$TRANSCODE_PROFILE" == "auto" ]]; then

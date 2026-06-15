@@ -201,6 +201,19 @@
     }
   }
 
+  async function restartStream(id) {
+    if (!window.confirm(`Restart IPTV restream #${id}?`)) return;
+    saveMsg.textContent = '';
+    saveErr.textContent = '';
+    try {
+      const payload = await adminFetch(`/api/admin/streams/${id}/restart`, { method: 'POST' });
+      saveMsg.textContent = `Restart requested${payload.slug ? `: ${payload.slug}` : ''}`;
+      await loadStreams();
+    } catch (error) {
+      saveErr.textContent = String(error.message || error);
+    }
+  }
+
   async function loadStreams() {
     if (!token()) {
       streamsBody.innerHTML = '<tr><td colspan="14">Login first</td></tr>';
@@ -217,6 +230,7 @@
         .map((stream) => {
           const url = escapeHtml(stream.url || '');
           const editable = stream.editable !== false && stream.origin !== 'dami';
+          const restartable = editable && stream.restream?.enabled && stream.is_active !== false && stream.restream?.desired_state !== 'stopped';
           const overlay = stream.restream?.overlay;
           const overlayLabel = overlay?.enabled
             ? `${escapeHtml(overlay.image || 'banner')}<br/>${escapeHtml(overlay.position || 'top-right')} ${escapeHtml(overlay.width || 420)}px`
@@ -239,6 +253,7 @@
               <td>
                 <div class="admin-actions">
                   ${editable ? `<button class="button secondary" type="button" data-edit="${escapeHtml(stream.id)}">Edit</button>` : '<span class="mono">auto</span>'}
+                  ${restartable ? `<button class="button secondary" type="button" data-restart="${escapeHtml(stream.id)}">Restart</button>` : ''}
                   ${editable ? `<button class="button secondary" type="button" data-del="${escapeHtml(stream.id)}">Delete</button>` : ''}
                 </div>
               </td>
@@ -258,6 +273,12 @@
         button.addEventListener('click', () => {
           const id = Number(button.getAttribute('data-del'));
           if (id > 0) deleteStream(id);
+        });
+      });
+      streamsBody.querySelectorAll('[data-restart]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = Number(button.getAttribute('data-restart'));
+          if (id > 0) restartStream(id);
         });
       });
     } catch (error) {

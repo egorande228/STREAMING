@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BASE_URL="${KINGLIVE_WATCHDOG_BASE_URL:-https://hls.livekinglive.win}"
+SAMPLE_SECONDS="${KINGLIVE_WATCHDOG_SAMPLE_SECONDS:-8}"
+MIN_UNIQUE_FRAMES="${KINGLIVE_WATCHDOG_MIN_UNIQUE_FRAMES:-2}"
+COOLDOWN_SECONDS="${KINGLIVE_WATCHDOG_COOLDOWN_SECONDS:-180}"
+FRAME_CHECK="${KINGLIVE_WATCHDOG_FRAME_CHECK:-true}"
+STATE_DIR="${KINGLIVE_WATCHDOG_STATE_DIR:-/run/kinglive-restream-watchdog}"
+
+mkdir -p "$STATE_DIR"
+
+if ! [[ "$SAMPLE_SECONDS" =~ ^[0-9]+$ ]] || [[ "$SAMPLE_SECONDS" -lt 3 || "$SAMPLE_SECONDS" -gt 30 ]]; then
+  echo "KINGLIVE_WATCHDOG_SAMPLE_SECONDS must be between 3 and 30" >&2
+  exit 65
+fi
+if ! [[ "$MIN_UNIQUE_FRAMES" =~ ^[0-9]+$ ]] || [[ "$MIN_UNIQUE_FRAMES" -lt 1 || "$MIN_UNIQUE_FRAMES" -gt 10 ]]; then
+  echo "KINGLIVE_WATCHDOG_MIN_UNIQUE_FRAMES must be between 1 and 10" >&2
+  exit 65
+fi
+if ! [[ "$COOLDOWN_SECONDS" =~ ^[0-9]+$ ]] || [[ "$COOLDOWN_SECONDS" -lt 30 ]]; then
+  echo "KINGLIVE_WATCHDOG_COOLDOWN_SECONDS must be at least 30" >&2
+  exit 65
+fi
+
+mapfile -t units < <(
+  systemctl list-units --type=service --state=active 'kinglive-restream@*.service' --no-legend --no-pager \
+    | awk '{ print $1 }'
+)
+
+restart_stream() {
+  local slug="$1"
+  local reason="$2"
+  local marker="${STATE_DIR}/${slug}.last_restart"
+  local now last
+
+  now="$(date +%s)"
+  last="0"
+  if [[ -r "$marker" ]]; then
+    last="$(cat "$marker" 2>/dev/null || echo 0)"
+  fi
+  if [[ "$last" =~ ^[0-9]+$ ]] && (( now - last < COOLDOWN_SECONDS )); then
+    echo "skip ${slug}: ${reason}; cooldown active"
+    return 0
+  fi
+
+  echo "$now" >"$marker"
+  echo "restart ${slug}: ${reason}"
+  systemctl restart "kinglive-restream@${slug}.service"
+}
+
+check_frames() {
+  local slug="$1"
+  local manifest_url="${BASE_URL%/}/live/${slug}/index.m3u8"
+  local timeout_seconds=$((SAMPLE_SECONDS + 20))
+  local unique_frames
+
+  unique_frames="$(
+    timeout "$timeout_seconds" ffmpeg \
+      -hide_banner \
+      -v error \
+      -nostdin \
+      -rw_timeout 15000000 \
+      -i "$manifest_url" \
+      -an \
+      -vf fps=1 \
+      -t "$SAMPLE_SECONDS" \
+      -f framemd5 - \
+      2>/dev/null \
+      | awk '$0 !~ /^#/ && NF { print $NF }' \
+      | sort -u \
+      | wc -l \
+      | tr -d ' '
+  )"
+
+  if ! [[ "$unique_frames" =~ ^[0-9]+$ ]]; then
+    unique_frames="0"
+  fi
+  if (( unique_frames < MIN_UNIQUE_FRAMES )); then
+    return 1
+  fi
+  return 0
+}
+
+for unit in "${units[@]}"; do
+  slug="${unit#kinglive-restream@}"
+  slug="${slug%.service}"
+  if [[ -z "$slug" || "$slug" == *"/"* || "$slug" == *".."* ]]; then
+    echo "skip invalid unit: $unit"
+    continue
+  fi
+
+  if ! kinglive-iptv-health "$slug" "$BASE_URL" >/dev/null 2>&1; then
+    restart_stream "$slug" "public HLS health failed"
+    continue
+  fi
+
+  if [[ "${FRAME_CHECK,,}" == "true" || "$FRAME_CHECK" == "1" || "${FRAME_CHECK,,}" == "yes" ]]; then
+    if ! check_frames "$slug"; then
+      restart_stream "$slug" "frame freeze detected"
+      continue
+    fi
+  fi
+
+  echo "ok ${slug}"
+done

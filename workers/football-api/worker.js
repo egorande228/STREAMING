@@ -489,6 +489,12 @@ async function routeAdminRequest(request, env = {}, ctx = {}) {
     return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
   }
 
+  const streamRestartMatch = url.pathname.match(/^\/api\/admin\/streams\/(\d+)\/restart$/);
+  if (streamRestartMatch) {
+    if (request.method === 'POST') return routeAdminStreamsRestart(env, Number(streamRestartMatch[1]));
+    return jsonResponse({ error: 'method_not_allowed' }, 405, 0);
+  }
+
   if (url.pathname === '/api/admin/match-overrides') {
     if (request.method === 'GET') return routeAdminMatchOverridesList(env);
     if (request.method === 'POST') return routeAdminMatchOverridesUpsert(request, env);
@@ -1012,6 +1018,36 @@ async function routeAdminStreamsDelete(env, streamId) {
 
   await writeRuntimeStreamConfig(env, expandStreamConfig(filtered));
   return jsonResponse({ ok: true }, 200, 0);
+}
+
+async function routeAdminStreamsRestart(env, streamId) {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: 'stream_kv_not_configured' }, 503, 0);
+  }
+
+  const config = await readRuntimeStreamConfig(env);
+  const streams = flattenStreamConfig(config);
+  const index = streams.findIndex((item) => Number(item.id) === streamId);
+  if (index < 0) return jsonResponse({ error: 'stream_not_found' }, 404, 0);
+
+  const stream = streams[index];
+  const restream = stream?.restream && typeof stream.restream === 'object' ? stream.restream : null;
+  if (!restream?.enabled) return jsonResponse({ error: 'stream_has_no_restream' }, 400, 0);
+  if (stream.is_active === false || restream.desired_state === 'stopped') {
+    return jsonResponse({ error: 'stream_not_active' }, 409, 0);
+  }
+
+  const slug = normalizeSlug(restream.slug || `${stream.match_id}-${streamId}`);
+  const restartRequestedAt = new Date().toISOString();
+  streams[index] = {
+    ...stream,
+    restream: {
+      ...restream,
+      restart_requested_at: restartRequestedAt,
+    },
+  };
+  await writeRuntimeStreamConfig(env, expandStreamConfig(streams));
+  return jsonResponse({ ok: true, id: streamId, slug, restart_requested_at: restartRequestedAt }, 200, 0);
 }
 
 async function routeRestreamSyncList(request, env = {}) {

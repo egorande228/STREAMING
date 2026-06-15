@@ -20,7 +20,10 @@ install -d -m 0755 /opt/mediamtx
 
 install -m 0755 "${iptv_root}/scripts/kinglive-restream" /usr/local/bin/kinglive-restream
 install -m 0755 "${iptv_root}/scripts/kinglive-iptv-health" /usr/local/bin/kinglive-iptv-health
+install -m 0755 "${iptv_root}/scripts/kinglive-restream-watchdog" /usr/local/bin/kinglive-restream-watchdog
 install -m 0644 "${iptv_root}/systemd/kinglive-restream@.service" /etc/systemd/system/kinglive-restream@.service
+install -m 0644 "${iptv_root}/systemd/kinglive-restream-watchdog.service" /etc/systemd/system/kinglive-restream-watchdog.service
+install -m 0644 "${iptv_root}/systemd/kinglive-restream-watchdog.timer" /etc/systemd/system/kinglive-restream-watchdog.timer
 
 if [[ -f /opt/mediamtx/mediamtx.yml ]]; then
   cp -a /opt/mediamtx/mediamtx.yml "/opt/mediamtx/mediamtx.yml.bak.${timestamp}"
@@ -34,3 +37,4 @@ echo "Next:"
 echo "  1. Put channel env files in /etc/kinglive/iptv/channels/*.env with chmod 600."
 echo "  2. Restart MediaMTX."
 echo "  3. Start one channel, for example: systemctl start kinglive-restream@fox-sport-1-hd"
+echo "  4. Optional watchdog: systemctl enable --now kinglive-restream-watchdog.timer"

@@ -2086,6 +2086,70 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
   });
 });
 
+test('admin can request restart for an active IPTV restream', async () => {
+  const kvData = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value) {
+      kvData.set(key, value);
+    },
+  };
+  const env = {
+    ADMIN_BEARER_TOKEN: 'test-token',
+    RESTREAM_SYNC_TOKEN: 'sync-token',
+    RESTREAM_PUBLIC_BASE_URL: 'https://hls.livekinglive.win/live',
+    STREAM_CONFIG_KV: kv,
+  };
+
+  const create = await routeRequest(
+    new Request('https://kinglive.test/api/admin/streams', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer test-token',
+      },
+      body: JSON.stringify({
+        match_id: 19609156,
+        url: 'https://8.hls.gd/ch1197/index.m3u8?token=secret-token',
+        source_type: 'videojs',
+        label: 'English',
+        language_code: 'en',
+      }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(create.status, 200);
+  const created = await create.json();
+
+  const restart = await routeRequest(
+    new Request(`https://kinglive.test/api/admin/streams/${created.id}/restart`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer test-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(restart.status, 200);
+  const restartBody = await restart.json();
+  assert.equal(restartBody.ok, true);
+  assert.equal(restartBody.slug, '19609156-en-english');
+  assert.match(restartBody.restart_requested_at, /^\d{4}-\d{2}-\d{2}T/);
+
+  const restreams = await routeRequest(
+    new Request('https://kinglive.test/api/restreams', {
+      headers: { Authorization: 'Bearer sync-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(restreams.status, 200);
+  const restreamBody = await restreams.json();
+  assert.equal(restreamBody.restreams[0].restart_requested_at, restartBody.restart_requested_at);
+});
+
 test('admin can upload custom overlay banners for restream sync', async () => {
   const kvData = new Map();
   const kv = {

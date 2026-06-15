@@ -8,6 +8,7 @@
   const activeStreamsApiUrl = config.activeStreamsApiUrl || `${apiBase}/api/streams/active`;
   const viewerHeartbeatBase = apiBase ? `${apiBase}/api/viewers` : '';
   const preferredLang = params.get('lang') || config.defaultLang || 'en';
+  const normalizedPreferredLang = normalizePreferredLanguage(preferredLang);
   const preferredRegion = params.get('region') || config.defaultRegion || 'global';
   const stage = document.getElementById('stage');
   const controls = document.getElementById('controls');
@@ -145,6 +146,30 @@
     return 'iframe';
   }
 
+  function normalizeLanguageCode(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return '';
+    const simple = raw.normalize ? raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : raw;
+    if (/^(en|eng|english)([-_].*)?$/.test(simple) || /\b(english|eng)\b/.test(simple)) return 'en';
+    if (/^(es|spa|spanish|espanol)([-_].*)?$/.test(simple) || /\b(spanish|espanol|spa)\b/.test(simple)) return 'es';
+    if (/^(ar|ara|arabic|arab)([-_].*)?$/.test(simple) || /\b(arabic|arab)\b/.test(simple)) return 'ar';
+    if (/^(fr|fra|fre|french)([-_].*)?$/.test(simple) || /\b(french|fra|fre)\b/.test(simple)) return 'fr';
+    if (/^(ru|rus|russian)([-_].*)?$/.test(simple) || /\b(russian|rus)\b/.test(simple)) return 'ru';
+    return '';
+  }
+
+  function normalizePreferredLanguage(value) {
+    const known = normalizeLanguageCode(value);
+    if (known) return known;
+    return String(value || '').trim().toLowerCase().split(/[-_\s]/)[0] || '';
+  }
+
+  function streamLanguageCode(stream = {}) {
+    return normalizeLanguageCode(stream.language_code || stream.languageCode || stream.lang || stream.language || '')
+      || normalizeLanguageCode(stream.label || '')
+      || normalizeLanguageCode(stream.title || '');
+  }
+
   function streamLabel(stream, index) {
     return stream.label || `${stream.language_code || 'stream'} ${stream.quality || index + 1}`;
   }
@@ -234,14 +259,41 @@
 
   function sortStreams(streams) {
     return [...streams].sort((a, b) => {
-      const aLang = a.language_code === preferredLang ? 0 : 1;
-      const bLang = b.language_code === preferredLang ? 0 : 1;
+      const aLang = streamLanguageCode(a) === normalizedPreferredLang ? 0 : 1;
+      const bLang = streamLanguageCode(b) === normalizedPreferredLang ? 0 : 1;
       if (aLang !== bLang) return aLang - bLang;
       const aRegion = a.region === preferredRegion || a.region === 'global' ? 0 : 1;
       const bRegion = b.region === preferredRegion || b.region === 'global' ? 0 : 1;
       if (aRegion !== bRegion) return aRegion - bRegion;
       return (b.priority || 0) - (a.priority || 0);
     });
+  }
+
+  function isRequestedSource(stream = {}, requestedSource = '') {
+    if (!requestedSource) return false;
+    const keys = [
+      stream.id,
+      stream.label,
+      stream.source_type,
+      stream.sourceType,
+      stream.language_code,
+      stream.languageCode,
+    ];
+    return keys.some((key) => String(key || '') === requestedSource);
+  }
+
+  function filterStreamsForPreferredLanguage(streams, requestedSource = '') {
+    if (!normalizedPreferredLang) return streams;
+    const languageStreams = streams.filter((stream) => {
+      const language = streamLanguageCode(stream);
+      return !language || language === normalizedPreferredLang;
+    });
+    if (!languageStreams.length) return streams;
+
+    const requestedStream = streams.find((stream) => isRequestedSource(stream, requestedSource));
+    if (!requestedStream || languageStreams.includes(requestedStream)) return languageStreams;
+
+    return streams.filter((stream) => languageStreams.includes(stream) || stream === requestedStream);
   }
 
   function mergeStreams(streamGroups) {
@@ -613,24 +665,17 @@
   }
 
   function setStreams(streams, title) {
-    currentStreams = sortStreams(streams.filter((stream) => stream.url && stream.is_active !== false));
+    const requestedSource = String(params.get('source') || '').trim();
+    const activeStreams = streams.filter((stream) => stream.url && stream.is_active !== false);
+    currentStreams = sortStreams(filterStreamsForPreferredLanguage(activeStreams, requestedSource));
     if (!currentStreams.length) {
       clearPlayer();
       return;
     }
 
-    const requestedSource = String(params.get('source') || '').trim();
     const requestedIndex = requestedSource
       ? currentStreams.findIndex((stream) => {
-          const keys = [
-            stream.id,
-            stream.label,
-            stream.source_type,
-            stream.sourceType,
-            stream.language_code,
-            stream.languageCode,
-          ];
-          return keys.some((key) => String(key || '') === requestedSource);
+          return isRequestedSource(stream, requestedSource);
         })
       : -1;
     const initialIndex = requestedIndex >= 0 ? requestedIndex : 0;

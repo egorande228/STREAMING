@@ -46,7 +46,7 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
   assert.match(wrangler, /pages_build_output_dir = "\.\/dist"/);
 
   const config = readFileSync(new URL('./dist/config.js', import.meta.url), 'utf8');
-  assert.match(config, /const bannerClickUrl = 'https:\/\/refpa3665\.com\/L\?tag=d_5674754m_66329c_KINGLIVE2026(&amp;|&)site=5674754(&amp;|&)ad=66329'/);
+  assert.match(config, /const bannerClickUrl = 'https:\/\/qweqr\.sbs\/jJQN6M'/);
   assert.match(config, /function safeBannerFile\(file\)/);
   assert.match(config, /src="\.\.\/banners\/\$\{safeFile\}"/);
   assert.match(config, /href="\$\{safeHref\}" target="_blank" rel="nofollow sponsored noopener"/);

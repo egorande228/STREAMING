@@ -1,6 +1,6 @@
 const runtimeConfig = window.KINGLIVE_RUNTIME || {};
 const unifiedApiBase = String(runtimeConfig.apiBase || window.KINGLIVE_API_BASE || 'https://kinglive-football-api.figurator228.workers.dev').replace(/\/$/, '');
-const bannerClickUrl = 'https://refpa3665.com/L?tag=d_5674754m_66329c_KINGLIVE2026&site=5674754&ad=66329';
+const bannerClickUrl = 'https://qweqr.sbs/jJQN6M';
 
 function escapeHtmlAttr(value) {
   return String(value)

@@ -473,6 +473,61 @@ test('selects requested stream source and enables compact preview mode', async (
   assert.equal(result.hasDocumentClass('player-preview-mode'), true);
 });
 
+test('filters source list to the language selected on main', async () => {
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843&lang=es',
+    config: {
+      matchStreams: {
+        1540843: [
+          {
+            id: 'en-stream',
+            url: 'https://trusted.test/english.m3u8',
+            source_type: 'hls',
+            label: 'English',
+            language_code: 'en',
+            priority: 100,
+          },
+          {
+            id: 'es-stream',
+            url: 'https://trusted.test/spanish.m3u8',
+            source_type: 'hls',
+            label: 'Spanish',
+            language_code: 'es',
+            priority: 90,
+          },
+          {
+            id: 'ar-stream',
+            url: 'https://trusted.test/arabic.m3u8',
+            source_type: 'hls',
+            label: 'Arabic',
+            language_code: 'ar',
+            priority: 80,
+          },
+        ],
+      },
+    },
+    fetchImpl: (url) => {
+      assert.equal(String(url), '/api/matches/1540843?lang=es&region=global');
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'A' },
+            away_team: { name_en: 'B' },
+            streams: [],
+          }),
+      });
+    },
+  });
+
+  const video = result.appended.find((element) => element.tagName === 'video');
+  assert.equal(video.src, 'https://trusted.test/spanish.m3u8');
+  assert.match(result.sourceSelect.innerHTML, /Spanish/);
+  assert.doesNotMatch(result.sourceSelect.innerHTML, /English/);
+  assert.doesNotMatch(result.sourceSelect.innerHTML, /Arabic/);
+  assert.equal(result.sourceSelect.hidden, true);
+});
+
 test('renders iframe streams with browser sandbox restrictions', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',

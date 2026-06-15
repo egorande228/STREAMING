@@ -24,6 +24,17 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
   };
   const localStorageStore = new Map();
   const stageClasses = new Set(['stage']);
+  const documentElementClasses = new Set();
+  const managedIntervals = [];
+  const defaultSetInterval = (handler, delay) => {
+    const id = managedIntervals.length + 1;
+    managedIntervals.push({ id, handler, delay });
+    return id;
+  };
+  const defaultClearInterval = (id) => {
+    const index = managedIntervals.findIndex((item) => item.id === id);
+    if (index >= 0) managedIntervals.splice(index, 1);
+  };
   const tgPopup = {
     hidden: true,
     innerHTML: '',
@@ -90,8 +101,8 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
     URL,
     URLSearchParams,
     setTimeout: timers.setTimeout || setTimeout,
-    setInterval: timers.setInterval || setInterval,
-    clearInterval: timers.clearInterval || clearInterval,
+    setInterval: timers.setInterval || defaultSetInterval,
+    clearInterval: timers.clearInterval || defaultClearInterval,
     window: {
       location: { href, search: new URL(href).search },
       KINGLIVE_PLAYER_CONFIG: {
@@ -124,6 +135,16 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
       ...navigatorOverrides,
     },
     document: {
+      documentElement: {
+        classList: {
+          add(...values) {
+            values.forEach((value) => documentElementClasses.add(value));
+          },
+          contains(value) {
+            return documentElementClasses.has(value);
+          },
+        },
+      },
       body: {
         appendChild(element) {
           bodyChildren.push(element);
@@ -170,6 +191,7 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
     copyEmbed,
     elementListeners,
     getStageClassName: () => stage.className,
+    hasDocumentClass: (value) => documentElementClasses.has(value),
     sourceSelect,
     stageClassName: stage.className,
     stageHtml,
@@ -404,6 +426,51 @@ test('merges configured player streams with match API streams', async () => {
   assert.match(result.sourceSelect.innerHTML, /Manual stream/);
   assert.match(result.sourceSelect.innerHTML, /DAMI tv s1/);
   assert.equal(result.sourceSelect.hidden, false);
+});
+
+test('selects requested stream source and enables compact preview mode', async () => {
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843&lang=en&source=11&preview=1',
+    config: {
+      matchStreams: {
+        1540843: [
+          {
+            id: 10,
+            url: 'https://trusted.test/english.m3u8',
+            source_type: 'hls',
+            label: 'English',
+            language_code: 'en',
+            priority: 100,
+          },
+          {
+            id: 11,
+            url: 'https://trusted.test/spanish.m3u8',
+            source_type: 'hls',
+            label: 'Spanish',
+            language_code: 'es',
+            priority: 90,
+          },
+        ],
+      },
+    },
+    fetchImpl: (url) => {
+      assert.equal(String(url), '/api/matches/1540843?lang=en&region=global');
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'A' },
+            away_team: { name_en: 'B' },
+            streams: [],
+          }),
+      });
+    },
+  });
+
+  const video = result.appended.find((element) => element.tagName === 'video');
+  assert.equal(video.src, 'https://trusted.test/spanish.m3u8');
+  assert.equal(result.sourceSelect.value, '1');
+  assert.equal(result.hasDocumentClass('player-preview-mode'), true);
 });
 
 test('renders iframe streams with browser sandbox restrictions', async () => {

@@ -2,6 +2,8 @@
   const config = window.KINGLIVE_PLAYER_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
   const params = new URLSearchParams(window.location.search);
+  const isPreviewMode = params.get('preview') === '1';
+  if (isPreviewMode) document.documentElement.classList.add('player-preview-mode');
   const streamConfigUrl = config.streamConfigUrl || './streams.json';
   const activeStreamsApiUrl = config.activeStreamsApiUrl || `${apiBase}/api/streams/active`;
   const chatApiBase = String(config.chatApiBase || (apiBase ? `${apiBase}/api/chat` : '')).replace(/\/$/, '');
@@ -834,13 +836,29 @@
       return;
     }
 
+    const requestedSource = String(params.get('source') || '').trim();
+    const requestedIndex = requestedSource
+      ? currentStreams.findIndex((stream) => {
+          const keys = [
+            stream.id,
+            stream.label,
+            stream.source_type,
+            stream.sourceType,
+            stream.language_code,
+            stream.languageCode,
+          ];
+          return keys.some((key) => String(key || '') === requestedSource);
+        })
+      : -1;
+    const initialIndex = requestedIndex >= 0 ? requestedIndex : 0;
     sourceSelect.innerHTML = currentStreams
       .map((stream, index) => `<option value="${index}">${streamLabel(stream, index)}</option>`)
       .join('');
+    sourceSelect.value = String(initialIndex);
     sourceSelect.hidden = currentStreams.length < 2;
     titleEl.textContent = title || params.get('title') || 'Stream';
     controls.hidden = false;
-    playStream(0);
+    playStream(initialIndex);
   }
 
   function loadDirectStream() {
@@ -983,7 +1001,7 @@
     const away = match?.away_team?.name_en || 'TBD';
     const streams = mergeStreams([configuredStreams, match?.streams || []]);
     setStreams(streams, `${home} vs ${away}`);
-    if (currentStreams.length) startViewerHeartbeat(matchId);
+    if (currentStreams.length && !isPreviewMode) startViewerHeartbeat(matchId);
   }
 
   sourceSelect.addEventListener('change', () => playStream(Number(sourceSelect.value)));
@@ -1015,19 +1033,19 @@
     const key = adSlotKeys[slot.dataset.adSlot];
     if (key && adSlots[key]) slot.innerHTML = adSlots[key];
   });
-  detectAdblock();
+  if (!isPreviewMode) detectAdblock();
 
   (async function boot() {
-    renderTelegramPopup();
+    if (!isPreviewMode) renderTelegramPopup();
     try {
       const directMatchId = params.get('match') || params.get('id') || '';
-      if (directMatchId) setupChat(directMatchId);
+      if (!isPreviewMode && directMatchId) setupChat(directMatchId);
       if (allowDirectStreamParams && loadDirectStream()) return;
       matchStreams = await loadStreamConfig();
       const activeMatches = activeStreamMatchIds();
       const matchId = params.get('match') || params.get('id') || (activeMatches.length === 1 ? activeMatches[0] : '');
       if (matchId) {
-        setupChat(matchId);
+        if (!isPreviewMode) setupChat(matchId);
         await loadFromMatch(matchId);
         return;
       }

@@ -232,6 +232,7 @@
         inset: 0;
         background: radial-gradient(circle at 50% 45%, rgba(244, 239, 226, 0.12), transparent 55%);
         pointer-events: none;
+        z-index: 1;
       }
       .overlay-preview-canvas,
       .overlay-preview-frame {
@@ -243,8 +244,12 @@
         background: #050604;
         object-fit: contain;
       }
+      .overlay-preview-canvas {
+        z-index: 2;
+      }
       .overlay-preview-frame {
         pointer-events: none;
+        z-index: 0;
       }
       .overlay-preview-video {
         position: absolute;
@@ -258,6 +263,7 @@
       .overlay-preview-empty {
         position: absolute;
         inset: 0;
+        z-index: 2;
         display: grid;
         place-items: center;
         padding: 16px;
@@ -268,7 +274,7 @@
       }
       .overlay-preview-banner {
         position: absolute;
-        z-index: 2;
+        z-index: 3;
         left: 0;
         top: 0;
         display: grid;

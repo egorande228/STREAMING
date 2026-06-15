@@ -157,8 +157,14 @@
 
   function startOverlayFrameCapture() {
     stopOverlayFrameCapture();
-    captureOverlayPreviewFrame();
-    overlayPreviewCaptureTimer = window.setInterval(captureOverlayPreviewFrame, 1500);
+    const captureAndFreeze = () => {
+      if (!captureOverlayPreviewFrame()) return;
+      stopOverlayFrameCapture();
+      const video = $('overlay-preview-video');
+      if (video) video.pause();
+    };
+    captureAndFreeze();
+    overlayPreviewCaptureTimer = window.setInterval(captureAndFreeze, 500);
   }
 
   function clearOverlayStreamPreview(message = 'Stream preview loads from URL') {
@@ -173,7 +179,6 @@
     const frame = $('overlay-preview-frame');
     if (surface) {
       surface.classList.remove('is-iframe-preview');
-      surface.classList.remove('is-video-preview');
       surface.style.removeProperty('--overlay-iframe-scale');
     }
     if (video) {
@@ -225,6 +230,15 @@
     }
   }
 
+  function usesCredentialedHls(value) {
+    try {
+      const url = new URL(String(value || ''), window.location.href);
+      return url.hostname === 'hls.livekinglive.win';
+    } catch {
+      return false;
+    }
+  }
+
   function scheduleOverlayStreamPreview() {
     window.clearTimeout(overlayPreviewTimer);
     overlayPreviewTimer = window.setTimeout(loadOverlayStreamPreview, 450);
@@ -263,14 +277,12 @@
     video.onloadeddata = null;
     video.oncanplay = null;
     video.onplaying = null;
-    video.crossOrigin = 'anonymous';
     video.removeAttribute('src');
     const canvas = $('overlay-preview-canvas');
     if (canvas) canvas.hidden = true;
     const surface = $('overlay-preview-surface');
     if (surface) {
       surface.classList.remove('is-iframe-preview');
-      surface.classList.remove('is-video-preview');
       surface.style.removeProperty('--overlay-iframe-scale');
     }
     frame.hidden = true;
@@ -294,18 +306,30 @@
 
     video.muted = true;
     video.playsInline = true;
-    if (surface) surface.classList.add('is-video-preview');
-    video.onloadeddata = hideOverlayPreviewMessage;
-    video.oncanplay = hideOverlayPreviewMessage;
-    video.onplaying = hideOverlayPreviewMessage;
+    video.onloadeddata = startOverlayFrameCapture;
+    video.oncanplay = startOverlayFrameCapture;
+    video.onplaying = startOverlayFrameCapture;
     const hlsUrl = previewHlsUrl(rawUrl);
+    video.crossOrigin = usesCredentialedHls(hlsUrl) ? 'use-credentials' : 'anonymous';
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = hlsUrl;
       video.play().catch(() => {});
       return;
     }
     if (window.Hls?.isSupported?.()) {
-      overlayPreviewHls = new window.Hls({ enableWorker: true, lowLatencyMode: true });
+      overlayPreviewHls = new window.Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 5,
+        backBufferLength: 30,
+        maxBufferLength: 20,
+        xhrSetup: usesCredentialedHls(hlsUrl)
+          ? (xhr) => {
+              xhr.withCredentials = true;
+            }
+          : undefined,
+      });
       overlayPreviewHls.on(window.Hls.Events.ERROR, (event, data) => {
         if (data?.fatal) clearOverlayStreamPreview('Stream preview failed to load');
       });

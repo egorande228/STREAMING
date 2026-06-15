@@ -6,7 +6,8 @@
     <title>KingLive Admin</title>
     <link rel="stylesheet" href="./styles.css" />
     <script src="./config.js"></script>
-    <script defer src="./admin.js"></script>
+    <script defer src="./assets/vendor/hlsjs/hls.min.js?v=1.6.15"></script>
+    <script defer src="./admin.js?v=overlay-video-preview-20260615"></script>
     <style>
       .admin-shell {
         width: calc(100% - 32px);
@@ -232,8 +233,33 @@
         background: radial-gradient(circle at 50% 45%, rgba(244, 239, 226, 0.12), transparent 55%);
         pointer-events: none;
       }
+      .overlay-preview-video,
+      .overlay-preview-frame {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #050604;
+        object-fit: contain;
+      }
+      .overlay-preview-frame {
+        pointer-events: none;
+      }
+      .overlay-preview-empty {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 16px;
+        color: var(--muted);
+        font-size: 12px;
+        text-align: center;
+        background: rgba(5, 6, 4, 0.6);
+      }
       .overlay-preview-banner {
         position: absolute;
+        z-index: 2;
         left: 0;
         top: 0;
         display: grid;
@@ -393,6 +419,9 @@
               <button id="overlay-preview-reset" class="button secondary" type="button">Reset position</button>
             </div>
             <div id="overlay-preview" class="overlay-preview" aria-label="Banner position preview">
+              <video id="overlay-preview-video" class="overlay-preview-video" muted playsinline controls></video>
+              <iframe id="overlay-preview-frame" class="overlay-preview-frame" title="Iframe stream preview" hidden></iframe>
+              <div id="overlay-preview-empty" class="overlay-preview-empty">Stream preview loads from URL</div>
               <div id="overlay-preview-banner" class="overlay-preview-banner">KingLive</div>
             </div>
           </div>

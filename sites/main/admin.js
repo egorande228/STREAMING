@@ -35,6 +35,10 @@
     'bottom-center': [50, 100],
     'bottom-right': [100, 100],
   };
+  let overlayPreviewHls = null;
+  let overlayPreviewUrl = '';
+  let overlayPreviewType = '';
+  let overlayPreviewTimer = 0;
 
   function token() {
     try {
@@ -105,6 +109,125 @@
     if ($('overlay-x-percent')) $('overlay-x-percent').value = '';
     if ($('overlay-y-percent')) $('overlay-y-percent').value = '';
     updateOverlayPreview();
+  }
+
+  function setOverlayPreviewMessage(message) {
+    const empty = $('overlay-preview-empty');
+    if (!empty) return;
+    empty.textContent = message;
+    empty.hidden = false;
+  }
+
+  function hideOverlayPreviewMessage() {
+    const empty = $('overlay-preview-empty');
+    if (empty) empty.hidden = true;
+  }
+
+  function destroyOverlayPreviewHls() {
+    if (overlayPreviewHls) {
+      overlayPreviewHls.destroy();
+      overlayPreviewHls = null;
+    }
+  }
+
+  function clearOverlayStreamPreview(message = 'Stream preview loads from URL') {
+    destroyOverlayPreviewHls();
+    overlayPreviewUrl = '';
+    overlayPreviewType = '';
+    const video = $('overlay-preview-video');
+    const frame = $('overlay-preview-frame');
+    if (video) {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      video.hidden = true;
+    }
+    if (frame) {
+      frame.removeAttribute('src');
+      frame.hidden = true;
+    }
+    setOverlayPreviewMessage(message);
+  }
+
+  function isHttpsUrl(value) {
+    try {
+      return new URL(String(value || '')).protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
+  function isHlsPreviewUrl(value) {
+    try {
+      const url = new URL(String(value || ''));
+      return /\.m3u8($|\?)/i.test(`${url.pathname}${url.search}`);
+    } catch {
+      return false;
+    }
+  }
+
+  function scheduleOverlayStreamPreview() {
+    window.clearTimeout(overlayPreviewTimer);
+    overlayPreviewTimer = window.setTimeout(loadOverlayStreamPreview, 450);
+  }
+
+  function loadOverlayStreamPreview() {
+    const rawUrl = $('stream-url')?.value.trim() || '';
+    const sourceType = $('source-type')?.value || '';
+    const video = $('overlay-preview-video');
+    const frame = $('overlay-preview-frame');
+    if (!video || !frame) return;
+    if (!rawUrl) {
+      clearOverlayStreamPreview('Stream preview loads from URL');
+      return;
+    }
+    if (!isHttpsUrl(rawUrl)) {
+      clearOverlayStreamPreview('Preview needs an https stream URL');
+      return;
+    }
+    if (rawUrl === overlayPreviewUrl && sourceType === overlayPreviewType) return;
+
+    destroyOverlayPreviewHls();
+    overlayPreviewUrl = rawUrl;
+    overlayPreviewType = sourceType;
+    video.pause();
+    video.hidden = true;
+    frame.hidden = true;
+    frame.removeAttribute('src');
+    hideOverlayPreviewMessage();
+
+    if (sourceType === 'iframe' && !isHlsPreviewUrl(rawUrl)) {
+      frame.src = rawUrl;
+      frame.hidden = false;
+      return;
+    }
+
+    if (!isHlsPreviewUrl(rawUrl)) {
+      clearOverlayStreamPreview('Preview supports HLS .m3u8 or iframe URLs');
+      return;
+    }
+
+    video.muted = true;
+    video.playsInline = true;
+    video.hidden = false;
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = rawUrl;
+      video.play().catch(() => {});
+      return;
+    }
+    if (window.Hls?.isSupported?.()) {
+      overlayPreviewHls = new window.Hls({ enableWorker: true, lowLatencyMode: true });
+      overlayPreviewHls.on(window.Hls.Events.ERROR, (event, data) => {
+        if (data?.fatal) clearOverlayStreamPreview('Stream preview failed to load');
+      });
+      overlayPreviewHls.loadSource(rawUrl);
+      overlayPreviewHls.attachMedia(video);
+      overlayPreviewHls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(() => {});
+      });
+      return;
+    }
+    clearOverlayStreamPreview('This browser cannot preview HLS here');
   }
 
   function updateOverlayPreview() {
@@ -293,6 +416,7 @@
     $('starts-at').value = formatAdminDateTime(stream.starts_at);
     $('ends-at').value = formatAdminDateTime(stream.ends_at);
     updateOverlayPreview();
+    scheduleOverlayStreamPreview();
   }
 
   function resetForm() {
@@ -314,6 +438,7 @@
     $('starts-at').value = '';
     $('ends-at').value = '';
     updateOverlayPreview();
+    clearOverlayStreamPreview();
   }
 
   async function saveStream(event) {
@@ -898,6 +1023,10 @@
   ['overlay-enabled', 'overlay-image', 'overlay-width', 'overlay-margin'].forEach((id) => {
     if ($(id)) $(id).addEventListener('input', updateOverlayPreview);
     if ($(id)) $(id).addEventListener('change', updateOverlayPreview);
+  });
+  ['stream-url', 'source-type'].forEach((id) => {
+    if ($(id)) $(id).addEventListener('input', scheduleOverlayStreamPreview);
+    if ($(id)) $(id).addEventListener('change', scheduleOverlayStreamPreview);
   });
   if ($('overlay-position')) {
     $('overlay-position').addEventListener('change', clearManualOverlayPercent);

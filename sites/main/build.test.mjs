@@ -27,6 +27,7 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
     '_headers',
     '_redirects',
     'assets/world-cup-hero.png',
+    'assets/vendor/hlsjs/hls.min.js',
     'stream.json',
     'banners/strip_1180x120_mockup_original.png',
     'banners/inline_1180x160_mockup_original.png',

@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="./styles.css" />
     <script src="./config.js"></script>
     <script defer src="./assets/vendor/hlsjs/hls.min.js?v=1.6.15"></script>
-    <script defer src="./admin.js?v=overlay-surface-preview-20260615"></script>
+    <script defer src="./admin.js?v=overlay-large-preview-20260615"></script>
     <style>
       .admin-shell {
         width: calc(100% - 32px);
@@ -75,6 +75,20 @@
         grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
         gap: 16px;
         align-items: start;
+      }
+      .streams-layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .stream-form-card {
+        grid-column: 1 / -1;
+      }
+      .stream-side-panel {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .stream-side-panel .admin-card {
+        margin-top: 0;
       }
       .admin-card {
         padding: 18px;
@@ -214,9 +228,8 @@
       .overlay-preview {
         position: relative;
         display: grid;
-        min-height: 240px;
         place-items: center;
-        padding: 10px;
+        padding: clamp(8px, 1.2vw, 14px);
         overflow: hidden;
         border: 1px solid rgba(245, 196, 0, 0.28);
         border-radius: 8px;
@@ -239,7 +252,7 @@
       .overlay-preview-surface {
         position: relative;
         z-index: 2;
-        width: min(100%, 980px);
+        width: 100%;
         aspect-ratio: 16 / 9;
         overflow: hidden;
         border: 1px solid rgba(244, 239, 226, 0.22);
@@ -315,7 +328,8 @@
       @media (max-width: 1080px) {
         .admin-hero,
         .admin-layout,
-        .admin-login-grid {
+        .admin-login-grid,
+        .stream-side-panel {
           grid-template-columns: 1fr;
         }
       }
@@ -359,8 +373,8 @@
 
       <div class="admin-section">
         <div class="admin-section-label">Streams</div>
-        <div class="admin-layout">
-          <section class="admin-card">
+        <div class="admin-layout streams-layout">
+          <section class="admin-card stream-form-card">
         <div class="admin-card-header">
           <h2>Stream Form</h2>
         </div>
@@ -496,7 +510,7 @@
         <p id="save-err" class="admin-err"></p>
           </section>
 
-          <div>
+          <div class="stream-side-panel">
             <section class="admin-card">
         <div class="admin-card-header">
           <h2>Banner Upload</h2>

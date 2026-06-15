@@ -1,7 +1,6 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.adminApiBase || config.apiBase || '').replace(/\/$/, '');
-  const playerBase = String(config.playerBase || 'https://livekinglive.win').replace(/\/$/, '');
   const tokenKey = 'kinglive_admin_token';
 
   const $ = (id) => document.getElementById(id);
@@ -174,6 +173,7 @@
     const frame = $('overlay-preview-frame');
     if (surface) {
       surface.classList.remove('is-iframe-preview');
+      surface.classList.remove('is-video-preview');
       surface.style.removeProperty('--overlay-iframe-scale');
     }
     if (video) {
@@ -225,34 +225,6 @@
     }
   }
 
-  function playerPreviewUrl() {
-    const matchId = String($('match-id')?.value || '').trim();
-    if (!matchId) return '';
-    const url = new URL(`${playerBase}/`, window.location.href);
-    const streamId = String($('stream-id')?.value || '').trim();
-    const label = String($('stream-label')?.value || '').trim();
-    const lang = String($('lang')?.value || 'en').trim() || 'en';
-    url.searchParams.set('match', matchId);
-    url.searchParams.set('lang', lang);
-    url.searchParams.set('preview', '1');
-    url.searchParams.set('v', 'admin-overlay-preview-20260615');
-    if (streamId) url.searchParams.set('source', streamId);
-    else if (label) url.searchParams.set('source', label);
-    if (label) url.searchParams.set('title', label);
-    return url.toString();
-  }
-
-  function showPlayerFramePreview() {
-    const frame = $('overlay-preview-frame');
-    const url = playerPreviewUrl();
-    if (!frame || !url) return false;
-    if (frame.getAttribute('src') !== url) frame.src = url;
-    frame.title = 'Player stream preview';
-    frame.hidden = false;
-    hideOverlayPreviewMessage();
-    return true;
-  }
-
   function scheduleOverlayStreamPreview() {
     window.clearTimeout(overlayPreviewTimer);
     overlayPreviewTimer = window.setTimeout(loadOverlayStreamPreview, 450);
@@ -298,6 +270,7 @@
     const surface = $('overlay-preview-surface');
     if (surface) {
       surface.classList.remove('is-iframe-preview');
+      surface.classList.remove('is-video-preview');
       surface.style.removeProperty('--overlay-iframe-scale');
     }
     frame.hidden = true;
@@ -321,11 +294,11 @@
 
     video.muted = true;
     video.playsInline = true;
-    video.onloadeddata = startOverlayFrameCapture;
-    video.oncanplay = startOverlayFrameCapture;
-    video.onplaying = startOverlayFrameCapture;
+    if (surface) surface.classList.add('is-video-preview');
+    video.onloadeddata = hideOverlayPreviewMessage;
+    video.oncanplay = hideOverlayPreviewMessage;
+    video.onplaying = hideOverlayPreviewMessage;
     const hlsUrl = previewHlsUrl(rawUrl);
-    const hasPlayerFallback = showPlayerFramePreview();
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = hlsUrl;
       video.play().catch(() => {});
@@ -334,7 +307,7 @@
     if (window.Hls?.isSupported?.()) {
       overlayPreviewHls = new window.Hls({ enableWorker: true, lowLatencyMode: true });
       overlayPreviewHls.on(window.Hls.Events.ERROR, (event, data) => {
-        if (data?.fatal && !hasPlayerFallback) clearOverlayStreamPreview('Stream preview failed to load');
+        if (data?.fatal) clearOverlayStreamPreview('Stream preview failed to load');
       });
       overlayPreviewHls.loadSource(hlsUrl);
       overlayPreviewHls.attachMedia(video);
@@ -343,7 +316,7 @@
       });
       return;
     }
-    if (!hasPlayerFallback) clearOverlayStreamPreview('This browser cannot preview HLS here');
+    clearOverlayStreamPreview('This browser cannot preview HLS here');
   }
 
   function updateOverlayPreview() {

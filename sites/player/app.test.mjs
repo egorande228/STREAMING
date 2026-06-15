@@ -418,8 +418,9 @@ test('uses hls.js without credentials for KingLive HLS streams marked as videojs
   assert.ok(result.appended.find((element) => element.className === 'player-fullscreen-button'));
 });
 
-test('uses native iOS HLS for KingLive HLS streams marked as videojs', async () => {
+test('uses Video.js UI with native iOS HLS for KingLive HLS streams marked as videojs', async () => {
   let videoJsCalled = false;
+  let videoJsOptions = null;
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',
     config: {
@@ -433,8 +434,19 @@ test('uses native iOS HLS for KingLive HLS streams marked as videojs', async () 
     },
     timers: {
       nativeHlsSupport: true,
-      videojs: () => {
+      videojs: (element, options) => {
         videoJsCalled = true;
+        assert.equal(element.tagName, 'video');
+        videoJsOptions = options;
+        return {
+          ready(handler) {
+            handler();
+          },
+          play() {
+            return Promise.resolve();
+          },
+          dispose() {},
+        };
       },
     },
     navigatorOverrides: {
@@ -455,8 +467,8 @@ test('uses native iOS HLS for KingLive HLS streams marked as videojs', async () 
   });
 
   const video = result.appended.find((element) => element.tagName === 'video');
-  assert.equal(videoJsCalled, false);
-  assert.equal(video.src, 'https://hls.livekinglive.win/live/test/index.m3u8?cookieCheck=1');
+  assert.equal(videoJsCalled, true);
+  assert.equal(videoJsOptions.sources[0].src, 'https://hls.livekinglive.win/live/test/index.m3u8?cookieCheck=1');
   assert.equal(video.crossOrigin, undefined);
   assert.equal(video.autoplay, true);
   assert.equal(video.muted, true);
@@ -468,7 +480,7 @@ test('uses native iOS HLS for KingLive HLS streams marked as videojs', async () 
   assert.ok(result.appended.find((element) => element.className === 'player-fullscreen-button'));
 });
 
-test('uses native iOS HLS even when canPlayType does not report m3u8 support', async () => {
+test('uses native iOS HLS fallback even when canPlayType does not report m3u8 support', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',
     config: {

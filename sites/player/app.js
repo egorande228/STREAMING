@@ -704,7 +704,8 @@
   }
 
   function renderVideoJs(stream) {
-    if (usesManagedHls(stream.url) && (isAppleTouchBrowser() || (window.Hls && window.Hls.isSupported()))) {
+    const appleManagedHls = usesManagedHls(stream.url) && isAppleTouchBrowser();
+    if (usesManagedHls(stream.url) && !appleManagedHls && window.Hls && window.Hls.isSupported()) {
       renderHls(stream, { videojs: true });
       return;
     }
@@ -718,7 +719,8 @@
     stage.innerHTML = '';
     const video = document.createElement('video');
     video.className = 'video-js vjs-default-skin vjs-big-play-centered';
-    configureVideoElement(video, stream.url);
+    const playbackUrl = appleManagedHls ? withManagedHlsCookieCheck(stream.url) : stream.url;
+    configureVideoElement(video, stream.url, { crossOrigin: !appleManagedHls });
     stage.appendChild(video);
     attachStreamPlayButton(video);
     attachPlayerFullscreenButton();
@@ -739,7 +741,7 @@
               },
             }
           : undefined,
-        sources: [{ src: stream.url, type: 'application/x-mpegURL' }],
+        sources: [{ src: playbackUrl, type: 'application/x-mpegURL' }],
       });
       if (videoJsPlayer && typeof videoJsPlayer.ready === 'function') {
         videoJsPlayer.ready(() => {
@@ -750,7 +752,7 @@
       return;
     }
 
-    video.src = stream.url;
+    video.src = playbackUrl;
     video.play().catch(() => {});
   }
 

@@ -1,7 +1,6 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.adminApiBase || config.apiBase || '').replace(/\/$/, '');
-  const playerBase = String(config.playerBase || window.location.origin).replace(/\/$/, '');
   const tokenKey = 'kinglive_admin_token';
 
   const $ = (id) => document.getElementById(id);
@@ -26,23 +25,6 @@
     { id: 'melbet_top_banner_1554x192.png', name: 'Melbet top', builtin: true },
     { id: 'melbet_banner_1870x245_safe_player.png', name: 'Melbet safe player', builtin: true },
   ];
-  const overlayPreviewBase = { width: 1280, height: 720 };
-  const overlayPresetPercent = {
-    'top-left': [0, 0],
-    'top-center': [50, 0],
-    'top-right': [100, 0],
-    center: [50, 50],
-    'bottom-left': [0, 100],
-    'bottom-center': [50, 100],
-    'bottom-right': [100, 100],
-  };
-  let overlayPreviewHls = null;
-  let overlayPreviewUrl = '';
-  let overlayPreviewType = '';
-  let overlayPreviewKey = '';
-  let overlayPreviewTimer = 0;
-  let overlayPreviewCaptureTimer = 0;
-
   function token() {
     try {
       return window.localStorage.getItem(tokenKey) || '';
@@ -60,422 +42,6 @@
 
   function setAuthLabel() {
     authStatus.textContent = token() ? 'Authenticated' : 'Not authenticated';
-  }
-
-  function numberOrNull(value) {
-    if (value === null || value === undefined || value === '') return null;
-    const number = Number(value);
-    return Number.isFinite(number) ? number : null;
-  }
-
-  function clamp(value, min, max) {
-    return Math.min(max, Math.max(min, value));
-  }
-
-  function selectedOverlayLabel() {
-    const select = $('overlay-image');
-    const option = select?.options?.[select.selectedIndex];
-    return option?.textContent?.trim() || select?.value || 'Banner';
-  }
-
-  function selectedOverlayPreviewImageUrl() {
-    const id = String($('overlay-image')?.value || '').trim();
-    if (!id || /^custom-/i.test(id)) return '';
-    return new URL(`../banners/${encodeURIComponent(id)}`, window.location.href).toString();
-  }
-
-  function presetOverlayPercent() {
-    const preset = overlayPresetPercent[$('overlay-position')?.value] || overlayPresetPercent['top-right'];
-    const width = clamp(Number($('overlay-width')?.value || 420), 80, 1000);
-    const margin = clamp(Number($('overlay-margin')?.value || 24), 0, 200);
-    const bannerHeight = width * 0.124;
-    const maxX = Math.max(1, overlayPreviewBase.width - width);
-    const maxY = Math.max(1, overlayPreviewBase.height - bannerHeight);
-    let x = (maxX * preset[0]) / 100;
-    let y = (maxY * preset[1]) / 100;
-    const position = $('overlay-position')?.value || 'top-right';
-    if (position.includes('left')) x = margin;
-    if (position.includes('right')) x = maxX - margin;
-    if (position.startsWith('top')) y = margin;
-    if (position.startsWith('bottom')) y = maxY - margin;
-    return [clamp(Math.round((x / maxX) * 100), 0, 100), clamp(Math.round((y / maxY) * 100), 0, 100)];
-  }
-
-  function currentOverlayPercent() {
-    const x = numberOrNull($('overlay-x-percent')?.value);
-    const y = numberOrNull($('overlay-y-percent')?.value);
-    if (x !== null && y !== null) return [clamp(Math.round(x), 0, 100), clamp(Math.round(y), 0, 100), true];
-    return [...presetOverlayPercent(), false];
-  }
-
-  function setManualOverlayPercent(x, y) {
-    if ($('overlay-x-percent')) $('overlay-x-percent').value = String(clamp(Math.round(x), 0, 100));
-    if ($('overlay-y-percent')) $('overlay-y-percent').value = String(clamp(Math.round(y), 0, 100));
-    updateOverlayPreview();
-  }
-
-  function clearManualOverlayPercent() {
-    if ($('overlay-x-percent')) $('overlay-x-percent').value = '';
-    if ($('overlay-y-percent')) $('overlay-y-percent').value = '';
-    updateOverlayPreview();
-  }
-
-  function setOverlayPreviewMessage(message) {
-    const empty = $('overlay-preview-empty');
-    if (!empty) return;
-    empty.textContent = message;
-    empty.hidden = false;
-  }
-
-  function hideOverlayPreviewMessage() {
-    const empty = $('overlay-preview-empty');
-    if (empty) empty.hidden = true;
-  }
-
-  function destroyOverlayPreviewHls() {
-    if (overlayPreviewHls) {
-      overlayPreviewHls.destroy();
-      overlayPreviewHls = null;
-    }
-  }
-
-  function stopOverlayFrameCapture() {
-    window.clearInterval(overlayPreviewCaptureTimer);
-    overlayPreviewCaptureTimer = 0;
-  }
-
-  function captureOverlayPreviewFrame() {
-    const video = $('overlay-preview-video');
-    const canvas = $('overlay-preview-canvas');
-    if (!video || !canvas || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return false;
-    try {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext('2d');
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      canvas.hidden = false;
-      hideOverlayPreviewMessage();
-      return true;
-    } catch {
-      setOverlayPreviewMessage('Cannot capture this stream frame');
-      return false;
-    }
-  }
-
-  function startOverlayFrameCapture() {
-    stopOverlayFrameCapture();
-    const captureAndFreeze = () => {
-      if (!captureOverlayPreviewFrame()) return;
-      stopOverlayFrameCapture();
-      const video = $('overlay-preview-video');
-      if (video) video.pause();
-    };
-    captureAndFreeze();
-    overlayPreviewCaptureTimer = window.setInterval(captureAndFreeze, 500);
-  }
-
-  function clearOverlayStreamPreview(message = 'Stream preview loads from URL') {
-    destroyOverlayPreviewHls();
-    stopOverlayFrameCapture();
-    overlayPreviewUrl = '';
-    overlayPreviewType = '';
-    overlayPreviewKey = '';
-    const surface = $('overlay-preview-surface');
-    const video = $('overlay-preview-video');
-    const canvas = $('overlay-preview-canvas');
-    const frame = $('overlay-preview-frame');
-    if (surface) {
-      surface.classList.remove('is-iframe-preview', 'is-player-preview');
-      surface.style.removeProperty('--overlay-iframe-scale');
-    }
-    if (video) {
-      video.pause();
-      video.onloadeddata = null;
-      video.oncanplay = null;
-      video.onplaying = null;
-      video.removeAttribute('src');
-      video.load();
-    }
-    if (canvas) {
-      const context = canvas.getContext('2d');
-      context.clearRect(0, 0, canvas.width || 1, canvas.height || 1);
-      canvas.hidden = true;
-    }
-    if (frame) {
-      frame.onload = null;
-      frame.removeAttribute('src');
-      frame.hidden = true;
-    }
-    setOverlayPreviewMessage(message);
-  }
-
-  function isHttpsUrl(value) {
-    try {
-      return new URL(String(value || '')).protocol === 'https:';
-    } catch {
-      return false;
-    }
-  }
-
-  function isHlsPreviewUrl(value) {
-    try {
-      const url = new URL(String(value || ''));
-      return /\.m3u8($|\?)/i.test(`${url.pathname}${url.search}`);
-    } catch {
-      return false;
-    }
-  }
-
-  function previewHlsUrl(value) {
-    try {
-      const url = new URL(String(value || ''));
-      if (/\.m3u8$/i.test(url.pathname) && !url.searchParams.has('cookieCheck')) {
-        url.searchParams.set('cookieCheck', '1');
-      }
-      return url.toString();
-    } catch {
-      return String(value || '');
-    }
-  }
-
-  function usesCredentialedHls(value) {
-    try {
-      const url = new URL(String(value || ''), window.location.href);
-      return url.hostname === 'hls.livekinglive.win';
-    } catch {
-      return false;
-    }
-  }
-
-  function currentPlayerPreviewUrl() {
-    const matchId = Number($('match-id')?.value || 0);
-    if (!Number.isFinite(matchId) || matchId <= 0) return '';
-    try {
-      const url = new URL(`${playerBase}/`, window.location.href);
-      const lang = $('lang')?.value.trim();
-      const label = $('stream-label')?.value.trim();
-      url.searchParams.set('match', String(Math.floor(matchId)));
-      url.searchParams.set('preview', '1');
-      if (lang) url.searchParams.set('lang', lang);
-      if (label) {
-        url.searchParams.set('source', label);
-        url.searchParams.set('title', label);
-      }
-      return url.toString();
-    } catch {
-      return '';
-    }
-  }
-
-  function scheduleOverlayStreamPreview() {
-    window.clearTimeout(overlayPreviewTimer);
-    overlayPreviewTimer = window.setTimeout(loadOverlayStreamPreview, 450);
-  }
-
-  function loadOverlayStreamPreview() {
-    const rawUrl = $('stream-url')?.value.trim() || '';
-    const sourceType = $('source-type')?.value || '';
-    const video = $('overlay-preview-video');
-    const frame = $('overlay-preview-frame');
-    if (!video || !frame) return;
-    if (!rawUrl) {
-      clearOverlayStreamPreview('Stream preview loads from URL');
-      return;
-    }
-    if (!isHttpsUrl(rawUrl)) {
-      clearOverlayStreamPreview('Preview needs an https stream URL');
-      return;
-    }
-    const previewKey = [
-      rawUrl,
-      sourceType,
-      $('match-id')?.value || '',
-      $('stream-id')?.value || '',
-      $('stream-label')?.value || '',
-      $('lang')?.value || '',
-    ].join('|');
-    if (previewKey === overlayPreviewKey) return;
-
-    destroyOverlayPreviewHls();
-    stopOverlayFrameCapture();
-    overlayPreviewUrl = rawUrl;
-    overlayPreviewType = sourceType;
-    overlayPreviewKey = previewKey;
-    video.pause();
-    video.onloadeddata = null;
-    video.oncanplay = null;
-    video.onplaying = null;
-    video.removeAttribute('src');
-    const canvas = $('overlay-preview-canvas');
-    if (canvas) canvas.hidden = true;
-    const surface = $('overlay-preview-surface');
-    if (surface) {
-      surface.classList.remove('is-iframe-preview', 'is-player-preview');
-      surface.style.removeProperty('--overlay-iframe-scale');
-    }
-    frame.hidden = true;
-    frame.onload = null;
-    frame.removeAttribute('src');
-    setOverlayPreviewMessage('Loading player preview...');
-
-    const playerPreviewUrl = currentPlayerPreviewUrl();
-    if (playerPreviewUrl) {
-      if (surface) surface.classList.add('is-player-preview');
-      updateOverlayPreview();
-      frame.onload = hideOverlayPreviewMessage;
-      frame.src = playerPreviewUrl;
-      frame.title = 'Current player preview';
-      frame.hidden = false;
-      return;
-    }
-
-    if (sourceType === 'iframe' && !isHlsPreviewUrl(rawUrl)) {
-      if (surface) surface.classList.add('is-iframe-preview');
-      updateOverlayPreview();
-      frame.onload = hideOverlayPreviewMessage;
-      frame.src = rawUrl;
-      frame.title = 'Iframe stream preview';
-      frame.hidden = false;
-      return;
-    }
-
-    if (!isHlsPreviewUrl(rawUrl)) {
-      clearOverlayStreamPreview('Preview supports HLS .m3u8 or iframe URLs');
-      return;
-    }
-
-    video.muted = true;
-    video.playsInline = true;
-    video.onloadeddata = startOverlayFrameCapture;
-    video.oncanplay = startOverlayFrameCapture;
-    video.onplaying = startOverlayFrameCapture;
-    const hlsUrl = previewHlsUrl(rawUrl);
-    video.crossOrigin = usesCredentialedHls(hlsUrl) ? 'use-credentials' : 'anonymous';
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = hlsUrl;
-      video.play().catch(() => {});
-      return;
-    }
-    if (window.Hls?.isSupported?.()) {
-      overlayPreviewHls = new window.Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        liveSyncDurationCount: 2,
-        liveMaxLatencyDurationCount: 5,
-        backBufferLength: 30,
-        maxBufferLength: 20,
-        xhrSetup: usesCredentialedHls(hlsUrl)
-          ? (xhr) => {
-              xhr.withCredentials = true;
-            }
-          : undefined,
-      });
-      overlayPreviewHls.on(window.Hls.Events.ERROR, (event, data) => {
-        if (data?.fatal) clearOverlayStreamPreview('Stream preview failed to load');
-      });
-      overlayPreviewHls.loadSource(hlsUrl);
-      overlayPreviewHls.attachMedia(video);
-      overlayPreviewHls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-        video.play().catch(() => {});
-      });
-      return;
-    }
-    clearOverlayStreamPreview('This browser cannot preview HLS here');
-  }
-
-  function updateOverlayPreview() {
-    const preview = $('overlay-preview-surface');
-    const banner = $('overlay-preview-banner');
-    if (!preview || !banner) return;
-    const previewRect = preview.getBoundingClientRect();
-    const previewWidth = previewRect.width || preview.clientWidth || 0;
-    const previewHeight = previewRect.height || preview.clientHeight || 0;
-    if (!previewWidth || !previewHeight) return;
-    if (preview.classList.contains('is-iframe-preview')) {
-      preview.style.setProperty('--overlay-iframe-scale', String(previewWidth / 640));
-    }
-
-    const enabled = $('overlay-enabled')?.value === 'true';
-    const overlayWidth = clamp(Number($('overlay-width')?.value || 420), 80, 1000);
-    const bannerWidth = clamp((overlayWidth / overlayPreviewBase.width) * previewWidth, 72, previewWidth);
-    const bannerHeight = clamp(bannerWidth * 0.124, 26, previewHeight);
-    const [xPercent, yPercent, manual] = currentOverlayPercent();
-    const maxX = Math.max(0, previewWidth - bannerWidth);
-    const maxY = Math.max(0, previewHeight - bannerHeight);
-    const left = (maxX * xPercent) / 100;
-    const top = (maxY * yPercent) / 100;
-
-    banner.style.width = `${bannerWidth}px`;
-    banner.style.height = `${bannerHeight}px`;
-    banner.style.transform = `translate(${left}px, ${top}px)`;
-    banner.style.opacity = enabled ? '1' : '0.45';
-    const previewImageUrl = selectedOverlayPreviewImageUrl();
-    if (previewImageUrl) {
-      banner.classList.add('has-image');
-      banner.style.backgroundImage = `url("${previewImageUrl}")`;
-      banner.textContent = '';
-    } else {
-      banner.classList.remove('has-image');
-      banner.style.backgroundImage = '';
-      banner.textContent = selectedOverlayLabel();
-    }
-
-    const meta = $('overlay-preview-meta');
-    if (meta) {
-      meta.textContent = manual
-        ? `manual: x ${xPercent}% / y ${yPercent}%`
-        : `preset: ${$('overlay-position')?.value || 'top-right'}`;
-    }
-  }
-
-  function setupOverlayPreviewDrag() {
-    const preview = $('overlay-preview-surface');
-    const banner = $('overlay-preview-banner');
-    if (!preview || !banner) return;
-    let drag = null;
-
-    function startDrag(event, jumpToPointer = false) {
-      event.preventDefault();
-      const bannerRect = banner.getBoundingClientRect();
-      drag = {
-        pointerId: event.pointerId,
-        offsetX: jumpToPointer ? bannerRect.width / 2 : event.clientX - bannerRect.left,
-        offsetY: jumpToPointer ? bannerRect.height / 2 : event.clientY - bannerRect.top,
-      };
-      banner.classList.add('dragging');
-      preview.setPointerCapture(event.pointerId);
-      const move = (moveEvent) => {
-        if (!drag || moveEvent.pointerId !== drag.pointerId) return;
-        const currentPreviewRect = preview.getBoundingClientRect();
-        const currentBannerRect = banner.getBoundingClientRect();
-        const maxX = Math.max(1, currentPreviewRect.width - currentBannerRect.width);
-        const maxY = Math.max(1, currentPreviewRect.height - currentBannerRect.height);
-        const left = clamp(moveEvent.clientX - currentPreviewRect.left - drag.offsetX, 0, maxX);
-        const top = clamp(moveEvent.clientY - currentPreviewRect.top - drag.offsetY, 0, maxY);
-        setManualOverlayPercent((left / maxX) * 100, (top / maxY) * 100);
-      };
-      const end = (endEvent) => {
-        if (!drag || endEvent.pointerId !== drag.pointerId) return;
-        drag = null;
-        banner.classList.remove('dragging');
-        preview.releasePointerCapture(endEvent.pointerId);
-        preview.removeEventListener('pointermove', move);
-        preview.removeEventListener('pointerup', end);
-        preview.removeEventListener('pointercancel', end);
-      };
-      preview.addEventListener('pointermove', move);
-      preview.addEventListener('pointerup', end);
-      preview.addEventListener('pointercancel', end);
-      move(event);
-    }
-
-    banner.addEventListener('pointerdown', (event) => {
-      startDrag(event, false);
-    });
-    preview.addEventListener('pointerdown', (event) => {
-      if (event.target === banner) return;
-      startDrag(event, true);
-    });
   }
 
   async function adminFetch(path, init = {}) {
@@ -540,12 +106,6 @@
       width: Number($('overlay-width').value || 420),
       margin: Number($('overlay-margin').value || 24),
     };
-    const xPercent = numberOrNull($('overlay-x-percent')?.value);
-    const yPercent = numberOrNull($('overlay-y-percent')?.value);
-    if (xPercent !== null && yPercent !== null) {
-      overlay.x_percent = clamp(Math.round(xPercent), 0, 100);
-      overlay.y_percent = clamp(Math.round(yPercent), 0, 100);
-    }
     return {
       match_id: Number($('match-id').value),
       label: $('stream-label').value.trim() || 'Live stream',
@@ -582,16 +142,12 @@
     $('overlay-position').value = overlay.position || 'top-right';
     $('overlay-width').value = String(overlay.width || 420);
     $('overlay-margin').value = String(overlay.margin ?? 24);
-    $('overlay-x-percent').value = overlay.x_percent ?? overlay.xPercent ?? '';
-    $('overlay-y-percent').value = overlay.y_percent ?? overlay.yPercent ?? '';
     $('lang').value = stream.language_code || 'en';
     $('region').value = stream.region || 'global';
     $('priority').value = String(stream.priority ?? 100);
     $('is-active').value = stream.is_active === false ? 'false' : 'true';
     $('starts-at').value = formatAdminDateTime(stream.starts_at);
     $('ends-at').value = formatAdminDateTime(stream.ends_at);
-    updateOverlayPreview();
-    scheduleOverlayStreamPreview();
   }
 
   function resetForm() {
@@ -605,16 +161,12 @@
     $('overlay-position').value = 'top-right';
     $('overlay-width').value = '420';
     $('overlay-margin').value = '24';
-    $('overlay-x-percent').value = '';
-    $('overlay-y-percent').value = '';
     $('lang').value = 'en';
     $('region').value = 'global';
     $('priority').value = '100';
     $('is-active').value = 'true';
     $('starts-at').value = '';
     $('ends-at').value = '';
-    updateOverlayPreview();
-    clearOverlayStreamPreview();
   }
 
   async function saveStream(event) {
@@ -666,11 +218,8 @@
           const url = escapeHtml(stream.url || '');
           const editable = stream.editable !== false && stream.origin !== 'dami';
           const overlay = stream.restream?.overlay;
-          const manualPosition = overlay?.x_percent !== undefined && overlay?.y_percent !== undefined
-            ? `<br/>manual ${escapeHtml(overlay.x_percent)}% / ${escapeHtml(overlay.y_percent)}%`
-            : '';
           const overlayLabel = overlay?.enabled
-            ? `${escapeHtml(overlay.image || 'banner')}<br/>${escapeHtml(overlay.position || 'top-right')} ${escapeHtml(overlay.width || 420)}px${manualPosition}`
+            ? `${escapeHtml(overlay.image || 'banner')}<br/>${escapeHtml(overlay.position || 'top-right')} ${escapeHtml(overlay.width || 420)}px`
             : '';
           return `
             <tr>
@@ -762,7 +311,6 @@
       })
       .join('');
     select.value = list.some((overlay) => overlay.id === current) ? current : 'kinglive_player_leaderboard.png';
-    updateOverlayPreview();
   }
 
   async function uploadOverlay(event) {
@@ -1197,20 +745,6 @@
   if ($('reload-overlays')) $('reload-overlays').addEventListener('click', loadOverlays);
   if ($('save-admin-settings')) $('save-admin-settings').addEventListener('click', saveSettings);
   $('reset-form').addEventListener('click', resetForm);
-  ['overlay-enabled', 'overlay-image', 'overlay-width', 'overlay-margin'].forEach((id) => {
-    if ($(id)) $(id).addEventListener('input', updateOverlayPreview);
-    if ($(id)) $(id).addEventListener('change', updateOverlayPreview);
-  });
-  if ($('overlay-enabled')) $('overlay-enabled').addEventListener('change', scheduleOverlayStreamPreview);
-  ['match-id', 'stream-id', 'stream-label', 'stream-url', 'source-type', 'lang'].forEach((id) => {
-    if ($(id)) $(id).addEventListener('input', scheduleOverlayStreamPreview);
-    if ($(id)) $(id).addEventListener('change', scheduleOverlayStreamPreview);
-  });
-  if ($('overlay-position')) {
-    $('overlay-position').addEventListener('change', clearManualOverlayPercent);
-  }
-  if ($('overlay-preview-reset')) $('overlay-preview-reset').addEventListener('click', clearManualOverlayPercent);
-  window.addEventListener('resize', updateOverlayPreview);
   if ($('reset-status')) $('reset-status').addEventListener('click', resetStatusForm);
   if ($('refresh-date')) $('refresh-date').value = new Date().toISOString().slice(0, 10);
   document.querySelectorAll('[data-refresh-scope]').forEach((button) => {
@@ -1218,8 +752,6 @@
   });
 
   setAuthLabel();
-  setupOverlayPreviewDrag();
-  updateOverlayPreview();
   loadOverlays();
   loadSettings();
   loadMonitoring();

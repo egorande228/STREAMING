@@ -6,8 +6,7 @@
     <title>KingLive Admin</title>
     <link rel="stylesheet" href="./styles.css" />
     <script src="./config.js"></script>
-    <script defer src="./assets/vendor/hlsjs/hls.min.js?v=1.6.15"></script>
-    <script defer src="./admin.js?v=overlay-player-preview-20260615"></script>
+    <script defer src="./admin.js?v=simple-banner-controls-20260615"></script>
     <style>
       .admin-shell {
         width: calc(100% - 32px);
@@ -215,138 +214,6 @@
       .admin-msg { color: #83f1b8; margin-top: 10px; }
       .admin-err { color: #ff9aa1; margin-top: 10px; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-      .overlay-preview-wrap {
-        display: grid;
-        gap: 10px;
-      }
-      .overlay-preview-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-      }
-      .overlay-preview {
-        position: relative;
-        display: grid;
-        place-items: center;
-        padding: clamp(8px, 1.2vw, 14px);
-        overflow: hidden;
-        border: 1px solid rgba(245, 196, 0, 0.28);
-        border-radius: 8px;
-        background:
-          linear-gradient(0deg, rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.26)),
-          repeating-linear-gradient(90deg, rgba(245, 196, 0, 0.08) 0 1px, transparent 1px 10%),
-          repeating-linear-gradient(0deg, rgba(245, 196, 0, 0.08) 0 1px, transparent 1px 10%),
-          #1d2420;
-        user-select: none;
-        touch-action: none;
-      }
-      .overlay-preview::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(circle at 50% 45%, rgba(244, 239, 226, 0.12), transparent 55%);
-        pointer-events: none;
-        z-index: 1;
-      }
-      .overlay-preview-surface {
-        position: relative;
-        z-index: 2;
-        width: 100%;
-        aspect-ratio: 16 / 9;
-        overflow: hidden;
-        border: 1px solid rgba(244, 239, 226, 0.22);
-        border-radius: 6px;
-        background: #050604;
-        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.34);
-      }
-      .overlay-preview-canvas,
-      .overlay-preview-player,
-      .overlay-preview-frame {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        border: 0;
-        background: #050604;
-        object-fit: contain;
-      }
-      .overlay-preview-canvas {
-        z-index: 2;
-      }
-      .overlay-preview-player {
-        pointer-events: none;
-        z-index: 1;
-      }
-      .overlay-preview-frame {
-        pointer-events: none;
-        z-index: 0;
-      }
-      .overlay-preview-surface.is-player-preview .overlay-preview-frame {
-        z-index: 1;
-      }
-      .overlay-preview-surface.is-iframe-preview .overlay-preview-frame {
-        width: 640px;
-        height: 360px;
-        transform: scale(var(--overlay-iframe-scale, 1));
-        transform-origin: left top;
-      }
-      .overlay-preview-video {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 1px;
-        height: 1px;
-        opacity: 0;
-        pointer-events: none;
-      }
-      .overlay-preview-empty {
-        position: absolute;
-        inset: 0;
-        z-index: 2;
-        display: grid;
-        place-items: center;
-        padding: 16px;
-        color: var(--muted);
-        font-size: 12px;
-        text-align: center;
-        background: rgba(5, 6, 4, 0.6);
-      }
-      .overlay-preview-banner {
-        position: absolute;
-        z-index: 3;
-        left: 0;
-        top: 0;
-        display: grid;
-        place-items: center;
-        min-width: 72px;
-        min-height: 26px;
-        border: 1px solid rgba(245, 196, 0, 0.75);
-        border-radius: 5px;
-        background: rgba(7, 8, 6, 0.9);
-        color: var(--gold);
-        cursor: grab;
-        font: 900 10px/1.1 var(--font-display);
-        letter-spacing: 0;
-        text-align: center;
-        text-transform: uppercase;
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
-      }
-      .overlay-preview-banner.has-image {
-        background-color: rgba(5, 6, 4, 0.12);
-        background-position: center;
-        background-repeat: no-repeat;
-        background-size: contain;
-        color: transparent;
-        text-shadow: none;
-      }
-      .overlay-preview-banner.dragging {
-        cursor: grabbing;
-      }
-      .overlay-preview-meta {
-        color: var(--muted);
-        font-size: 12px;
-      }
       @media (max-width: 1080px) {
         .admin-hero,
         .admin-layout,
@@ -476,26 +343,6 @@
             <div>Banner margin</div>
             <input id="overlay-margin" class="admin-input" type="number" min="0" max="200" value="24" />
           </label>
-          <input id="overlay-x-percent" type="hidden" value="" />
-          <input id="overlay-y-percent" type="hidden" value="" />
-          <div class="overlay-preview-wrap full">
-            <div class="overlay-preview-head">
-              <div>
-                <div>Banner preview</div>
-                <span id="overlay-preview-meta" class="overlay-preview-meta mono">preset: top-right</span>
-              </div>
-              <button id="overlay-preview-reset" class="button secondary" type="button">Reset position</button>
-            </div>
-            <div id="overlay-preview" class="overlay-preview" aria-label="Banner position preview">
-              <div id="overlay-preview-surface" class="overlay-preview-surface">
-                <canvas id="overlay-preview-canvas" class="overlay-preview-canvas" hidden></canvas>
-                <video id="overlay-preview-video" class="overlay-preview-video" muted playsinline preload="auto" crossorigin="anonymous"></video>
-                <iframe id="overlay-preview-frame" class="overlay-preview-frame" title="Iframe stream preview" hidden></iframe>
-                <div id="overlay-preview-empty" class="overlay-preview-empty">Stream preview loads from URL</div>
-                <div id="overlay-preview-banner" class="overlay-preview-banner">KingLive</div>
-              </div>
-            </div>
-          </div>
           <label>
             <div>Language</div>
             <input id="lang" class="admin-input" value="en" />

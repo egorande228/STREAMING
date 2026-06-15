@@ -570,6 +570,44 @@
     }
   }
 
+  function firstPlaylistUri(manifestText) {
+    return String(manifestText || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line && !line.startsWith('#')) || '';
+  }
+
+  async function resolveManagedHlsPlaybackUrl(value) {
+    const masterUrl = withManagedHlsCookieCheck(value);
+    try {
+      const response = await fetch(masterUrl, { cache: 'no-store', credentials: 'omit' });
+      if (!response.ok || typeof response.text !== 'function') return masterUrl;
+      const variantUri = firstPlaylistUri(await response.text());
+      if (!/\.m3u8(\?|$)/i.test(variantUri)) return masterUrl;
+      return new URL(variantUri, masterUrl).toString();
+    } catch {
+      return masterUrl;
+    }
+  }
+
+  function startNativeManagedHls(video, value) {
+    const fallbackUrl = withManagedHlsCookieCheck(value);
+    let fallbackUsed = false;
+    const setSource = (url) => {
+      video.src = url || fallbackUrl;
+      requestMutedPlayback(video);
+      startManagedPlaybackWatch(video);
+    };
+    if (typeof video.addEventListener === 'function') {
+      video.addEventListener('error', () => {
+        if (fallbackUsed || video.src === fallbackUrl) return;
+        fallbackUsed = true;
+        setSource(fallbackUrl);
+      });
+    }
+    resolveManagedHlsPlaybackUrl(value).then(setSource);
+  }
+
   function configureVideoElement(video, streamUrl, options = {}) {
     if (!video) return;
     if (typeof video.setAttribute === 'function') {
@@ -660,9 +698,7 @@
 
     const preferHlsJs = /dami-tv\.pro/i.test(stream.url || '') || usesManagedHls(stream.url);
     if (nativeManagedHls) {
-      video.src = playbackUrl;
-      requestMutedPlayback(video);
-      startManagedPlaybackWatch(video);
+      startNativeManagedHls(video, stream.url);
       return;
     }
 
@@ -705,7 +741,7 @@
 
   function renderVideoJs(stream) {
     const appleManagedHls = usesManagedHls(stream.url) && isAppleTouchBrowser();
-    if (usesManagedHls(stream.url) && !appleManagedHls && window.Hls && window.Hls.isSupported()) {
+    if (usesManagedHls(stream.url) && (appleManagedHls || (window.Hls && window.Hls.isSupported()))) {
       renderHls(stream, { videojs: true });
       return;
     }

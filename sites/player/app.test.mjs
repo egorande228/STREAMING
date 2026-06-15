@@ -212,6 +212,8 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
 
   vm.runInNewContext(appSource, context);
   await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
 
   return {
     appended,
@@ -418,9 +420,8 @@ test('uses hls.js without credentials for KingLive HLS streams marked as videojs
   assert.ok(result.appended.find((element) => element.className === 'player-fullscreen-button'));
 });
 
-test('uses Video.js UI with native iOS HLS for KingLive HLS streams marked as videojs', async () => {
+test('uses native iOS HLS variant for KingLive HLS streams marked as videojs', async () => {
   let videoJsCalled = false;
-  let videoJsOptions = null;
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',
     config: {
@@ -434,19 +435,8 @@ test('uses Video.js UI with native iOS HLS for KingLive HLS streams marked as vi
     },
     timers: {
       nativeHlsSupport: true,
-      videojs: (element, options) => {
+      videojs: () => {
         videoJsCalled = true;
-        assert.equal(element.tagName, 'video');
-        videoJsOptions = options;
-        return {
-          ready(handler) {
-            handler();
-          },
-          play() {
-            return Promise.resolve();
-          },
-          dispose() {},
-        };
       },
     },
     navigatorOverrides: {
@@ -456,6 +446,12 @@ test('uses Video.js UI with native iOS HLS for KingLive HLS streams marked as vi
       maxTouchPoints: 5,
     },
     fetchImpl: (url) => {
+      if (String(url).startsWith('https://hls.livekinglive.win/')) {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve('#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000\nmain_stream.m3u8?session=ios-session\n'),
+        });
+      }
       if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
         return Promise.resolve({ ok: false });
       }
@@ -467,8 +463,8 @@ test('uses Video.js UI with native iOS HLS for KingLive HLS streams marked as vi
   });
 
   const video = result.appended.find((element) => element.tagName === 'video');
-  assert.equal(videoJsCalled, true);
-  assert.equal(videoJsOptions.sources[0].src, 'https://hls.livekinglive.win/live/test/index.m3u8?cookieCheck=1');
+  assert.equal(videoJsCalled, false);
+  assert.equal(video.src, 'https://hls.livekinglive.win/live/test/main_stream.m3u8?session=ios-session');
   assert.equal(video.crossOrigin, undefined);
   assert.equal(video.autoplay, true);
   assert.equal(video.muted, true);
@@ -480,7 +476,7 @@ test('uses Video.js UI with native iOS HLS for KingLive HLS streams marked as vi
   assert.ok(result.appended.find((element) => element.className === 'player-fullscreen-button'));
 });
 
-test('uses native iOS HLS fallback even when canPlayType does not report m3u8 support', async () => {
+test('uses native iOS HLS fallback when managed playlist cannot be resolved', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',
     config: {
@@ -502,6 +498,9 @@ test('uses native iOS HLS fallback even when canPlayType does not report m3u8 su
       maxTouchPoints: 5,
     },
     fetchImpl: (url) => {
+      if (String(url).startsWith('https://hls.livekinglive.win/')) {
+        return Promise.resolve({ ok: false });
+      }
       if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
         return Promise.resolve({ ok: false });
       }

@@ -200,6 +200,64 @@
       .admin-msg { color: #83f1b8; margin-top: 10px; }
       .admin-err { color: #ff9aa1; margin-top: 10px; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+      .overlay-preview-wrap {
+        display: grid;
+        gap: 10px;
+      }
+      .overlay-preview-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .overlay-preview {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        min-height: 190px;
+        overflow: hidden;
+        border: 1px solid rgba(245, 196, 0, 0.28);
+        border-radius: 8px;
+        background:
+          linear-gradient(0deg, rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.26)),
+          repeating-linear-gradient(90deg, rgba(245, 196, 0, 0.08) 0 1px, transparent 1px 10%),
+          repeating-linear-gradient(0deg, rgba(245, 196, 0, 0.08) 0 1px, transparent 1px 10%),
+          #1d2420;
+        user-select: none;
+        touch-action: none;
+      }
+      .overlay-preview::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 50% 45%, rgba(244, 239, 226, 0.12), transparent 55%);
+        pointer-events: none;
+      }
+      .overlay-preview-banner {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: grid;
+        place-items: center;
+        min-width: 72px;
+        min-height: 26px;
+        border: 1px solid rgba(245, 196, 0, 0.75);
+        border-radius: 5px;
+        background: rgba(7, 8, 6, 0.9);
+        color: var(--gold);
+        cursor: grab;
+        font: 900 10px/1.1 var(--font-display);
+        letter-spacing: 0;
+        text-align: center;
+        text-transform: uppercase;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
+      }
+      .overlay-preview-banner.dragging {
+        cursor: grabbing;
+      }
+      .overlay-preview-meta {
+        color: var(--muted);
+        font-size: 12px;
+      }
       @media (max-width: 1080px) {
         .admin-hero,
         .admin-layout,
@@ -324,6 +382,20 @@
             <div>Banner margin</div>
             <input id="overlay-margin" class="admin-input" type="number" min="0" max="200" value="24" />
           </label>
+          <input id="overlay-x-percent" type="hidden" value="" />
+          <input id="overlay-y-percent" type="hidden" value="" />
+          <div class="overlay-preview-wrap full">
+            <div class="overlay-preview-head">
+              <div>
+                <div>Banner preview</div>
+                <span id="overlay-preview-meta" class="overlay-preview-meta mono">preset: top-right</span>
+              </div>
+              <button id="overlay-preview-reset" class="button secondary" type="button">Reset position</button>
+            </div>
+            <div id="overlay-preview" class="overlay-preview" aria-label="Banner position preview">
+              <div id="overlay-preview-banner" class="overlay-preview-banner">KingLive</div>
+            </div>
+          </div>
           <label>
             <div>Language</div>
             <input id="lang" class="admin-input" value="en" />

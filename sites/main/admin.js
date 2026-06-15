@@ -25,6 +25,16 @@
     { id: 'melbet_top_banner_1554x192.png', name: 'Melbet top', builtin: true },
     { id: 'melbet_banner_1870x245_safe_player.png', name: 'Melbet safe player', builtin: true },
   ];
+  const overlayPreviewBase = { width: 1280, height: 720 };
+  const overlayPresetPercent = {
+    'top-left': [0, 0],
+    'top-center': [50, 0],
+    'top-right': [100, 0],
+    center: [50, 50],
+    'bottom-left': [0, 100],
+    'bottom-center': [50, 100],
+    'bottom-right': [100, 100],
+  };
 
   function token() {
     try {
@@ -43,6 +53,133 @@
 
   function setAuthLabel() {
     authStatus.textContent = token() ? 'Authenticated' : 'Not authenticated';
+  }
+
+  function numberOrNull(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function selectedOverlayLabel() {
+    const select = $('overlay-image');
+    const option = select?.options?.[select.selectedIndex];
+    return option?.textContent?.trim() || select?.value || 'Banner';
+  }
+
+  function presetOverlayPercent() {
+    const preset = overlayPresetPercent[$('overlay-position')?.value] || overlayPresetPercent['top-right'];
+    const width = clamp(Number($('overlay-width')?.value || 420), 80, 1000);
+    const margin = clamp(Number($('overlay-margin')?.value || 24), 0, 200);
+    const bannerHeight = width * 0.124;
+    const maxX = Math.max(1, overlayPreviewBase.width - width);
+    const maxY = Math.max(1, overlayPreviewBase.height - bannerHeight);
+    let x = (maxX * preset[0]) / 100;
+    let y = (maxY * preset[1]) / 100;
+    const position = $('overlay-position')?.value || 'top-right';
+    if (position.includes('left')) x = margin;
+    if (position.includes('right')) x = maxX - margin;
+    if (position.startsWith('top')) y = margin;
+    if (position.startsWith('bottom')) y = maxY - margin;
+    return [clamp(Math.round((x / maxX) * 100), 0, 100), clamp(Math.round((y / maxY) * 100), 0, 100)];
+  }
+
+  function currentOverlayPercent() {
+    const x = numberOrNull($('overlay-x-percent')?.value);
+    const y = numberOrNull($('overlay-y-percent')?.value);
+    if (x !== null && y !== null) return [clamp(Math.round(x), 0, 100), clamp(Math.round(y), 0, 100), true];
+    return [...presetOverlayPercent(), false];
+  }
+
+  function setManualOverlayPercent(x, y) {
+    if ($('overlay-x-percent')) $('overlay-x-percent').value = String(clamp(Math.round(x), 0, 100));
+    if ($('overlay-y-percent')) $('overlay-y-percent').value = String(clamp(Math.round(y), 0, 100));
+    updateOverlayPreview();
+  }
+
+  function clearManualOverlayPercent() {
+    if ($('overlay-x-percent')) $('overlay-x-percent').value = '';
+    if ($('overlay-y-percent')) $('overlay-y-percent').value = '';
+    updateOverlayPreview();
+  }
+
+  function updateOverlayPreview() {
+    const preview = $('overlay-preview');
+    const banner = $('overlay-preview-banner');
+    if (!preview || !banner) return;
+    const previewRect = preview.getBoundingClientRect();
+    const previewWidth = previewRect.width || preview.clientWidth || 0;
+    const previewHeight = previewRect.height || preview.clientHeight || 0;
+    if (!previewWidth || !previewHeight) return;
+
+    const enabled = $('overlay-enabled')?.value === 'true';
+    const overlayWidth = clamp(Number($('overlay-width')?.value || 420), 80, 1000);
+    const bannerWidth = clamp((overlayWidth / overlayPreviewBase.width) * previewWidth, 72, previewWidth);
+    const bannerHeight = clamp(bannerWidth * 0.124, 26, previewHeight);
+    const [xPercent, yPercent, manual] = currentOverlayPercent();
+    const maxX = Math.max(0, previewWidth - bannerWidth);
+    const maxY = Math.max(0, previewHeight - bannerHeight);
+    const left = (maxX * xPercent) / 100;
+    const top = (maxY * yPercent) / 100;
+
+    banner.style.width = `${bannerWidth}px`;
+    banner.style.height = `${bannerHeight}px`;
+    banner.style.transform = `translate(${left}px, ${top}px)`;
+    banner.style.opacity = enabled ? '1' : '0.45';
+    banner.textContent = selectedOverlayLabel();
+
+    const meta = $('overlay-preview-meta');
+    if (meta) {
+      meta.textContent = manual
+        ? `manual: x ${xPercent}% / y ${yPercent}%`
+        : `preset: ${$('overlay-position')?.value || 'top-right'}`;
+    }
+  }
+
+  function setupOverlayPreviewDrag() {
+    const preview = $('overlay-preview');
+    const banner = $('overlay-preview-banner');
+    if (!preview || !banner) return;
+    let drag = null;
+
+    banner.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      const previewRect = preview.getBoundingClientRect();
+      const bannerRect = banner.getBoundingClientRect();
+      drag = {
+        pointerId: event.pointerId,
+        offsetX: event.clientX - bannerRect.left,
+        offsetY: event.clientY - bannerRect.top,
+      };
+      banner.classList.add('dragging');
+      banner.setPointerCapture(event.pointerId);
+      const move = (moveEvent) => {
+        if (!drag || moveEvent.pointerId !== drag.pointerId) return;
+        const width = bannerRect.width;
+        const height = bannerRect.height;
+        const maxX = Math.max(1, previewRect.width - width);
+        const maxY = Math.max(1, previewRect.height - height);
+        const left = clamp(moveEvent.clientX - previewRect.left - drag.offsetX, 0, maxX);
+        const top = clamp(moveEvent.clientY - previewRect.top - drag.offsetY, 0, maxY);
+        setManualOverlayPercent((left / maxX) * 100, (top / maxY) * 100);
+      };
+      const end = (endEvent) => {
+        if (!drag || endEvent.pointerId !== drag.pointerId) return;
+        drag = null;
+        banner.classList.remove('dragging');
+        banner.releasePointerCapture(endEvent.pointerId);
+        banner.removeEventListener('pointermove', move);
+        banner.removeEventListener('pointerup', end);
+        banner.removeEventListener('pointercancel', end);
+      };
+      banner.addEventListener('pointermove', move);
+      banner.addEventListener('pointerup', end);
+      banner.addEventListener('pointercancel', end);
+    });
   }
 
   async function adminFetch(path, init = {}) {
@@ -100,6 +237,19 @@
 
   function streamFromForm() {
     const overlayEnabled = $('overlay-enabled').value === 'true';
+    const overlay = {
+      enabled: overlayEnabled,
+      image: $('overlay-image').value,
+      position: $('overlay-position').value,
+      width: Number($('overlay-width').value || 420),
+      margin: Number($('overlay-margin').value || 24),
+    };
+    const xPercent = numberOrNull($('overlay-x-percent')?.value);
+    const yPercent = numberOrNull($('overlay-y-percent')?.value);
+    if (xPercent !== null && yPercent !== null) {
+      overlay.x_percent = clamp(Math.round(xPercent), 0, 100);
+      overlay.y_percent = clamp(Math.round(yPercent), 0, 100);
+    }
     return {
       match_id: Number($('match-id').value),
       label: $('stream-label').value.trim() || 'Live stream',
@@ -108,13 +258,7 @@
       quality: $('quality').value.trim() || '720p',
       restream: {
         transcode_profile: $('transcode-profile').value || 'auto',
-        overlay: {
-          enabled: overlayEnabled,
-          image: $('overlay-image').value,
-          position: $('overlay-position').value,
-          width: Number($('overlay-width').value || 420),
-          margin: Number($('overlay-margin').value || 24),
-        },
+        overlay,
       },
       language_code: $('lang').value.trim() || 'en',
       region: $('region').value.trim() || 'global',
@@ -140,12 +284,15 @@
     $('overlay-position').value = overlay.position || 'top-right';
     $('overlay-width').value = String(overlay.width || 420);
     $('overlay-margin').value = String(overlay.margin ?? 24);
+    $('overlay-x-percent').value = overlay.x_percent ?? overlay.xPercent ?? '';
+    $('overlay-y-percent').value = overlay.y_percent ?? overlay.yPercent ?? '';
     $('lang').value = stream.language_code || 'en';
     $('region').value = stream.region || 'global';
     $('priority').value = String(stream.priority ?? 100);
     $('is-active').value = stream.is_active === false ? 'false' : 'true';
     $('starts-at').value = formatAdminDateTime(stream.starts_at);
     $('ends-at').value = formatAdminDateTime(stream.ends_at);
+    updateOverlayPreview();
   }
 
   function resetForm() {
@@ -158,12 +305,15 @@
     $('overlay-position').value = 'top-right';
     $('overlay-width').value = '420';
     $('overlay-margin').value = '24';
+    $('overlay-x-percent').value = '';
+    $('overlay-y-percent').value = '';
     $('lang').value = 'en';
     $('region').value = 'global';
     $('priority').value = '100';
     $('is-active').value = 'true';
     $('starts-at').value = '';
     $('ends-at').value = '';
+    updateOverlayPreview();
   }
 
   async function saveStream(event) {
@@ -215,8 +365,11 @@
           const url = escapeHtml(stream.url || '');
           const editable = stream.editable !== false && stream.origin !== 'dami';
           const overlay = stream.restream?.overlay;
+          const manualPosition = overlay?.x_percent !== undefined && overlay?.y_percent !== undefined
+            ? `<br/>manual ${escapeHtml(overlay.x_percent)}% / ${escapeHtml(overlay.y_percent)}%`
+            : '';
           const overlayLabel = overlay?.enabled
-            ? `${escapeHtml(overlay.image || 'banner')}<br/>${escapeHtml(overlay.position || 'top-right')} ${escapeHtml(overlay.width || 420)}px`
+            ? `${escapeHtml(overlay.image || 'banner')}<br/>${escapeHtml(overlay.position || 'top-right')} ${escapeHtml(overlay.width || 420)}px${manualPosition}`
             : '';
           return `
             <tr>
@@ -307,6 +460,7 @@
       })
       .join('');
     select.value = list.some((overlay) => overlay.id === current) ? current : 'kinglive_player_leaderboard.png';
+    updateOverlayPreview();
   }
 
   async function uploadOverlay(event) {
@@ -741,6 +895,15 @@
   if ($('reload-overlays')) $('reload-overlays').addEventListener('click', loadOverlays);
   if ($('save-admin-settings')) $('save-admin-settings').addEventListener('click', saveSettings);
   $('reset-form').addEventListener('click', resetForm);
+  ['overlay-enabled', 'overlay-image', 'overlay-width', 'overlay-margin'].forEach((id) => {
+    if ($(id)) $(id).addEventListener('input', updateOverlayPreview);
+    if ($(id)) $(id).addEventListener('change', updateOverlayPreview);
+  });
+  if ($('overlay-position')) {
+    $('overlay-position').addEventListener('change', clearManualOverlayPercent);
+  }
+  if ($('overlay-preview-reset')) $('overlay-preview-reset').addEventListener('click', clearManualOverlayPercent);
+  window.addEventListener('resize', updateOverlayPreview);
   if ($('reset-status')) $('reset-status').addEventListener('click', resetStatusForm);
   if ($('refresh-date')) $('refresh-date').value = new Date().toISOString().slice(0, 10);
   document.querySelectorAll('[data-refresh-scope]').forEach((button) => {
@@ -748,6 +911,8 @@
   });
 
   setAuthLabel();
+  setupOverlayPreviewDrag();
+  updateOverlayPreview();
   loadOverlays();
   loadSettings();
   loadMonitoring();

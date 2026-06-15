@@ -137,6 +137,8 @@ export function renderEnvFile(item) {
           `RESTREAM_OVERLAY_POSITION=${shellQuote(item.overlay.position)}`,
           `RESTREAM_OVERLAY_WIDTH=${shellQuote(String(item.overlay.width))}`,
           `RESTREAM_OVERLAY_MARGIN=${shellQuote(String(item.overlay.margin))}`,
+          ...(Number.isFinite(item.overlay.xPercent) ? [`RESTREAM_OVERLAY_X_PERCENT=${shellQuote(String(item.overlay.xPercent))}`] : []),
+          ...(Number.isFinite(item.overlay.yPercent) ? [`RESTREAM_OVERLAY_Y_PERCENT=${shellQuote(String(item.overlay.yPercent))}`] : []),
         ]
       : []),
     `RESTREAM_RTMP_URL=${shellQuote(item.rtmpUrl)}`,
@@ -453,6 +455,12 @@ function normalizeOverlay(value) {
     position: normalizeOverlayPosition(value.position),
     width: clampInteger(value.width, 80, 1000, 420),
     margin: clampInteger(value.margin, 0, 200, 24),
+    ...(clampOptionalInteger(value.x_percent ?? value.xPercent, 0, 100) !== null
+      ? { xPercent: clampOptionalInteger(value.x_percent ?? value.xPercent, 0, 100) }
+      : {}),
+    ...(clampOptionalInteger(value.y_percent ?? value.yPercent, 0, 100) !== null
+      ? { yPercent: clampOptionalInteger(value.y_percent ?? value.yPercent, 0, 100) }
+      : {}),
   };
 }
 
@@ -499,6 +507,13 @@ function normalizeOverlayPosition(value) {
 function clampInteger(value, min, max, fallback) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(number)));
+}
+
+function clampOptionalInteger(value, min, max) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
   return Math.min(max, Math.max(min, Math.round(number)));
 }
 

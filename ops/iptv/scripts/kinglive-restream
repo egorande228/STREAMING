@@ -35,6 +35,8 @@ OVERLAY_DIR="${OVERLAY_DIR:-${RESTREAM_OVERLAY_DIR:-/opt/kinglive/overlays}}"
 OVERLAY_POSITION="${OVERLAY_POSITION:-${RESTREAM_OVERLAY_POSITION:-top-right}}"
 OVERLAY_WIDTH="${OVERLAY_WIDTH:-${RESTREAM_OVERLAY_WIDTH:-420}}"
 OVERLAY_MARGIN="${OVERLAY_MARGIN:-${RESTREAM_OVERLAY_MARGIN:-24}}"
+OVERLAY_X_PERCENT="${OVERLAY_X_PERCENT:-${RESTREAM_OVERLAY_X_PERCENT:-}}"
+OVERLAY_Y_PERCENT="${OVERLAY_Y_PERCENT:-${RESTREAM_OVERLAY_Y_PERCENT:-}}"
 
 if ! [[ "$MAX_RESTREAMS" =~ ^[0-9]+$ ]] || [[ "$MAX_RESTREAMS" -lt 1 ]]; then
   echo "MAX_RESTREAMS must be a positive integer" >&2
@@ -113,6 +115,16 @@ if [[ "$overlay_enabled" == "true" ]]; then
     echo "RESTREAM_OVERLAY_MARGIN must be between 0 and 200" >&2
     exit 65
   fi
+  if [[ -n "$OVERLAY_X_PERCENT" || -n "$OVERLAY_Y_PERCENT" ]]; then
+    if ! [[ "$OVERLAY_X_PERCENT" =~ ^[0-9]+$ ]] || [[ "$OVERLAY_X_PERCENT" -gt 100 ]]; then
+      echo "RESTREAM_OVERLAY_X_PERCENT must be between 0 and 100" >&2
+      exit 65
+    fi
+    if ! [[ "$OVERLAY_Y_PERCENT" =~ ^[0-9]+$ ]] || [[ "$OVERLAY_Y_PERCENT" -gt 100 ]]; then
+      echo "RESTREAM_OVERLAY_Y_PERCENT must be between 0 and 100" >&2
+      exit 65
+    fi
+  fi
   if [[ ! "$TRANSCODE_PROFILE" =~ ^h264_ ]]; then
     TRANSCODE_PROFILE="h264_720p25"
   fi
@@ -140,19 +152,24 @@ case "$TRANSCODE_PROFILE" in
 esac
 
 if [[ "$overlay_enabled" == "true" ]]; then
-  case "$OVERLAY_POSITION" in
-    top-left) overlay_x="$OVERLAY_MARGIN"; overlay_y="$OVERLAY_MARGIN" ;;
-    top-center) overlay_x="(W-w)/2"; overlay_y="$OVERLAY_MARGIN" ;;
-    top-right) overlay_x="W-w-${OVERLAY_MARGIN}"; overlay_y="$OVERLAY_MARGIN" ;;
-    center) overlay_x="(W-w)/2"; overlay_y="(H-h)/2" ;;
-    bottom-left) overlay_x="$OVERLAY_MARGIN"; overlay_y="H-h-${OVERLAY_MARGIN}" ;;
-    bottom-center) overlay_x="(W-w)/2"; overlay_y="H-h-${OVERLAY_MARGIN}" ;;
-    bottom-right) overlay_x="W-w-${OVERLAY_MARGIN}"; overlay_y="H-h-${OVERLAY_MARGIN}" ;;
-    *)
-      echo "Invalid overlay position: ${OVERLAY_POSITION}" >&2
-      exit 65
-      ;;
-  esac
+  if [[ -n "$OVERLAY_X_PERCENT" && -n "$OVERLAY_Y_PERCENT" ]]; then
+    overlay_x="(W-w)*${OVERLAY_X_PERCENT}/100"
+    overlay_y="(H-h)*${OVERLAY_Y_PERCENT}/100"
+  else
+    case "$OVERLAY_POSITION" in
+      top-left) overlay_x="$OVERLAY_MARGIN"; overlay_y="$OVERLAY_MARGIN" ;;
+      top-center) overlay_x="(W-w)/2"; overlay_y="$OVERLAY_MARGIN" ;;
+      top-right) overlay_x="W-w-${OVERLAY_MARGIN}"; overlay_y="$OVERLAY_MARGIN" ;;
+      center) overlay_x="(W-w)/2"; overlay_y="(H-h)/2" ;;
+      bottom-left) overlay_x="$OVERLAY_MARGIN"; overlay_y="H-h-${OVERLAY_MARGIN}" ;;
+      bottom-center) overlay_x="(W-w)/2"; overlay_y="H-h-${OVERLAY_MARGIN}" ;;
+      bottom-right) overlay_x="W-w-${OVERLAY_MARGIN}"; overlay_y="H-h-${OVERLAY_MARGIN}" ;;
+      *)
+        echo "Invalid overlay position: ${OVERLAY_POSITION}" >&2
+        exit 65
+        ;;
+    esac
+  fi
   extra_inputs=(-loop 1 -i "$overlay_path")
   filter_args=(-filter_complex "[0:v]${video_filter}[base];[1:v]scale=${OVERLAY_WIDTH}:-1[ov];[base][ov]overlay=${overlay_x}:${overlay_y}:format=auto[v]")
   map_args=(-map "[v]" -map 0:a:0?)

@@ -1985,6 +1985,8 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
             position: 'top-right',
             width: 420,
             margin: 24,
+            x_percent: 72,
+            y_percent: 35,
           },
         },
       }),
@@ -2020,6 +2022,8 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
     position: 'top-right',
     width: 420,
     margin: 24,
+    x_percent: 72,
+    y_percent: 35,
   });
 });
 

@@ -1482,6 +1482,12 @@ function normalizeRestreamOverlay(value) {
     position: normalizeOverlayPosition(value.position),
     width: clampInteger(value.width, 80, 1000, 420),
     margin: clampInteger(value.margin, 0, 200, 24),
+    ...(clampOptionalInteger(value.x_percent, 0, 100) !== null
+      ? { x_percent: clampOptionalInteger(value.x_percent, 0, 100) }
+      : {}),
+    ...(clampOptionalInteger(value.y_percent, 0, 100) !== null
+      ? { y_percent: clampOptionalInteger(value.y_percent, 0, 100) }
+      : {}),
   };
 }
 
@@ -1513,6 +1519,13 @@ function normalizeOverlayPosition(value) {
 function clampInteger(value, min, max, fallback) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(number)));
+}
+
+function clampOptionalInteger(value, min, max) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
   return Math.min(max, Math.max(min, Math.round(number)));
 }
 

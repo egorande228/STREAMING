@@ -22,6 +22,8 @@ test('renders a restream transcode profile into the channel env', () => {
       position: 'top-right',
       width: 420,
       margin: 24,
+      x_percent: 72,
+      y_percent: 35,
     },
   }, options);
 
@@ -33,6 +35,8 @@ test('renders a restream transcode profile into the channel env', () => {
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_POSITION='top-right'/);
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_WIDTH='420'/);
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_MARGIN='24'/);
+  assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_X_PERCENT='72'/);
+  assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_Y_PERCENT='35'/);
 });
 
 test('ignores unsupported restream transcode profiles', () => {

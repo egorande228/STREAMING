@@ -168,9 +168,14 @@
     overlayPreviewUrl = '';
     overlayPreviewType = '';
     overlayPreviewKey = '';
+    const surface = $('overlay-preview-surface');
     const video = $('overlay-preview-video');
     const canvas = $('overlay-preview-canvas');
     const frame = $('overlay-preview-frame');
+    if (surface) {
+      surface.classList.remove('is-iframe-preview');
+      surface.style.removeProperty('--overlay-iframe-scale');
+    }
     if (video) {
       video.pause();
       video.onloadeddata = null;
@@ -290,11 +295,18 @@
     video.removeAttribute('src');
     const canvas = $('overlay-preview-canvas');
     if (canvas) canvas.hidden = true;
+    const surface = $('overlay-preview-surface');
+    if (surface) {
+      surface.classList.remove('is-iframe-preview');
+      surface.style.removeProperty('--overlay-iframe-scale');
+    }
     frame.hidden = true;
     frame.removeAttribute('src');
     setOverlayPreviewMessage('Loading stream frame...');
 
     if (sourceType === 'iframe' && !isHlsPreviewUrl(rawUrl)) {
+      if (surface) surface.classList.add('is-iframe-preview');
+      updateOverlayPreview();
       frame.src = rawUrl;
       frame.title = 'Iframe stream preview';
       frame.hidden = false;
@@ -342,6 +354,9 @@
     const previewWidth = previewRect.width || preview.clientWidth || 0;
     const previewHeight = previewRect.height || preview.clientHeight || 0;
     if (!previewWidth || !previewHeight) return;
+    if (preview.classList.contains('is-iframe-preview')) {
+      preview.style.setProperty('--overlay-iframe-scale', String(previewWidth / 640));
+    }
 
     const enabled = $('overlay-enabled')?.value === 'true';
     const overlayWidth = clamp(Number($('overlay-width')?.value || 420), 80, 1000);

@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="./styles.css" />
     <script src="./config.js"></script>
     <script defer src="./assets/vendor/hlsjs/hls.min.js?v=1.6.15"></script>
-    <script defer src="./admin.js?v=overlay-large-preview-20260615"></script>
+    <script defer src="./admin.js?v=overlay-iframe-fit-20260615"></script>
     <style>
       .admin-shell {
         width: calc(100% - 32px);
@@ -276,6 +276,12 @@
       .overlay-preview-frame {
         pointer-events: none;
         z-index: 0;
+      }
+      .overlay-preview-surface.is-iframe-preview .overlay-preview-frame {
+        width: 640px;
+        height: 360px;
+        transform: scale(var(--overlay-iframe-scale, 1));
+        transform-origin: left top;
       }
       .overlay-preview-video {
         position: absolute;

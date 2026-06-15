@@ -7,14 +7,14 @@
     <title>KingLive Player</title>
     <link rel="preload" href="./assets/world-cup-hero.png" as="image" />
     <link rel="stylesheet" href="./assets/vendor/videojs/video-js.min.css?v=8.23.4" />
-    <link rel="stylesheet" href="./styles.css?v=admin-preview-20260615" />
+    <link rel="stylesheet" href="./styles.css?v=no-chat-mobile-fit-20260615" />
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-Z0RP8BW0F5"></script>
     <script src="./analytics.js?v=videojs-option-20260612"></script>
     <script src="./config.js"></script>
     <script src="./assets/vendor/hlsjs/hls.min.js?v=1.6.15"></script>
     <script src="./assets/vendor/videojs/video.min.js?v=8.23.4"></script>
     <script defer src="./url-propagation.js"></script>
-    <script defer src="./app.js?v=admin-preview-20260615"></script>
+    <script defer src="./app.js?v=no-chat-mobile-fit-20260615"></script>
   </head>
   <body>
     <main class="shell">
@@ -52,27 +52,6 @@
               </div>
             </section>
 
-            <aside class="chat-panel" id="chat-panel" aria-label="Match chat" hidden>
-              <header class="chat-head">
-                <div>
-                  <p class="eyebrow">Live room</p>
-                  <h2>Match chat</h2>
-                </div>
-                <span class="chat-status" id="chat-status">Connecting</span>
-              </header>
-              <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
-              <form class="chat-form" id="chat-form">
-                <label>
-                  Nick
-                  <input id="chat-author" name="author" maxlength="24" autocomplete="nickname" placeholder="Guest" />
-                </label>
-                <label>
-                  Message
-                  <textarea id="chat-message" name="message" maxlength="240" rows="3" placeholder="Write a message"></textarea>
-                </label>
-                <button class="button chat-submit" type="submit">Send</button>
-              </form>
-            </aside>
           </div>
           <section class="ad-shell ad-leaderboard" data-ad-slot="player-bottom" data-ad-size="728x90">
             <span>Advertisement</span>

@@ -32,21 +32,6 @@ const banner = (file, width, height, label = 'Advertisement', href = bannerClick
 window.KINGLIVE_PLAYER_CONFIG = {
   apiBase: unifiedApiBase,
   activeStreamsApiUrl: `${unifiedApiBase}/api/streams/active`,
-  chatApiBase: `${unifiedApiBase}/api/chat`,
-  chatPollMs: 5000,
-  chatPromo: {
-    intervalMs: 10 * 60 * 1000,
-    messages: [
-      'Join our Telegram: https://t.me/worldcuplive_international',
-    ],
-    messagesByLang: {
-      ar: ['انضم إلى تليجرام: https://t.me/worldcup2026arabworld'],
-      en: ['Join our Telegram: https://t.me/worldcuplive_international'],
-      es: ['Join our Telegram: https://t.me/worldcuplive_international'],
-      fr: ['Rejoignez notre Telegram: https://t.me/worldcuplive_french'],
-      mn: ['Telegram-д нэгдээрэй: https://t.me/worldcuplive_mongolia'],
-    },
-  },
   streamConfigUrl: './streams.json',
   defaultLang: 'en',
   defaultRegion: 'global',

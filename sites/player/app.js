@@ -6,38 +6,20 @@
   if (isPreviewMode) document.documentElement.classList.add('player-preview-mode');
   const streamConfigUrl = config.streamConfigUrl || './streams.json';
   const activeStreamsApiUrl = config.activeStreamsApiUrl || `${apiBase}/api/streams/active`;
-  const chatApiBase = String(config.chatApiBase || (apiBase ? `${apiBase}/api/chat` : '')).replace(/\/$/, '');
   const viewerHeartbeatBase = apiBase ? `${apiBase}/api/viewers` : '';
-  const chatPollMs = Math.max(3000, Number(config.chatPollMs) || 5000);
   const preferredLang = params.get('lang') || config.defaultLang || 'en';
   const preferredRegion = params.get('region') || config.defaultRegion || 'global';
-  const chatPromo = {
-    intervalMs: Math.max(60000, Number(config.chatPromo?.intervalMs) || 10 * 60 * 1000),
-    messages: getChatPromoMessages(config.chatPromo, preferredLang),
-  };
   const stage = document.getElementById('stage');
   const controls = document.getElementById('controls');
   const titleEl = document.getElementById('title');
   const sourceSelect = document.getElementById('source-select');
   const copyEmbed = document.getElementById('copy-embed');
   const tgPopup = document.getElementById('tg-popup');
-  const chatPanel = document.getElementById('chat-panel');
-  const chatMessages = document.getElementById('chat-messages');
-  const chatForm = document.getElementById('chat-form');
-  const chatAuthor = document.getElementById('chat-author');
-  const chatMessage = document.getElementById('chat-message');
-  const chatStatus = document.getElementById('chat-status');
   const adSlots = config.adSlots || {};
   const tgPopupConfig = config.tgPopup || {};
   const allowDirectStreamParams = config.allowDirectStreamParams === true;
   let matchStreams = config.matchStreams || {};
   let tgPopupDismissed = false;
-  let chatMatchId = '';
-  let chatLastSeen = 0;
-  let chatTimer = null;
-  let chatPromoTimer = null;
-  let chatPromoIndex = 0;
-  let chatMessagesState = [];
   let viewerHeartbeatTimer = null;
   let viewerMatchId = '';
   const adSlotKeys = {
@@ -50,7 +32,6 @@
   let videoJsPlayer = null;
 
   const isAdmin = params.get('admin') === '1';
-  const chatClientId = getChatClientId();
   const viewerClientId = getViewerClientId();
 
   copyEmbed.hidden = !isAdmin;
@@ -64,18 +45,6 @@
       .replace(/'/g, '&#039;');
   }
 
-  function getChatClientId() {
-    try {
-      const existing = window.localStorage?.getItem('kinglive_chat_client_id');
-      if (existing) return existing;
-      const next = globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-      window.localStorage?.setItem('kinglive_chat_client_id', next);
-      return next;
-    } catch {
-      return `${Date.now()}`;
-    }
-  }
-
   function getViewerClientId() {
     try {
       const existing = window.localStorage?.getItem('kinglive_viewer_client_id');
@@ -85,192 +54,6 @@
       return next;
     } catch {
       return `${Date.now()}`;
-    }
-  }
-
-  function getChatPromoMessages(promoConfig, lang) {
-    const normalizedLang = String(lang || '').toLowerCase();
-    const messagesByLang = promoConfig?.messagesByLang || {};
-    const localizedMessages = Array.isArray(messagesByLang[normalizedLang]) ? messagesByLang[normalizedLang] : null;
-    const fallbackMessages = Array.isArray(promoConfig?.messages) ? promoConfig.messages : [];
-    return (localizedMessages || fallbackMessages)
-      .map((item) => String(item || '').trim())
-      .filter(Boolean);
-  }
-
-  function setupChat(matchId) {
-    if (!chatPanel || !chatMessages || !chatForm || !chatApiBase || !matchId) {
-      if (chatPanel) chatPanel.hidden = true;
-      return;
-    }
-    chatMatchId = String(matchId);
-    chatLastSeen = 0;
-    chatMessagesState = [];
-    chatPanel.hidden = false;
-    if (chatAuthor && !chatAuthor.value) {
-      try {
-        chatAuthor.value = window.localStorage?.getItem('kinglive_chat_author') || '';
-      } catch {}
-    }
-    renderChatMessages();
-    setChatStatus('Connecting');
-    void loadChatMessages();
-    stopChatPolling();
-    chatTimer = setInterval(() => {
-      void loadChatMessages();
-    }, chatPollMs);
-    startChatPromo();
-  }
-
-  function stopChatPolling() {
-    if (!chatTimer) return;
-    clearInterval(chatTimer);
-    chatTimer = null;
-  }
-
-  function startChatPromo() {
-    stopChatPromo();
-    if (!chatPromo.messages.length) return;
-    addChatPromoMessage();
-    chatPromoTimer = setInterval(addChatPromoMessage, chatPromo.intervalMs);
-  }
-
-  function stopChatPromo() {
-    if (!chatPromoTimer) return;
-    clearInterval(chatPromoTimer);
-    chatPromoTimer = null;
-  }
-
-  function addChatPromoMessage() {
-    if (!chatMatchId || !chatPromo.messages.length) return;
-    const message = chatPromo.messages[chatPromoIndex % chatPromo.messages.length];
-    chatPromoIndex += 1;
-    const now = Date.now();
-    mergeChatMessages([
-      {
-        id: `promo-${chatMatchId}-${now}`,
-        author: 'ADMIN',
-        message,
-        created_at: new Date(now).toISOString(),
-        created_at_ms: now,
-        is_promo: true,
-      },
-    ]);
-  }
-
-  async function loadChatMessages() {
-    if (!chatMatchId || !chatApiBase) return;
-    try {
-      const url = new URL(`${chatApiBase}/${encodeURIComponent(chatMatchId)}`);
-      if (chatLastSeen > 0) url.searchParams.set('since', String(chatLastSeen));
-      const response = await fetch(url.toString(), { cache: 'no-store' });
-      if (!response.ok) throw new Error(`Chat returned ${response.status}`);
-      const payload = await response.json();
-      const incoming = Array.isArray(payload.messages) ? payload.messages : [];
-      mergeChatMessages(incoming);
-      setChatStatus('Live');
-    } catch {
-      setChatStatus('Offline');
-      if (!chatMessagesState.length) renderChatError('Chat is unavailable right now.');
-    }
-  }
-
-  function mergeChatMessages(messages) {
-    if (!messages.length) {
-      renderChatMessages();
-      return;
-    }
-    const byId = new Map(chatMessagesState.map((message) => [message.id, message]));
-    messages.forEach((message) => {
-      if (!message?.id) return;
-      byId.set(String(message.id), message);
-      chatLastSeen = Math.max(chatLastSeen, Number(message.created_at_ms) || Date.parse(message.created_at || '') || 0);
-    });
-    chatMessagesState = Array.from(byId.values())
-      .sort((a, b) => (Number(a.created_at_ms) || 0) - (Number(b.created_at_ms) || 0))
-      .slice(-100);
-    renderChatMessages();
-  }
-
-  function renderChatMessages() {
-    if (!chatMessages) return;
-    if (!chatMessagesState.length) {
-      chatMessages.innerHTML = '<p class="chat-empty">No messages yet. Start the match chat.</p>';
-      return;
-    }
-    chatMessages.innerHTML = chatMessagesState
-      .map((message) => {
-        const time = formatChatTime(message.created_at);
-        return `
-          <article class="chat-message">
-            <div class="chat-message-head">
-              <span class="chat-author">${escapeHtml(message.author || 'Guest')}</span>
-              <time>${escapeHtml(time)}</time>
-            </div>
-            <div class="chat-text">${renderChatText(message.message || '')}</div>
-          </article>
-        `;
-      })
-      .join('');
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
-
-  function renderChatError(message) {
-    if (chatMessages) chatMessages.innerHTML = `<p class="chat-error">${escapeHtml(message)}</p>`;
-  }
-
-  function renderChatText(value) {
-    return escapeHtml(value).replace(/https?:\/\/[^\s<]+/g, (url) => {
-      return `<a href="${url}" target="_blank" rel="nofollow noopener">${url}</a>`;
-    });
-  }
-
-  function setChatStatus(value) {
-    if (chatStatus) chatStatus.textContent = value;
-  }
-
-  function formatChatTime(value) {
-    const date = new Date(value || Date.now());
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-
-  async function submitChatMessage(event) {
-    event.preventDefault();
-    if (!chatMatchId || !chatApiBase || !chatMessage) return;
-    const message = chatMessage.value.trim();
-    if (!message) return;
-    const author = (chatAuthor?.value || '').trim() || 'Guest';
-    try {
-      if (chatAuthor) window.localStorage?.setItem('kinglive_chat_author', author);
-    } catch {}
-
-    const submit = chatForm?.querySelector?.('[type="submit"]');
-    if (submit) submit.disabled = true;
-    setChatStatus('Sending');
-    try {
-      const response = await fetch(`${chatApiBase}/${encodeURIComponent(chatMatchId)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          author,
-          message,
-          client_id: chatClientId,
-        }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (response.status === 429) setChatStatus(`Wait ${payload.retry_after || 5}s`);
-        else setChatStatus('Error');
-        return;
-      }
-      chatMessage.value = '';
-      mergeChatMessages(payload.message ? [payload.message] : []);
-      setChatStatus('Live');
-    } catch {
-      setChatStatus('Offline');
-    } finally {
-      if (submit) submit.disabled = false;
     }
   }
 
@@ -1005,10 +788,8 @@
   }
 
   sourceSelect.addEventListener('change', () => playStream(Number(sourceSelect.value)));
-  if (chatForm) chatForm.addEventListener('submit', submitChatMessage);
   if (typeof window.addEventListener === 'function') {
     window.addEventListener('beforeunload', () => {
-      stopChatPolling();
       sendFinalViewerHeartbeat();
     });
     window.addEventListener('pagehide', sendFinalViewerHeartbeat);
@@ -1038,22 +819,16 @@
   (async function boot() {
     if (!isPreviewMode) renderTelegramPopup();
     try {
-      const directMatchId = params.get('match') || params.get('id') || '';
-      if (!isPreviewMode && directMatchId) setupChat(directMatchId);
       if (allowDirectStreamParams && loadDirectStream()) return;
       matchStreams = await loadStreamConfig();
       const activeMatches = activeStreamMatchIds();
       const matchId = params.get('match') || params.get('id') || (activeMatches.length === 1 ? activeMatches[0] : '');
       if (matchId) {
-        if (!isPreviewMode) setupChat(matchId);
         await loadFromMatch(matchId);
         return;
       }
-      stopChatPolling();
-      if (chatPanel) chatPanel.hidden = true;
       clearPlayer();
     } catch (error) {
-      stopChatPolling();
       clearPlayer();
     }
   })();

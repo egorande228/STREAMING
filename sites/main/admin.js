@@ -39,6 +39,7 @@
   let overlayPreviewUrl = '';
   let overlayPreviewType = '';
   let overlayPreviewTimer = 0;
+  let overlayPreviewCaptureTimer = 0;
 
   function token() {
     try {
@@ -130,17 +131,55 @@
     }
   }
 
+  function stopOverlayFrameCapture() {
+    window.clearInterval(overlayPreviewCaptureTimer);
+    overlayPreviewCaptureTimer = 0;
+  }
+
+  function captureOverlayPreviewFrame() {
+    const video = $('overlay-preview-video');
+    const canvas = $('overlay-preview-canvas');
+    if (!video || !canvas || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return false;
+    try {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.hidden = false;
+      hideOverlayPreviewMessage();
+      return true;
+    } catch {
+      setOverlayPreviewMessage('Cannot capture this stream frame');
+      return false;
+    }
+  }
+
+  function startOverlayFrameCapture() {
+    stopOverlayFrameCapture();
+    captureOverlayPreviewFrame();
+    overlayPreviewCaptureTimer = window.setInterval(captureOverlayPreviewFrame, 1500);
+  }
+
   function clearOverlayStreamPreview(message = 'Stream preview loads from URL') {
     destroyOverlayPreviewHls();
+    stopOverlayFrameCapture();
     overlayPreviewUrl = '';
     overlayPreviewType = '';
     const video = $('overlay-preview-video');
+    const canvas = $('overlay-preview-canvas');
     const frame = $('overlay-preview-frame');
     if (video) {
       video.pause();
+      video.onloadeddata = null;
+      video.oncanplay = null;
+      video.onplaying = null;
       video.removeAttribute('src');
       video.load();
-      video.hidden = true;
+    }
+    if (canvas) {
+      const context = canvas.getContext('2d');
+      context.clearRect(0, 0, canvas.width || 1, canvas.height || 1);
+      canvas.hidden = true;
     }
     if (frame) {
       frame.removeAttribute('src');
@@ -188,17 +227,25 @@
     if (rawUrl === overlayPreviewUrl && sourceType === overlayPreviewType) return;
 
     destroyOverlayPreviewHls();
+    stopOverlayFrameCapture();
     overlayPreviewUrl = rawUrl;
     overlayPreviewType = sourceType;
     video.pause();
-    video.hidden = true;
+    video.onloadeddata = null;
+    video.oncanplay = null;
+    video.onplaying = null;
+    video.crossOrigin = 'anonymous';
+    video.removeAttribute('src');
+    const canvas = $('overlay-preview-canvas');
+    if (canvas) canvas.hidden = true;
     frame.hidden = true;
     frame.removeAttribute('src');
-    hideOverlayPreviewMessage();
+    setOverlayPreviewMessage('Loading stream frame...');
 
     if (sourceType === 'iframe' && !isHlsPreviewUrl(rawUrl)) {
       frame.src = rawUrl;
       frame.hidden = false;
+      hideOverlayPreviewMessage();
       return;
     }
 
@@ -209,7 +256,9 @@
 
     video.muted = true;
     video.playsInline = true;
-    video.hidden = false;
+    video.onloadeddata = startOverlayFrameCapture;
+    video.oncanplay = startOverlayFrameCapture;
+    video.onplaying = startOverlayFrameCapture;
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = rawUrl;
       video.play().catch(() => {});

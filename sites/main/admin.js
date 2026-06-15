@@ -1,6 +1,7 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.adminApiBase || config.apiBase || '').replace(/\/$/, '');
+  const playerBase = String(config.playerBase || window.location.origin).replace(/\/$/, '');
   const tokenKey = 'kinglive_admin_token';
 
   const $ = (id) => document.getElementById(id);
@@ -75,6 +76,12 @@
     const select = $('overlay-image');
     const option = select?.options?.[select.selectedIndex];
     return option?.textContent?.trim() || select?.value || 'Banner';
+  }
+
+  function selectedOverlayPreviewImageUrl() {
+    const id = String($('overlay-image')?.value || '').trim();
+    if (!id || /^custom-/i.test(id)) return '';
+    return new URL(`../banners/${encodeURIComponent(id)}`, window.location.href).toString();
   }
 
   function presetOverlayPercent() {
@@ -178,7 +185,7 @@
     const canvas = $('overlay-preview-canvas');
     const frame = $('overlay-preview-frame');
     if (surface) {
-      surface.classList.remove('is-iframe-preview');
+      surface.classList.remove('is-iframe-preview', 'is-player-preview');
       surface.style.removeProperty('--overlay-iframe-scale');
     }
     if (video) {
@@ -195,6 +202,7 @@
       canvas.hidden = true;
     }
     if (frame) {
+      frame.onload = null;
       frame.removeAttribute('src');
       frame.hidden = true;
     }
@@ -236,6 +244,26 @@
       return url.hostname === 'hls.livekinglive.win';
     } catch {
       return false;
+    }
+  }
+
+  function currentPlayerPreviewUrl() {
+    const matchId = Number($('match-id')?.value || 0);
+    if (!Number.isFinite(matchId) || matchId <= 0) return '';
+    try {
+      const url = new URL(`${playerBase}/`, window.location.href);
+      const lang = $('lang')?.value.trim();
+      const label = $('stream-label')?.value.trim();
+      url.searchParams.set('match', String(Math.floor(matchId)));
+      url.searchParams.set('preview', '1');
+      if (lang) url.searchParams.set('lang', lang);
+      if (label) {
+        url.searchParams.set('source', label);
+        url.searchParams.set('title', label);
+      }
+      return url.toString();
+    } catch {
+      return '';
     }
   }
 
@@ -282,20 +310,32 @@
     if (canvas) canvas.hidden = true;
     const surface = $('overlay-preview-surface');
     if (surface) {
-      surface.classList.remove('is-iframe-preview');
+      surface.classList.remove('is-iframe-preview', 'is-player-preview');
       surface.style.removeProperty('--overlay-iframe-scale');
     }
     frame.hidden = true;
+    frame.onload = null;
     frame.removeAttribute('src');
-    setOverlayPreviewMessage('Loading stream frame...');
+    setOverlayPreviewMessage('Loading player preview...');
+
+    const playerPreviewUrl = currentPlayerPreviewUrl();
+    if (playerPreviewUrl) {
+      if (surface) surface.classList.add('is-player-preview');
+      updateOverlayPreview();
+      frame.onload = hideOverlayPreviewMessage;
+      frame.src = playerPreviewUrl;
+      frame.title = 'Current player preview';
+      frame.hidden = false;
+      return;
+    }
 
     if (sourceType === 'iframe' && !isHlsPreviewUrl(rawUrl)) {
       if (surface) surface.classList.add('is-iframe-preview');
       updateOverlayPreview();
+      frame.onload = hideOverlayPreviewMessage;
       frame.src = rawUrl;
       frame.title = 'Iframe stream preview';
       frame.hidden = false;
-      hideOverlayPreviewMessage();
       return;
     }
 
@@ -369,7 +409,16 @@
     banner.style.height = `${bannerHeight}px`;
     banner.style.transform = `translate(${left}px, ${top}px)`;
     banner.style.opacity = enabled ? '1' : '0.45';
-    banner.textContent = selectedOverlayLabel();
+    const previewImageUrl = selectedOverlayPreviewImageUrl();
+    if (previewImageUrl) {
+      banner.classList.add('has-image');
+      banner.style.backgroundImage = `url("${previewImageUrl}")`;
+      banner.textContent = '';
+    } else {
+      banner.classList.remove('has-image');
+      banner.style.backgroundImage = '';
+      banner.textContent = selectedOverlayLabel();
+    }
 
     const meta = $('overlay-preview-meta');
     if (meta) {
@@ -1152,6 +1201,7 @@
     if ($(id)) $(id).addEventListener('input', updateOverlayPreview);
     if ($(id)) $(id).addEventListener('change', updateOverlayPreview);
   });
+  if ($('overlay-enabled')) $('overlay-enabled').addEventListener('change', scheduleOverlayStreamPreview);
   ['match-id', 'stream-id', 'stream-label', 'stream-url', 'source-type', 'lang'].forEach((id) => {
     if ($(id)) $(id).addEventListener('input', scheduleOverlayStreamPreview);
     if ($(id)) $(id).addEventListener('change', scheduleOverlayStreamPreview);

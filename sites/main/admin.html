@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="./styles.css" />
     <script src="./config.js"></script>
     <script defer src="./assets/vendor/hlsjs/hls.min.js?v=1.6.15"></script>
-    <script defer src="./admin.js?v=overlay-frame-capture-20260615"></script>
+    <script defer src="./admin.js?v=overlay-player-preview-20260615"></script>
     <style>
       .admin-shell {
         width: calc(100% - 32px);
@@ -261,6 +261,7 @@
         box-shadow: 0 18px 45px rgba(0, 0, 0, 0.34);
       }
       .overlay-preview-canvas,
+      .overlay-preview-player,
       .overlay-preview-frame {
         position: absolute;
         inset: 0;
@@ -273,9 +274,16 @@
       .overlay-preview-canvas {
         z-index: 2;
       }
+      .overlay-preview-player {
+        pointer-events: none;
+        z-index: 1;
+      }
       .overlay-preview-frame {
         pointer-events: none;
         z-index: 0;
+      }
+      .overlay-preview-surface.is-player-preview .overlay-preview-frame {
+        z-index: 1;
       }
       .overlay-preview-surface.is-iframe-preview .overlay-preview-frame {
         width: 640px;
@@ -323,6 +331,14 @@
         text-align: center;
         text-transform: uppercase;
         box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
+      }
+      .overlay-preview-banner.has-image {
+        background-color: rgba(5, 6, 4, 0.12);
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: contain;
+        color: transparent;
+        text-shadow: none;
       }
       .overlay-preview-banner.dragging {
         cursor: grabbing;

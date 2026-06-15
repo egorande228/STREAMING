@@ -335,7 +335,7 @@
   }
 
   function updateOverlayPreview() {
-    const preview = $('overlay-preview');
+    const preview = $('overlay-preview-surface');
     const banner = $('overlay-preview-banner');
     if (!preview || !banner) return;
     const previewRect = preview.getBoundingClientRect();
@@ -368,44 +368,52 @@
   }
 
   function setupOverlayPreviewDrag() {
-    const preview = $('overlay-preview');
+    const preview = $('overlay-preview-surface');
     const banner = $('overlay-preview-banner');
     if (!preview || !banner) return;
     let drag = null;
 
-    banner.addEventListener('pointerdown', (event) => {
+    function startDrag(event, jumpToPointer = false) {
       event.preventDefault();
-      const previewRect = preview.getBoundingClientRect();
       const bannerRect = banner.getBoundingClientRect();
       drag = {
         pointerId: event.pointerId,
-        offsetX: event.clientX - bannerRect.left,
-        offsetY: event.clientY - bannerRect.top,
+        offsetX: jumpToPointer ? bannerRect.width / 2 : event.clientX - bannerRect.left,
+        offsetY: jumpToPointer ? bannerRect.height / 2 : event.clientY - bannerRect.top,
       };
       banner.classList.add('dragging');
-      banner.setPointerCapture(event.pointerId);
+      preview.setPointerCapture(event.pointerId);
       const move = (moveEvent) => {
         if (!drag || moveEvent.pointerId !== drag.pointerId) return;
-        const width = bannerRect.width;
-        const height = bannerRect.height;
-        const maxX = Math.max(1, previewRect.width - width);
-        const maxY = Math.max(1, previewRect.height - height);
-        const left = clamp(moveEvent.clientX - previewRect.left - drag.offsetX, 0, maxX);
-        const top = clamp(moveEvent.clientY - previewRect.top - drag.offsetY, 0, maxY);
+        const currentPreviewRect = preview.getBoundingClientRect();
+        const currentBannerRect = banner.getBoundingClientRect();
+        const maxX = Math.max(1, currentPreviewRect.width - currentBannerRect.width);
+        const maxY = Math.max(1, currentPreviewRect.height - currentBannerRect.height);
+        const left = clamp(moveEvent.clientX - currentPreviewRect.left - drag.offsetX, 0, maxX);
+        const top = clamp(moveEvent.clientY - currentPreviewRect.top - drag.offsetY, 0, maxY);
         setManualOverlayPercent((left / maxX) * 100, (top / maxY) * 100);
       };
       const end = (endEvent) => {
         if (!drag || endEvent.pointerId !== drag.pointerId) return;
         drag = null;
         banner.classList.remove('dragging');
-        banner.releasePointerCapture(endEvent.pointerId);
-        banner.removeEventListener('pointermove', move);
-        banner.removeEventListener('pointerup', end);
-        banner.removeEventListener('pointercancel', end);
+        preview.releasePointerCapture(endEvent.pointerId);
+        preview.removeEventListener('pointermove', move);
+        preview.removeEventListener('pointerup', end);
+        preview.removeEventListener('pointercancel', end);
       };
-      banner.addEventListener('pointermove', move);
-      banner.addEventListener('pointerup', end);
-      banner.addEventListener('pointercancel', end);
+      preview.addEventListener('pointermove', move);
+      preview.addEventListener('pointerup', end);
+      preview.addEventListener('pointercancel', end);
+      move(event);
+    }
+
+    banner.addEventListener('pointerdown', (event) => {
+      startDrag(event, false);
+    });
+    preview.addEventListener('pointerdown', (event) => {
+      if (event.target === banner) return;
+      startDrag(event, true);
     });
   }
 

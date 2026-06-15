@@ -366,6 +366,10 @@
             <input id="stream-url" class="admin-input" placeholder="https://..." required />
           </label>
           <label>
+            <div>Channel name</div>
+            <input id="channel-name" class="admin-input" placeholder="Only for playlist URL" />
+          </label>
+          <label>
             <div>Source</div>
             <select id="source-type" class="admin-select">
               <option value="iframe">iframe</option>
@@ -673,11 +677,11 @@
           <table class="admin-table">
             <thead>
               <tr>
-                <th>ID</th><th>Origin</th><th>Match</th><th>Type</th><th>Label</th><th>URL</th><th>Profile</th><th>Overlay</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
+                <th>ID</th><th>Origin</th><th>Match</th><th>Type</th><th>Label</th><th>URL</th><th>Channel</th><th>Profile</th><th>Overlay</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
               </tr>
             </thead>
             <tbody id="streams-body">
-              <tr><td colspan="13">No data</td></tr>
+              <tr><td colspan="14">No data</td></tr>
             </tbody>
           </table>
         </div>

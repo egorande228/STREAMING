@@ -707,8 +707,8 @@
               xhr.withCredentials = true;
             }
           : undefined,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 5,
+        liveSyncDurationCount: 4,
+        liveMaxLatencyDurationCount: 7,
         backBufferLength: 30,
         maxBufferLength: 30,
       });

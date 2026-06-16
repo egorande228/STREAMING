@@ -22,7 +22,9 @@ const ADMIN_SETTINGS_KV_KEY = 'admin_settings_json';
 const OVERLAY_ASSETS_INDEX_KV_KEY = 'restream_overlay_assets_index_json';
 const OVERLAY_ASSET_KV_PREFIX = 'restream_overlay_asset:';
 const CACHE_VERSION_KV_KEY = 'api_cache_version';
-const DEFAULT_RESTREAM_PUBLIC_BASE_URL = 'https://hls.livekinglive.win/live';
+const RESTREAM_ORIGIN_HOST = 'hls.livekinglive.win';
+const RESTREAM_CDN_HOST = 'cdn-hls.livekinglive.win';
+const DEFAULT_RESTREAM_PUBLIC_BASE_URL = `https://${RESTREAM_CDN_HOST}/live`;
 const MAX_OVERLAY_ASSET_BYTES = 1_500_000;
 const BUILTIN_RESTREAM_OVERLAYS = [
   { id: 'kinglive_player_leaderboard.png', name: 'KingLive player', builtin: true },
@@ -727,10 +729,19 @@ async function routeAdminStreamsList(env, ctx = {}) {
 
 async function routeAdminOverlaysList(env = {}) {
   const uploaded = await readOverlayAssetIndex(env);
+  const uploadedWithData = [];
+  for (const entry of uploaded) {
+    if (!entry?.id || !isCustomOverlayImage(entry.id)) continue;
+    const dataBase64 = await env.STREAM_CONFIG_KV?.get(`${OVERLAY_ASSET_KV_PREFIX}${entry.id}`);
+    uploadedWithData.push({
+      ...entry,
+      ...(dataBase64 ? { data_url: `data:image/png;base64,${dataBase64}` } : {}),
+    });
+  }
   return jsonResponse({
-    overlays: [...BUILTIN_RESTREAM_OVERLAYS, ...uploaded],
+    overlays: [...BUILTIN_RESTREAM_OVERLAYS, ...uploadedWithData],
     builtin: BUILTIN_RESTREAM_OVERLAYS,
-    uploaded,
+    uploaded: uploadedWithData,
   }, 200, 0);
 }
 
@@ -768,7 +779,10 @@ async function routeAdminOverlaysDelete(env = {}, overlayId = '') {
   if (!id || !isCustomOverlayImage(id)) return jsonResponse({ error: 'overlay_not_found' }, 404, 0);
 
   const config = await readRuntimeStreamConfig(env);
-  const inUse = flattenStreamConfig(config).some((stream) => stream?.restream?.overlay?.image === id);
+  const inUse = flattenStreamConfig(config).some((stream) => {
+    const overlays = normalizeRestreamOverlays(stream?.restream?.overlays || stream?.restream?.overlay);
+    return overlays.some((overlay) => overlay.image === id);
+  });
   if (inUse) return jsonResponse({ error: 'overlay_in_use' }, 409, 0);
 
   const uploaded = await readOverlayAssetIndex(env);
@@ -1067,18 +1081,20 @@ async function routeRestreamSyncList(request, env = {}) {
       if (!restream?.enabled || !isHttpUrl(restream.donor_url)) return;
       const slug = normalizeSlug(restream.slug || `${matchId}-${index + 1}`);
       if (!slug) return;
+      const overlays = normalizeRestreamOverlays(restream.overlays || restream.overlay);
       restreams.push({
         id: slug,
         slug,
         match_id: matchId,
         label: String(entry?.label || slug),
         donor_url: String(restream.donor_url),
-        output_url: String(restream.output_url || entry?.url || `${DEFAULT_RESTREAM_PUBLIC_BASE_URL}/${slug}/index.m3u8`),
+        output_url: publicRestreamUrl(restream.output_url || entry?.url || `${DEFAULT_RESTREAM_PUBLIC_BASE_URL}/${slug}/index.m3u8`),
         desired_state: entry?.is_active === false ? 'stopped' : String(restream.desired_state || 'running'),
         is_active: entry?.is_active !== false,
         channel_name: String(restream.channel_name || ''),
         transcode_profile: normalizeRestreamTranscodeProfile(restream.transcode_profile),
-        overlay: normalizeRestreamOverlay(restream.overlay),
+        overlay: overlays[0] || null,
+        overlays,
         restart_requested_at: String(restream.restart_requested_at || ''),
       });
     });
@@ -1432,7 +1448,7 @@ function normalizeAdminStreamPayload(payload, streamId, env = {}, existingStream
     source_type: sourceType,
     quality: String(payload?.quality || '720p').trim(),
     language_code: String(payload?.language_code || 'en').trim(),
-    url: restream?.output_url || url,
+    url: publicRestreamUrl(restream?.output_url || url),
     priority: Number.isFinite(Number(payload?.priority)) ? Number(payload.priority) : 100,
     region: String(payload?.region || 'global').trim(),
     commentary_type: String(payload?.commentary_type || 'full').trim(),
@@ -1449,8 +1465,17 @@ function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingS
   const existingRestream = existingStream?.restream && typeof existingStream.restream === 'object'
     ? existingStream.restream
     : null;
-  const overlayInputProvided = hasOwn(explicit || {}, 'overlay') || hasOwn(payload || {}, 'overlay');
-  const overlayInput = hasOwn(explicit || {}, 'overlay') ? explicit.overlay : payload?.overlay;
+  const overlayInputProvided = hasOwn(explicit || {}, 'overlays')
+    || hasOwn(explicit || {}, 'overlay')
+    || hasOwn(payload || {}, 'overlays')
+    || hasOwn(payload || {}, 'overlay');
+  const overlayInput = hasOwn(explicit || {}, 'overlays')
+    ? explicit.overlays
+    : hasOwn(explicit || {}, 'overlay')
+      ? explicit.overlay
+      : hasOwn(payload || {}, 'overlays')
+        ? payload.overlays
+        : payload?.overlay;
   if (
     existingRestream?.enabled
     && options.sourceType === 'videojs'
@@ -1468,9 +1493,14 @@ function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingS
         explicit?.transcode_profile || payload?.transcode_profile || existingRestream.transcode_profile,
       ),
     };
-    const overlay = normalizeRestreamOverlay(overlayInputProvided ? overlayInput : existingRestream.overlay);
-    if (overlay) nextRestream.overlay = overlay;
-    else delete nextRestream.overlay;
+    const overlays = normalizeRestreamOverlays(overlayInputProvided ? overlayInput : existingRestream.overlays || existingRestream.overlay);
+    if (overlays.length) {
+      nextRestream.overlay = overlays[0];
+      nextRestream.overlays = overlays;
+    } else {
+      delete nextRestream.overlay;
+      delete nextRestream.overlays;
+    }
     return nextRestream;
   }
 
@@ -1490,14 +1520,17 @@ function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingS
     enabled: true,
     slug,
     donor_url: donorUrl,
-    output_url: `${publicBase}/${slug}/index.m3u8`,
+    output_url: publicRestreamUrl(`${publicBase}/${slug}/index.m3u8`),
     desired_state: payload?.is_active === false ? 'stopped' : String(explicit?.desired_state || payload?.desired_state || 'running'),
     restart_requested_at: String(explicit?.restart_requested_at || payload?.restart_requested_at || ''),
     channel_name: String(explicit?.channel_name || payload?.channel_name || ''),
     transcode_profile: normalizeRestreamTranscodeProfile(explicit?.transcode_profile || payload?.transcode_profile),
   };
-  const overlay = normalizeRestreamOverlay(overlayInputProvided ? overlayInput : explicit?.overlay);
-  if (overlay) restream.overlay = overlay;
+  const overlays = normalizeRestreamOverlays(overlayInputProvided ? overlayInput : explicit?.overlays || explicit?.overlay);
+  if (overlays.length) {
+    restream.overlay = overlays[0];
+    restream.overlays = overlays;
+  }
   return restream;
 }
 
@@ -1525,6 +1558,17 @@ function normalizeRestreamOverlay(value) {
       ? { y_percent: clampOptionalInteger(value.y_percent, 0, 100) }
       : {}),
   };
+}
+
+function normalizeRestreamOverlays(value) {
+  const list = Array.isArray(value) ? value : [value];
+  const overlays = [];
+  for (const entry of list) {
+    const overlay = normalizeRestreamOverlay(entry);
+    if (overlay) overlays.push(overlay);
+    if (overlays.length >= 3) break;
+  }
+  return overlays;
 }
 
 function normalizeOverlayImage(value) {
@@ -1588,9 +1632,22 @@ function isIptvDonorUrl(value) {
 function isPublicRestreamUrl(value) {
   try {
     const url = new URL(String(value || ''));
-    return url.hostname === 'hls.livekinglive.win';
+    return url.hostname === RESTREAM_ORIGIN_HOST || url.hostname === RESTREAM_CDN_HOST;
   } catch {
     return false;
+  }
+}
+
+function publicRestreamUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    if (url.hostname === RESTREAM_ORIGIN_HOST) {
+      url.hostname = RESTREAM_CDN_HOST;
+      return url.toString();
+    }
+    return String(value || '');
+  } catch {
+    return String(value || '');
   }
 }
 
@@ -2661,7 +2718,7 @@ function normalizeStream(stream, matchId, index) {
     if (!stream) return null;
     return {
       id: `env-${matchId}-${index}`,
-      url: stream,
+      url: publicRestreamUrl(stream),
       source_type: inferStreamType(stream),
       label: 'Live stream',
       language_code: 'en',
@@ -2676,7 +2733,7 @@ function normalizeStream(stream, matchId, index) {
   if (!stream || !stream.url) return null;
   return {
     id: stream.id || `env-${matchId}-${index}`,
-    url: stream.url,
+    url: publicRestreamUrl(stream.url),
     source_type: stream.source_type || stream.sourceType || inferStreamType(stream.url),
     label: stream.label || 'Live stream',
     language_code: stream.language_code || stream.languageCode || 'en',

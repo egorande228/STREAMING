@@ -547,7 +547,9 @@
   function usesManagedHls(value) {
     try {
       const url = new URL(String(value || ''), window.location.href);
-      return url.hostname === 'hls.livekinglive.win';
+      return url.hostname === 'hls.livekinglive.win'
+        || url.hostname === 'cdn-hls.livekinglive.win'
+        || url.hostname === 'hls-test.melteam.org';
     } catch {
       return false;
     }
@@ -570,42 +572,11 @@
     }
   }
 
-  function firstPlaylistUri(manifestText) {
-    return String(manifestText || '')
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .find((line) => line && !line.startsWith('#')) || '';
-  }
-
-  async function resolveManagedHlsPlaybackUrl(value) {
-    const masterUrl = withManagedHlsCookieCheck(value);
-    try {
-      const response = await fetch(masterUrl, { cache: 'no-store', credentials: 'omit' });
-      if (!response.ok || typeof response.text !== 'function') return masterUrl;
-      const variantUri = firstPlaylistUri(await response.text());
-      if (!/\.m3u8(\?|$)/i.test(variantUri)) return masterUrl;
-      return new URL(variantUri, masterUrl).toString();
-    } catch {
-      return masterUrl;
-    }
-  }
-
   function startNativeManagedHls(video, value) {
     const fallbackUrl = withManagedHlsCookieCheck(value);
-    let fallbackUsed = false;
-    const setSource = (url) => {
-      video.src = url || fallbackUrl;
-      requestMutedPlayback(video);
-      startManagedPlaybackWatch(video);
-    };
-    if (typeof video.addEventListener === 'function') {
-      video.addEventListener('error', () => {
-        if (fallbackUsed || video.src === fallbackUrl) return;
-        fallbackUsed = true;
-        setSource(fallbackUrl);
-      });
-    }
-    resolveManagedHlsPlaybackUrl(value).then(setSource);
+    video.src = fallbackUrl;
+    requestMutedPlayback(video);
+    startManagedPlaybackWatch(video);
   }
 
   function configureVideoElement(video, streamUrl, options = {}) {

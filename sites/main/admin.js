@@ -19,11 +19,22 @@
   const overlayBody = $('overlay-body');
   const overlayStatus = $('overlay-status');
   const fallbackOverlays = [
-    { id: 'kinglive_player_leaderboard.png', name: 'KingLive player', builtin: true },
-    { id: 'kinglive_banner_1554x192_fixed.png', name: 'KingLive wide', builtin: true },
-    { id: 'kinglive_top_banner_1554x192.png', name: 'KingLive top', builtin: true },
-    { id: 'melbet_top_banner_1554x192.png', name: 'Melbet top', builtin: true },
-    { id: 'melbet_banner_1870x245_safe_player.png', name: 'Melbet safe player', builtin: true },
+    { id: 'kinglive_player_leaderboard.png', name: 'KingLive player', builtin: true, src: './banners/kinglive_player_leaderboard.png' },
+    { id: 'kinglive_banner_1554x192_fixed.png', name: 'KingLive wide', builtin: true, src: './banners/kinglive_banner_1554x192_fixed.png' },
+    { id: 'kinglive_top_banner_1554x192.png', name: 'KingLive top', builtin: true, src: './banners/kinglive_top_banner_1554x192.png' },
+    { id: 'melbet_top_banner_1554x192.png', name: 'Melbet top', builtin: true, src: './banners/melbet_top_banner_1554x192.png' },
+    { id: 'melbet_banner_1870x245_safe_player.png', name: 'Melbet safe player', builtin: true, src: './banners/melbet_banner_1870x245_safe_player.png' },
+  ];
+  let overlayCatalog = fallbackOverlays;
+  const overlaySlots = [1, 2, 3];
+  const overlayPositions = [
+    ['top-right', 'top right'],
+    ['top-center', 'top center'],
+    ['top-left', 'top left'],
+    ['center', 'center'],
+    ['bottom-right', 'bottom right'],
+    ['bottom-center', 'bottom center'],
+    ['bottom-left', 'bottom left'],
   ];
   function token() {
     try {
@@ -98,14 +109,17 @@
   }
 
   function streamFromForm() {
-    const overlayEnabled = $('overlay-enabled').value === 'true';
-    const overlay = {
-      enabled: overlayEnabled,
-      image: $('overlay-image').value,
-      position: $('overlay-position').value,
-      width: Number($('overlay-width').value || 420),
-      margin: Number($('overlay-margin').value || 24),
-    };
+    const overlays = overlaySlots
+      .map((slot) => ({
+        enabled: $(`overlay-enabled-${slot}`).value === 'true',
+        image: $(`overlay-image-${slot}`).value,
+        position: $(`overlay-position-${slot}`).value,
+        width: Number($(`overlay-width-${slot}`).value || 420),
+        margin: Number($(`overlay-margin-${slot}`).value || 24),
+        x_percent: clampPercent($(`overlay-x-${slot}`).value),
+        y_percent: clampPercent($(`overlay-y-${slot}`).value),
+      }))
+      .filter((overlay) => overlay.enabled);
     return {
       match_id: Number($('match-id').value),
       label: $('stream-label').value.trim() || 'Live stream',
@@ -115,7 +129,8 @@
       restream: {
         channel_name: $('channel-name').value.trim(),
         transcode_profile: $('transcode-profile').value || 'auto',
-        overlay,
+        overlay: overlays[0] || { enabled: false },
+        overlays,
       },
       language_code: $('lang').value.trim() || 'en',
       region: $('region').value.trim() || 'global',
@@ -132,41 +147,232 @@
     $('match-id').value = String(stream.match_id || '');
     $('stream-label').value = stream.label || '';
     $('stream-url').value = stream.url || '';
+    setOverlayPreviewStream(stream.url || '');
     $('channel-name').value = stream.restream?.channel_name || '';
     $('source-type').value = stream.source_type || 'iframe';
     $('quality').value = stream.quality || '720p';
     $('transcode-profile').value = stream.restream?.transcode_profile || 'auto';
-    const overlay = stream.restream?.overlay || {};
-    $('overlay-enabled').value = overlay.enabled ? 'true' : 'false';
-    $('overlay-image').value = overlay.image || 'kinglive_player_leaderboard.png';
-    $('overlay-position').value = overlay.position || 'top-right';
-    $('overlay-width').value = String(overlay.width || 420);
-    $('overlay-margin').value = String(overlay.margin ?? 24);
+    const overlays = normalizeAdminOverlays(stream.restream?.overlays || stream.restream?.overlay);
+    overlaySlots.forEach((slot) => {
+      const overlay = overlays[slot - 1] || {};
+      $(`overlay-enabled-${slot}`).value = overlay.enabled ? 'true' : 'false';
+      $(`overlay-image-${slot}`).value = overlay.image || 'kinglive_player_leaderboard.png';
+      $(`overlay-position-${slot}`).value = overlay.position || defaultOverlayPosition(slot);
+      $(`overlay-width-${slot}`).value = String(overlay.width || 420);
+      $(`overlay-margin-${slot}`).value = String(overlay.margin ?? 24);
+      const point = defaultOverlayPoint($(`overlay-position-${slot}`).value);
+      $(`overlay-x-${slot}`).value = String(clampPercent(overlay.x_percent ?? point.x));
+      $(`overlay-y-${slot}`).value = String(clampPercent(overlay.y_percent ?? point.y));
+      updateOverlayPreview(slot);
+    });
     $('lang').value = stream.language_code || 'en';
     $('region').value = stream.region || 'global';
     $('priority').value = String(stream.priority ?? 100);
     $('is-active').value = stream.is_active === false ? 'false' : 'true';
     $('starts-at').value = formatAdminDateTime(stream.starts_at);
     $('ends-at').value = formatAdminDateTime(stream.ends_at);
+    setFormPanelOpen('restream', Boolean(stream.restream?.enabled || stream.restream || stream.source_type === 'videojs'));
+    setFormPanelOpen('banners', overlays.length > 0);
+    setFormPanelOpen('schedule', Boolean(stream.starts_at || stream.ends_at));
   }
 
   function resetForm() {
     $('stream-form').reset();
     $('stream-id').value = '';
+    setOverlayPreviewStream('');
     $('quality').value = '720p';
     $('channel-name').value = '';
     $('transcode-profile').value = 'auto';
-    $('overlay-enabled').value = 'false';
-    $('overlay-image').value = 'kinglive_player_leaderboard.png';
-    $('overlay-position').value = 'top-right';
-    $('overlay-width').value = '420';
-    $('overlay-margin').value = '24';
+    overlaySlots.forEach((slot) => {
+      $(`overlay-enabled-${slot}`).value = 'false';
+      $(`overlay-image-${slot}`).value = 'kinglive_player_leaderboard.png';
+      $(`overlay-position-${slot}`).value = defaultOverlayPosition(slot);
+      $(`overlay-width-${slot}`).value = '420';
+      $(`overlay-margin-${slot}`).value = '24';
+      const point = defaultOverlayPoint($(`overlay-position-${slot}`).value);
+      $(`overlay-x-${slot}`).value = String(point.x);
+      $(`overlay-y-${slot}`).value = String(point.y);
+      updateOverlayPreview(slot);
+    });
     $('lang').value = 'en';
     $('region').value = 'global';
     $('priority').value = '100';
     $('is-active').value = 'true';
     $('starts-at').value = '';
     $('ends-at').value = '';
+    setFormPanelOpen('restream', false);
+    setFormPanelOpen('banners', false);
+    setFormPanelOpen('schedule', false);
+  }
+
+  function setFormPanelOpen(panel, open) {
+    const element = document.querySelector(`[data-form-panel="${panel}"]`);
+    if (element) element.open = Boolean(open);
+  }
+
+  function clampPercent(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return 0;
+    return Math.min(100, Math.max(0, Math.round(number)));
+  }
+
+  function defaultOverlayPoint(position) {
+    switch (position) {
+      case 'top-left': return { x: 0, y: 0 };
+      case 'top-center': return { x: 50, y: 0 };
+      case 'top-right': return { x: 100, y: 0 };
+      case 'center': return { x: 50, y: 50 };
+      case 'bottom-left': return { x: 0, y: 100 };
+      case 'bottom-center': return { x: 50, y: 100 };
+      case 'bottom-right': return { x: 100, y: 100 };
+      default: return { x: 100, y: 0 };
+    }
+  }
+
+  function updateOverlayPreview(slot) {
+    const preview = document.querySelector(`[data-overlay-preview="${slot}"]`);
+    if (!preview) return;
+    const width = Math.min(1000, Math.max(80, Number($(`overlay-width-${slot}`)?.value || 420)));
+    const previewWidth = Math.min(80, Math.max(1, (width / 1920) * 100));
+    const imageId = $(`overlay-image-${slot}`)?.value || '';
+    const overlay = overlayCatalog.find((item) => item.id === imageId);
+    const aspectRatio = Number(overlay?.aspect_ratio || 0) || 6;
+    const previewHeight = Math.max(1, (width / aspectRatio / 1080) * 100);
+    const image = document.querySelector(`[data-overlay-image-preview="${slot}"]`);
+    if (image) {
+      const src = overlayPreviewSrc(overlay);
+      if (src) {
+        image.setAttribute('src', src);
+        image.onload = () => {
+          const naturalRatio = image.naturalWidth && image.naturalHeight ? image.naturalWidth / image.naturalHeight : 0;
+          if (naturalRatio && overlay && overlay.aspect_ratio !== naturalRatio) {
+            overlay.aspect_ratio = naturalRatio;
+            updateOverlayPreview(slot);
+          }
+        };
+      } else {
+        image.removeAttribute('src');
+      }
+    }
+    preview.style.setProperty('--banner-width', `${previewWidth}%`);
+    preview.style.setProperty('--banner-height', `${Math.min(80, previewHeight)}%`);
+    preview.style.setProperty('--banner-x', String(clampPercent($(`overlay-x-${slot}`)?.value)));
+    preview.style.setProperty('--banner-y', String(clampPercent($(`overlay-y-${slot}`)?.value)));
+  }
+
+  function overlayPreviewSrc(overlay) {
+    if (!overlay) return '';
+    if (overlay.data_url) return overlay.data_url;
+    if (overlay.src) return overlay.src;
+    if (overlay.builtin && overlay.id) return `./banners/${encodeURIComponent(overlay.id)}`;
+    return '';
+  }
+
+  function setOverlayPreviewStream(url) {
+    const value = String(url || '').trim();
+    overlaySlots.forEach((slot) => {
+      const video = document.querySelector(`[data-overlay-video="${slot}"]`);
+      if (!video) return;
+      if (!value || !/^https?:\/\//i.test(value)) {
+        video.removeAttribute('src');
+        video.load?.();
+        return;
+      }
+      if (video.getAttribute('src') !== value) {
+        video.setAttribute('src', value);
+        video.load?.();
+      }
+      video.muted = true;
+      video.playsInline = true;
+      video.play?.().catch(() => {});
+    });
+  }
+
+  function moveOverlayPreview(slot, clientX, clientY) {
+    const preview = document.querySelector(`[data-overlay-preview="${slot}"]`);
+    const handle = document.querySelector(`[data-overlay-handle="${slot}"]`);
+    if (!preview || !handle) return;
+    const rect = preview.getBoundingClientRect();
+    const handleRect = handle.getBoundingClientRect();
+    const maxX = Math.max(1, rect.width - handleRect.width);
+    const maxY = Math.max(1, rect.height - handleRect.height);
+    const x = ((clientX - rect.left - handleRect.width / 2) / maxX) * 100;
+    const y = ((clientY - rect.top - handleRect.height / 2) / maxY) * 100;
+    $(`overlay-x-${slot}`).value = String(clampPercent(x));
+    $(`overlay-y-${slot}`).value = String(clampPercent(y));
+    updateOverlayPreview(slot);
+  }
+
+  function resizeOverlayPreview(slot, clientX) {
+    const preview = document.querySelector(`[data-overlay-preview="${slot}"]`);
+    const handle = document.querySelector(`[data-overlay-handle="${slot}"]`);
+    const widthInput = $(`overlay-width-${slot}`);
+    if (!preview || !handle || !widthInput) return;
+    const previewRect = preview.getBoundingClientRect();
+    const handleRect = handle.getBoundingClientRect();
+    const nextWidthPx = Math.max(16, clientX - handleRect.left);
+    const width = Math.round((nextWidthPx / previewRect.width) * 1920);
+    widthInput.value = String(Math.min(1000, Math.max(80, width)));
+    updateOverlayPreview(slot);
+  }
+
+  function initOverlayControls() {
+    overlaySlots.forEach((slot) => {
+      const position = $(`overlay-position-${slot}`);
+      const imageSelect = $(`overlay-image-${slot}`);
+      const width = $(`overlay-width-${slot}`);
+      const x = $(`overlay-x-${slot}`);
+      const y = $(`overlay-y-${slot}`);
+      const preview = document.querySelector(`[data-overlay-preview="${slot}"]`);
+      const resize = document.querySelector(`[data-overlay-resize="${slot}"]`);
+      if (position) {
+        position.addEventListener('change', () => {
+          const point = defaultOverlayPoint(position.value);
+          x.value = String(point.x);
+          y.value = String(point.y);
+          updateOverlayPreview(slot);
+        });
+      }
+      [width, x, y].forEach((input) => {
+        if (input) input.addEventListener('input', () => updateOverlayPreview(slot));
+      });
+      if (imageSelect) imageSelect.addEventListener('change', () => updateOverlayPreview(slot));
+      if (preview) {
+        preview.addEventListener('pointerdown', (event) => {
+          if (event.target.closest('[data-overlay-resize]')) return;
+          event.preventDefault();
+          preview.setPointerCapture?.(event.pointerId);
+          moveOverlayPreview(slot, event.clientX, event.clientY);
+        });
+        preview.addEventListener('pointermove', (event) => {
+          if (event.buttons !== 1) return;
+          if (event.target.closest('[data-overlay-resize]')) return;
+          event.preventDefault();
+          moveOverlayPreview(slot, event.clientX, event.clientY);
+        });
+      }
+      if (resize) {
+        resize.addEventListener('pointerdown', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          resize.setPointerCapture?.(event.pointerId);
+          resizeOverlayPreview(slot, event.clientX);
+          const onMove = (moveEvent) => {
+            moveEvent.preventDefault();
+            resizeOverlayPreview(slot, moveEvent.clientX);
+          };
+          const onDone = () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onDone);
+            window.removeEventListener('pointercancel', onDone);
+          };
+          window.addEventListener('pointermove', onMove);
+          window.addEventListener('pointerup', onDone);
+          window.addEventListener('pointercancel', onDone);
+        });
+      }
+      updateOverlayPreview(slot);
+    });
   }
 
   async function saveStream(event) {
@@ -231,9 +437,16 @@
           const url = escapeHtml(stream.url || '');
           const editable = stream.editable !== false && stream.origin !== 'dami';
           const restartable = editable && stream.restream?.enabled && stream.is_active !== false && stream.restream?.desired_state !== 'stopped';
-          const overlay = stream.restream?.overlay;
-          const overlayLabel = overlay?.enabled
-            ? `${escapeHtml(overlay.image || 'banner')}<br/>${escapeHtml(overlay.position || 'top-right')} ${escapeHtml(overlay.width || 420)}px`
+          const overlays = normalizeAdminOverlays(stream.restream?.overlays || stream.restream?.overlay);
+          const overlayLabel = overlays.length
+            ? overlays
+              .map((overlay) => {
+                const point = Number.isFinite(Number(overlay.x_percent)) && Number.isFinite(Number(overlay.y_percent))
+                  ? ` x${escapeHtml(overlay.x_percent)} y${escapeHtml(overlay.y_percent)}`
+                  : '';
+                return `${escapeHtml(overlay.image || 'banner')}<br/>${escapeHtml(overlay.position || 'top-right')} ${escapeHtml(overlay.width || 420)}px${point}`;
+              })
+              .join('<br/>')
             : '';
           return `
             <tr>
@@ -321,17 +534,58 @@
   }
 
   function updateOverlaySelect(overlays) {
-    const select = $('overlay-image');
-    if (!select) return;
-    const current = select.value || 'kinglive_player_leaderboard.png';
-    const list = Array.isArray(overlays) && overlays.length ? overlays : fallbackOverlays;
-    select.innerHTML = list
-      .map((overlay) => {
-        const label = overlay.builtin ? overlay.name : `${overlay.name || overlay.id} (uploaded)`;
-        return `<option value="${escapeHtml(overlay.id)}">${escapeHtml(label)}</option>`;
-      })
-      .join('');
-    select.value = list.some((overlay) => overlay.id === current) ? current : 'kinglive_player_leaderboard.png';
+    const list = (Array.isArray(overlays) && overlays.length ? overlays : fallbackOverlays)
+      .map((overlay) => ({
+        ...overlay,
+        src: overlay.src || (overlay.builtin && overlay.id ? `./banners/${overlay.id}` : ''),
+        aspect_ratio: overlay.aspect_ratio || inferOverlayAspectRatio(overlay.id),
+      }));
+    overlayCatalog = list;
+    overlaySlots.forEach((slot) => {
+      const select = $(`overlay-image-${slot}`);
+      if (!select) return;
+      const current = select.value || 'kinglive_player_leaderboard.png';
+      select.innerHTML = list
+        .map((overlay) => {
+          const label = overlay.builtin ? overlay.name : `${overlay.name || overlay.id} (uploaded)`;
+          return `<option value="${escapeHtml(overlay.id)}">${escapeHtml(label)}</option>`;
+        })
+        .join('');
+      select.value = list.some((overlay) => overlay.id === current) ? current : 'kinglive_player_leaderboard.png';
+      updateOverlayPreview(slot);
+    });
+    updateOverlayPositionSelects();
+  }
+
+  function inferOverlayAspectRatio(id) {
+    const match = String(id || '').match(/_(\d{2,4})x(\d{2,4})(?:_|\.|$)/);
+    if (match) return Number(match[1]) / Number(match[2]);
+    return 6;
+  }
+
+  function updateOverlayPositionSelects() {
+    overlaySlots.forEach((slot) => {
+      const select = $(`overlay-position-${slot}`);
+      if (!select) return;
+      const current = select.value || defaultOverlayPosition(slot);
+      select.innerHTML = overlayPositions
+        .map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`)
+        .join('');
+      select.value = overlayPositions.some(([value]) => value === current) ? current : defaultOverlayPosition(slot);
+    });
+  }
+
+  function defaultOverlayPosition(slot) {
+    if (slot === 2) return 'bottom-center';
+    if (slot === 3) return 'top-left';
+    return 'top-right';
+  }
+
+  function normalizeAdminOverlays(value) {
+    const list = Array.isArray(value) ? value : [value];
+    return list
+      .filter((overlay) => overlay && typeof overlay === 'object' && overlay.enabled)
+      .slice(0, overlaySlots.length);
   }
 
   async function uploadOverlay(event) {
@@ -356,7 +610,7 @@
       $('overlay-file').value = '';
       $('overlay-name').value = '';
       overlayStatus.textContent = 'Uploaded';
-      if (payload.overlay?.id) $('overlay-image').value = payload.overlay.id;
+      if (payload.overlay?.id && $('overlay-image-1')) $('overlay-image-1').value = payload.overlay.id;
       await loadOverlays();
       if (payload.overlay?.id) $('overlay-image').value = payload.overlay.id;
     } catch (error) {
@@ -772,6 +1026,7 @@
     button.addEventListener('click', () => runRefresh(button.getAttribute('data-refresh-scope')));
   });
 
+  initOverlayControls();
   setAuthLabel();
   loadOverlays();
   loadSettings();

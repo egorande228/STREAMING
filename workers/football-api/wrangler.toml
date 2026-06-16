@@ -12,7 +12,7 @@ DAMI_AUTO_STREAMS = "false"
 DAMI_EMBED_PROXY_ENABLED = "false"
 DAMI_LANGUAGE_CHANNELS = ""
 DAMI_EXTRA_LANGUAGE_CHANNELS = ""
-RESTREAM_PUBLIC_BASE_URL = "https://hls.livekinglive.win/live"
+RESTREAM_PUBLIC_BASE_URL = "https://cdn-hls.livekinglive.win/live"
 
 [[kv_namespaces]]
 binding = "STREAM_CONFIG_KV"

@@ -1925,7 +1925,7 @@ test('converts IPTV donor streams into private restream definitions', async () =
   const publicStreams = await routeRequest(new Request('https://kinglive.test/api/streams/active'), env, {});
   assert.equal(publicStreams.status, 200);
   const publicBody = await publicStreams.json();
-  assert.equal(publicBody.streams['42'][0].url, 'https://hls.livekinglive.win/live/42-en-espn-2/index.m3u8');
+  assert.equal(publicBody.streams['42'][0].url, 'https://cdn-hls.livekinglive.win/live/42-en-espn-2/index.m3u8');
   assert.equal(JSON.stringify(publicBody).includes('secret-token'), false);
 
   const unauthorized = await routeRequest(new Request('https://kinglive.test/api/restreams'), env, {});
@@ -1943,7 +1943,7 @@ test('converts IPTV donor streams into private restream definitions', async () =
   assert.equal(restreamBody.total, 1);
   assert.equal(restreamBody.restreams[0].slug, '42-en-espn-2');
   assert.equal(restreamBody.restreams[0].donor_url, donorUrl);
-  assert.equal(restreamBody.restreams[0].output_url, 'https://hls.livekinglive.win/live/42-en-espn-2/index.m3u8');
+  assert.equal(restreamBody.restreams[0].output_url, 'https://cdn-hls.livekinglive.win/live/42-en-espn-2/index.m3u8');
 });
 
 test('converts generic ip m3u8 donor streams into private restream definitions', async () => {
@@ -1987,7 +1987,7 @@ test('converts generic ip m3u8 donor streams into private restream definitions',
   const publicStreams = await routeRequest(new Request('https://kinglive.test/api/streams/active'), env, {});
   assert.equal(publicStreams.status, 200);
   const publicBody = await publicStreams.json();
-  assert.equal(publicBody.streams['19609159'][0].url, 'https://hls.livekinglive.win/live/19609159-es-spanish/index.m3u8');
+  assert.equal(publicBody.streams['19609159'][0].url, 'https://cdn-hls.livekinglive.win/live/19609159-es-spanish/index.m3u8');
   assert.equal(JSON.stringify(publicBody).includes('206.212.244.192'), false);
 
   const restreams = await routeRequest(
@@ -2002,7 +2002,7 @@ test('converts generic ip m3u8 donor streams into private restream definitions',
   assert.equal(restreamBody.total, 1);
   assert.equal(restreamBody.restreams[0].slug, '19609159-es-spanish');
   assert.equal(restreamBody.restreams[0].donor_url, donorUrl);
-  assert.equal(restreamBody.restreams[0].output_url, 'https://hls.livekinglive.win/live/19609159-es-spanish/index.m3u8');
+  assert.equal(restreamBody.restreams[0].output_url, 'https://cdn-hls.livekinglive.win/live/19609159-es-spanish/index.m3u8');
 });
 
 test('converts hls.gd IPTV donor streams into private restream definitions', async () => {
@@ -2038,15 +2038,24 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
         language_code: 'en',
         restream: {
           transcode_profile: 'h264_720p25',
-          overlay: {
-            enabled: true,
-            image: 'kinglive_player_leaderboard.png',
-            position: 'top-right',
-            width: 420,
-            margin: 24,
-            x_percent: 72,
-            y_percent: 35,
-          },
+          overlay: [
+            {
+              enabled: true,
+              image: 'kinglive_player_leaderboard.png',
+              position: 'top-right',
+              width: 420,
+              margin: 24,
+              x_percent: 72,
+              y_percent: 35,
+            },
+            {
+              enabled: true,
+              image: 'kinglive_top_banner_1554x192.png',
+              position: 'bottom-center',
+              width: 640,
+              margin: 20,
+            },
+          ],
         },
       }),
     }),
@@ -2058,7 +2067,7 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
   const publicStreams = await routeRequest(new Request('https://kinglive.test/api/streams/active'), env, {});
   assert.equal(publicStreams.status, 200);
   const publicBody = await publicStreams.json();
-  assert.equal(publicBody.streams['19609156'][0].url, 'https://hls.livekinglive.win/live/19609156-en-english/index.m3u8');
+  assert.equal(publicBody.streams['19609156'][0].url, 'https://cdn-hls.livekinglive.win/live/19609156-en-english/index.m3u8');
   assert.equal(JSON.stringify(publicBody).includes('secret-token'), false);
 
   const restreams = await routeRequest(
@@ -2073,7 +2082,7 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
   assert.equal(restreamBody.total, 1);
   assert.equal(restreamBody.restreams[0].slug, '19609156-en-english');
   assert.equal(restreamBody.restreams[0].donor_url, donorUrl);
-  assert.equal(restreamBody.restreams[0].output_url, 'https://hls.livekinglive.win/live/19609156-en-english/index.m3u8');
+  assert.equal(restreamBody.restreams[0].output_url, 'https://cdn-hls.livekinglive.win/live/19609156-en-english/index.m3u8');
   assert.equal(restreamBody.restreams[0].transcode_profile, 'h264_720p25');
   assert.deepEqual(restreamBody.restreams[0].overlay, {
     enabled: true,
@@ -2083,6 +2092,94 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
     margin: 24,
     x_percent: 72,
     y_percent: 35,
+  });
+  assert.deepEqual(restreamBody.restreams[0].overlays[1], {
+    enabled: true,
+    image: 'kinglive_top_banner_1554x192.png',
+    position: 'bottom-center',
+    width: 640,
+    margin: 20,
+  });
+});
+
+test('admin saves multiple restream banners from overlays payload', async () => {
+  const kvData = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value) {
+      kvData.set(key, value);
+    },
+  };
+  const env = {
+    ADMIN_BEARER_TOKEN: 'test-token',
+    RESTREAM_SYNC_TOKEN: 'sync-token',
+    RESTREAM_PUBLIC_BASE_URL: 'https://hls.livekinglive.win/live',
+    STREAM_CONFIG_KV: kv,
+  };
+
+  const create = await routeRequest(
+    new Request('https://kinglive.test/api/admin/streams', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer test-token',
+      },
+      body: JSON.stringify({
+        match_id: 19609160,
+        url: 'https://8.hls.gd/ch1197/index.m3u8?token=secret-token',
+        source_type: 'videojs',
+        label: 'Arabic',
+        language_code: 'ar',
+        restream: {
+          overlay: {
+            enabled: true,
+            image: 'kinglive_banner_1554x192_fixed.png',
+            position: 'top-center',
+            width: 420,
+            margin: 24,
+          },
+          overlays: [
+            {
+              enabled: true,
+              image: 'kinglive_banner_1554x192_fixed.png',
+              position: 'top-center',
+              width: 420,
+              margin: 24,
+            },
+            {
+              enabled: true,
+              image: 'melbet_banner_1870x245_safe_player.png',
+              position: 'bottom-center',
+              width: 600,
+              margin: 18,
+            },
+          ],
+        },
+      }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(create.status, 200);
+
+  const restreams = await routeRequest(
+    new Request('https://kinglive.test/api/restreams', {
+      headers: { Authorization: 'Bearer sync-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(restreams.status, 200);
+  const restreamBody = await restreams.json();
+  assert.equal(restreamBody.restreams[0].overlays.length, 2);
+  assert.deepEqual(restreamBody.restreams[0].overlays[1], {
+    enabled: true,
+    image: 'melbet_banner_1870x245_safe_player.png',
+    position: 'bottom-center',
+    width: 600,
+    margin: 18,
   });
 });
 
@@ -2329,7 +2426,7 @@ test('preserves IPTV restream metadata when editing another stream', async () =>
       },
       body: JSON.stringify({
         match_id: 42,
-        url: 'https://hls.livekinglive.win/live/42-en-testt/index.m3u8',
+        url: 'https://cdn-hls.livekinglive.win/live/42-en-testt/index.m3u8',
         source_type: 'videojs',
         label: 'TESTT',
         language_code: 'en',

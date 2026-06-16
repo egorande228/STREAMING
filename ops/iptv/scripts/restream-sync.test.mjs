@@ -28,7 +28,7 @@ test('renders a restream transcode profile into the channel env', () => {
   }, options);
 
   assert.equal(item.transcodeProfile, 'h264_720p25');
-  assert.equal(item.overlayKey, JSON.stringify(item.overlay));
+  assert.equal(item.overlayKey, JSON.stringify(item.overlays));
   assert.match(renderEnvFile(item), /RESTREAM_TRANSCODE_PROFILE='h264_720p25'/);
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_ENABLED='true'/);
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_IMAGE='kinglive_player_leaderboard\.png'/);
@@ -37,6 +37,42 @@ test('renders a restream transcode profile into the channel env', () => {
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_MARGIN='24'/);
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_X_PERCENT='72'/);
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_Y_PERCENT='35'/);
+  assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_COUNT='1'/);
+  assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_1_IMAGE='kinglive_player_leaderboard\.png'/);
+});
+
+test('renders multiple restream overlays into numbered env values', () => {
+  const item = normalizeRestream({
+    slug: '19609158-es-spanish',
+    match_id: 19609158,
+    donor_url: 'https://8.hls.gd/ch2222/index.m3u8?token=secret-token',
+    overlays: [
+      {
+        enabled: true,
+        image: 'kinglive_player_leaderboard.png',
+        position: 'top-right',
+        width: 420,
+        margin: 24,
+      },
+      {
+        enabled: true,
+        image: 'kinglive_top_banner_1554x192.png',
+        position: 'bottom-center',
+        width: 640,
+        margin: 18,
+      },
+    ],
+  }, options);
+
+  assert.equal(item.overlays.length, 2);
+  assert.equal(item.overlay.image, 'kinglive_player_leaderboard.png');
+  const envFile = renderEnvFile(item);
+  assert.match(envFile, /RESTREAM_OVERLAY_COUNT='2'/);
+  assert.match(envFile, /RESTREAM_OVERLAY_1_IMAGE='kinglive_player_leaderboard\.png'/);
+  assert.match(envFile, /RESTREAM_OVERLAY_2_IMAGE='kinglive_top_banner_1554x192\.png'/);
+  assert.match(envFile, /RESTREAM_OVERLAY_2_POSITION='bottom-center'/);
+  assert.match(envFile, /RESTREAM_OVERLAY_2_WIDTH='640'/);
+  assert.match(envFile, /RESTREAM_OVERLAY_2_MARGIN='18'/);
 });
 
 test('ignores unsupported restream transcode profiles', () => {

@@ -108,14 +108,15 @@ export function normalizeRestream(restream, options) {
     label: String(restream?.label || slug).trim(),
     channelName: String(restream?.channel_name || restream?.channelName || '').trim(),
     transcodeProfile: normalizeTranscodeProfile(restream?.transcode_profile || restream?.transcodeProfile),
-    overlay: normalizeOverlay(restream?.overlay),
+    overlays: normalizeOverlays(restream?.overlays || restream?.overlay),
     overlayDir: options.overlayDir || DEFAULT_OVERLAY_DIR,
     resolvedInputUrl: donorUrl,
     desiredState,
     isActive: restream?.is_active !== false,
     restartRequestedAt: String(restream?.restart_requested_at || ''),
   };
-  item.overlayKey = item.overlay ? JSON.stringify(item.overlay) : '';
+  item.overlay = item.overlays[0] || null;
+  item.overlayKey = item.overlays.length ? JSON.stringify(item.overlays) : '';
   return item;
 }
 
@@ -139,6 +140,18 @@ export function renderEnvFile(item) {
           `RESTREAM_OVERLAY_MARGIN=${shellQuote(String(item.overlay.margin))}`,
           ...(Number.isFinite(item.overlay.xPercent) ? [`RESTREAM_OVERLAY_X_PERCENT=${shellQuote(String(item.overlay.xPercent))}`] : []),
           ...(Number.isFinite(item.overlay.yPercent) ? [`RESTREAM_OVERLAY_Y_PERCENT=${shellQuote(String(item.overlay.yPercent))}`] : []),
+          `RESTREAM_OVERLAY_COUNT=${shellQuote(String(item.overlays.length))}`,
+          ...item.overlays.flatMap((overlay, index) => {
+            const slot = index + 1;
+            return [
+              `RESTREAM_OVERLAY_${slot}_IMAGE=${shellQuote(overlay.image)}`,
+              `RESTREAM_OVERLAY_${slot}_POSITION=${shellQuote(overlay.position)}`,
+              `RESTREAM_OVERLAY_${slot}_WIDTH=${shellQuote(String(overlay.width))}`,
+              `RESTREAM_OVERLAY_${slot}_MARGIN=${shellQuote(String(overlay.margin))}`,
+              ...(Number.isFinite(overlay.xPercent) ? [`RESTREAM_OVERLAY_${slot}_X_PERCENT=${shellQuote(String(overlay.xPercent))}`] : []),
+              ...(Number.isFinite(overlay.yPercent) ? [`RESTREAM_OVERLAY_${slot}_Y_PERCENT=${shellQuote(String(overlay.yPercent))}`] : []),
+            ];
+          }),
         ]
       : []),
     `RESTREAM_RTMP_URL=${shellQuote(item.rtmpUrl)}`,
@@ -462,6 +475,17 @@ function normalizeOverlay(value) {
       ? { yPercent: clampOptionalInteger(value.y_percent ?? value.yPercent, 0, 100) }
       : {}),
   };
+}
+
+function normalizeOverlays(value) {
+  const list = Array.isArray(value) ? value : [value];
+  const overlays = [];
+  for (const entry of list) {
+    const overlay = normalizeOverlay(entry);
+    if (overlay) overlays.push(overlay);
+    if (overlays.length >= 3) break;
+  }
+  return overlays;
 }
 
 function normalizeOverlayImage(value) {

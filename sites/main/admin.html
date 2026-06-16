@@ -6,229 +6,8 @@
     <title>KingLive Admin</title>
     <link rel="stylesheet" href="./styles.css" />
     <script src="./config.js"></script>
-    <script defer src="./admin.js?v=stream-restart-controls-20260615"></script>
-    <style>
-      .admin-shell {
-        width: calc(100% - 32px);
-        max-width: 1360px;
-        margin: 28px auto 48px;
-      }
-      .admin-hero,
-      .admin-card {
-        border: 1px solid rgba(244, 239, 226, 0.14);
-        border-radius: 8px;
-        background: rgba(12, 14, 10, 0.88);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
-      }
-      .admin-hero {
-        display: grid;
-        grid-template-columns: minmax(220px, 1fr) minmax(320px, 2fr);
-        gap: 18px;
-        align-items: end;
-        padding: 22px;
-        margin-bottom: 18px;
-      }
-      .admin-title {
-        display: grid;
-        gap: 7px;
-      }
-      .admin-title h1,
-      .admin-card h2 {
-        margin: 0;
-        font-family: var(--font-display);
-        letter-spacing: 0;
-      }
-      .admin-kicker {
-        color: var(--gold);
-        font-size: 11px;
-        font-weight: 900;
-        text-transform: uppercase;
-      }
-      .admin-login-grid {
-        display: grid;
-        grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) auto auto minmax(120px, auto);
-        gap: 10px;
-        align-items: end;
-      }
-      .admin-section {
-        margin-top: 24px;
-      }
-      .admin-section-label {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin: 0 0 10px;
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 900;
-        text-transform: uppercase;
-      }
-      .admin-section-label::after {
-        content: "";
-        height: 1px;
-        flex: 1;
-        background: linear-gradient(90deg, rgba(245, 196, 0, 0.45), transparent);
-      }
-      .admin-layout {
-        display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
-        gap: 16px;
-        align-items: start;
-      }
-      .streams-layout {
-        grid-template-columns: minmax(0, 1fr);
-      }
-      .stream-form-card {
-        grid-column: 1 / -1;
-      }
-      .stream-side-panel {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 16px;
-      }
-      .stream-side-panel .admin-card {
-        margin-top: 0;
-      }
-      .admin-card {
-        padding: 18px;
-      }
-      .admin-card + .admin-card {
-        margin-top: 16px;
-      }
-      .admin-card-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 14px;
-      }
-      .admin-grid {
-        display: grid;
-        gap: 12px;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-      .admin-grid .full {
-        grid-column: 1 / -1;
-      }
-      .admin-input,
-      .admin-select {
-        width: 100%;
-        height: 42px;
-        border: 1px solid rgba(244, 239, 226, 0.16);
-        border-radius: 8px;
-        background: rgba(244, 239, 226, 0.055);
-        color: var(--text);
-        padding: 0 12px;
-        font: inherit;
-      }
-      .admin-input:focus,
-      .admin-select:focus {
-        border-color: var(--gold-line);
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(245, 196, 0, 0.12);
-      }
-      .admin-input[type="file"] {
-        padding: 9px 12px;
-      }
-      .admin-fieldset {
-        border: 1px solid rgba(244, 239, 226, 0.12);
-        border-radius: 8px;
-        padding: 14px;
-        background: rgba(244, 239, 226, 0.025);
-      }
-      .admin-fieldset legend {
-        color: var(--gold);
-        font-size: 11px;
-        font-weight: 900;
-        padding: 0 8px;
-        text-transform: uppercase;
-      }
-      .admin-table-wrap {
-        overflow: auto;
-        border: 1px solid rgba(244, 239, 226, 0.12);
-        border-radius: 8px;
-        background: rgba(244, 239, 226, 0.025);
-      }
-      .admin-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 13px;
-      }
-      .admin-table th,
-      .admin-table td {
-        border-bottom: 1px solid rgba(244, 239, 226, 0.1);
-        padding: 10px 9px;
-        text-align: left;
-        vertical-align: top;
-      }
-      .admin-table th {
-        position: sticky;
-        top: 0;
-        z-index: 1;
-        background: #0c0e0a;
-        color: var(--muted);
-        font-size: 11px;
-        font-weight: 900;
-        text-transform: uppercase;
-      }
-      .admin-table tr:last-child td {
-        border-bottom: 0;
-      }
-      .admin-actions {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-      }
-      .admin-actions.wrap {
-        flex-wrap: wrap;
-      }
-      .admin-form-actions {
-        display: flex;
-        gap: 10px;
-        margin-top: 4px;
-      }
-      .admin-metrics {
-        display: grid;
-        gap: 10px;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-      }
-      .admin-metric {
-        border: 1px solid rgba(244, 239, 226, 0.12);
-        border-radius: 8px;
-        background: rgba(244, 239, 226, 0.045);
-        padding: 12px;
-      }
-      .admin-metric span {
-        display: block;
-        color: var(--muted);
-        font-size: 11px;
-        font-weight: 900;
-        text-transform: uppercase;
-      }
-      .admin-metric strong {
-        display: block;
-        margin-top: 6px;
-        color: var(--text);
-        font-size: 22px;
-      }
-      .admin-msg { color: #83f1b8; margin-top: 10px; }
-      .admin-err { color: #ff9aa1; margin-top: 10px; }
-      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-      @media (max-width: 1080px) {
-        .admin-hero,
-        .admin-layout,
-        .admin-login-grid,
-        .stream-side-panel {
-          grid-template-columns: 1fr;
-        }
-      }
-      @media (max-width: 760px) {
-        .admin-shell { width: calc(100% - 20px); margin-top: 16px; }
-        .admin-grid,
-        .admin-metrics { grid-template-columns: 1fr; }
-        .admin-form-actions { flex-wrap: wrap; }
-      }
-    </style>
+    <script defer src="./admin.js?v=overlay-resize-fix-20260616"></script>
+    <link rel="stylesheet" href="./admin.css?v=overlay-resize-fix-20260616" />
   </head>
   <body>
     <header class="topbar">
@@ -267,110 +46,217 @@
         <div class="admin-card-header">
           <h2>Stream Form</h2>
         </div>
-        <form id="stream-form" class="admin-grid">
+        <form id="stream-form" class="stream-form">
           <input id="stream-id" type="hidden" />
-          <label>
-            <div>Match ID</div>
-            <input id="match-id" class="admin-input" type="number" min="1" required />
-          </label>
-          <label>
-            <div>Label</div>
-            <input id="stream-label" class="admin-input" placeholder="Live stream" />
-          </label>
-          <label class="full">
-            <div>URL (HLS or embed)</div>
-            <input id="stream-url" class="admin-input" placeholder="https://..." required />
-          </label>
-          <label>
-            <div>Channel name</div>
-            <input id="channel-name" class="admin-input" placeholder="Only for playlist URL" />
-          </label>
-          <label>
-            <div>Source</div>
-            <select id="source-type" class="admin-select">
-              <option value="iframe">iframe</option>
-              <option value="hls">hls</option>
-              <option value="videojs">videojs</option>
-            </select>
-          </label>
-          <label>
-            <div>Quality</div>
-            <input id="quality" class="admin-input" value="720p" />
-          </label>
-          <label>
-            <div>Transcode profile</div>
-            <select id="transcode-profile" class="admin-select">
-              <option value="auto">auto</option>
-              <option value="h264_720p25">h264 720p25</option>
-              <option value="h264_1080p25">h264 1080p25</option>
-              <option value="h264_1080p50">h264 1080p50</option>
-            </select>
-          </label>
-          <label>
-            <div>Burn banner</div>
-            <select id="overlay-enabled" class="admin-select">
-              <option value="false">off</option>
-              <option value="true">on</option>
-            </select>
-          </label>
-          <label>
-            <div>Banner image</div>
-            <select id="overlay-image" class="admin-select">
-              <option value="kinglive_player_leaderboard.png">KingLive player</option>
-              <option value="kinglive_banner_1554x192_fixed.png">KingLive wide</option>
-              <option value="kinglive_top_banner_1554x192.png">KingLive top</option>
-              <option value="melbet_top_banner_1554x192.png">Melbet top</option>
-              <option value="melbet_banner_1870x245_safe_player.png">Melbet safe player</option>
-            </select>
-          </label>
-          <label>
-            <div>Banner position</div>
-            <select id="overlay-position" class="admin-select">
-              <option value="top-right">top right</option>
-              <option value="top-center">top center</option>
-              <option value="top-left">top left</option>
-              <option value="center">center</option>
-              <option value="bottom-right">bottom right</option>
-              <option value="bottom-center">bottom center</option>
-              <option value="bottom-left">bottom left</option>
-            </select>
-          </label>
-          <label>
-            <div>Banner width</div>
-            <input id="overlay-width" class="admin-input" type="number" min="80" max="1000" value="420" />
-          </label>
-          <label>
-            <div>Banner margin</div>
-            <input id="overlay-margin" class="admin-input" type="number" min="0" max="200" value="24" />
-          </label>
-          <label>
-            <div>Language</div>
-            <input id="lang" class="admin-input" value="en" />
-          </label>
-          <label>
-            <div>Region</div>
-            <input id="region" class="admin-input" value="global" />
-          </label>
-          <label>
-            <div>Priority</div>
-            <input id="priority" class="admin-input" type="number" value="100" />
-          </label>
-          <label>
-            <div>Active</div>
-            <select id="is-active" class="admin-select">
-              <option value="true">true</option>
-              <option value="false">false</option>
-            </select>
-          </label>
-          <label>
-            <div>Starts at (UTC)</div>
-            <input id="starts-at" class="admin-input" type="datetime-local" />
-          </label>
-          <label>
-            <div>Ends at (UTC)</div>
-            <input id="ends-at" class="admin-input" type="datetime-local" />
-          </label>
-          <div class="full admin-form-actions">
+          <section class="form-panel form-panel-static">
+            <div class="form-panel-title">Basic</div>
+            <div class="form-panel-body admin-grid">
+              <label>
+                <div>Match ID</div>
+                <input id="match-id" class="admin-input" type="number" min="1" required />
+              </label>
+              <label>
+                <div>Label</div>
+                <input id="stream-label" class="admin-input" placeholder="Live stream" />
+              </label>
+              <label class="full">
+                <div>URL (HLS or embed)</div>
+                <input id="stream-url" class="admin-input" placeholder="https://..." required />
+              </label>
+              <label>
+                <div>Source</div>
+                <select id="source-type" class="admin-select">
+                  <option value="iframe">iframe</option>
+                  <option value="hls">hls</option>
+                  <option value="videojs">videojs</option>
+                </select>
+              </label>
+              <label>
+                <div>Active</div>
+                <select id="is-active" class="admin-select">
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <details class="form-panel" data-form-panel="restream">
+            <summary><span class="form-panel-title">Restream settings</span></summary>
+            <div class="form-panel-body admin-grid">
+              <label>
+                <div>Channel name</div>
+                <input id="channel-name" class="admin-input" placeholder="Only for playlist URL" />
+              </label>
+              <label>
+                <div>Quality</div>
+                <input id="quality" class="admin-input" value="720p" />
+              </label>
+              <label>
+                <div>Transcode profile</div>
+                <select id="transcode-profile" class="admin-select">
+                  <option value="auto">auto</option>
+                  <option value="h264_720p25">h264 720p25</option>
+                  <option value="h264_1080p25">h264 1080p25</option>
+                  <option value="h264_1080p50">h264 1080p50</option>
+                </select>
+              </label>
+              <label>
+                <div>Priority</div>
+                <input id="priority" class="admin-input" type="number" value="100" />
+              </label>
+              <label>
+                <div>Language</div>
+                <input id="lang" class="admin-input" value="en" />
+              </label>
+              <label>
+                <div>Region</div>
+                <input id="region" class="admin-input" value="global" />
+              </label>
+            </div>
+          </details>
+
+          <details class="form-panel" data-form-panel="banners">
+            <summary><span class="form-panel-title">Video banners</span></summary>
+            <div class="form-panel-body overlay-slots" aria-label="Video banners">
+            <div class="overlay-slot" data-overlay-slot="1">
+              <label>
+                <div>Banner 1</div>
+                <select id="overlay-enabled-1" class="admin-select">
+                  <option value="false">off</option>
+                  <option value="true">on</option>
+                </select>
+              </label>
+              <label>
+                <div>Image</div>
+                <select id="overlay-image-1" class="admin-select"></select>
+              </label>
+              <label>
+                <div>Position</div>
+                <select id="overlay-position-1" class="admin-select"></select>
+              </label>
+              <label>
+                <div>Width</div>
+                <input id="overlay-width-1" class="admin-input" type="number" min="80" max="1000" value="420" />
+              </label>
+              <label>
+                <div>Margin</div>
+                <input id="overlay-margin-1" class="admin-input" type="number" min="0" max="200" value="24" />
+              </label>
+              <label>
+                <div>X %</div>
+                <input id="overlay-x-1" class="admin-input" type="number" min="0" max="100" value="100" />
+              </label>
+              <label>
+                <div>Y %</div>
+                <input id="overlay-y-1" class="admin-input" type="number" min="0" max="100" value="0" />
+              </label>
+              <div class="overlay-preview" data-overlay-preview="1">
+                <video class="overlay-preview-video" data-overlay-video="1" muted playsinline></video>
+                <div class="overlay-preview-handle" data-overlay-handle="1">
+                  <img class="overlay-preview-image" data-overlay-image-preview="1" alt="" />
+                  <span class="overlay-resize-handle" data-overlay-resize="1" aria-hidden="true"></span>
+                </div>
+              </div>
+            </div>
+            <div class="overlay-slot" data-overlay-slot="2">
+              <label>
+                <div>Banner 2</div>
+                <select id="overlay-enabled-2" class="admin-select">
+                  <option value="false">off</option>
+                  <option value="true">on</option>
+                </select>
+              </label>
+              <label>
+                <div>Image</div>
+                <select id="overlay-image-2" class="admin-select"></select>
+              </label>
+              <label>
+                <div>Position</div>
+                <select id="overlay-position-2" class="admin-select"></select>
+              </label>
+              <label>
+                <div>Width</div>
+                <input id="overlay-width-2" class="admin-input" type="number" min="80" max="1000" value="420" />
+              </label>
+              <label>
+                <div>Margin</div>
+                <input id="overlay-margin-2" class="admin-input" type="number" min="0" max="200" value="24" />
+              </label>
+              <label>
+                <div>X %</div>
+                <input id="overlay-x-2" class="admin-input" type="number" min="0" max="100" value="50" />
+              </label>
+              <label>
+                <div>Y %</div>
+                <input id="overlay-y-2" class="admin-input" type="number" min="0" max="100" value="100" />
+              </label>
+              <div class="overlay-preview" data-overlay-preview="2">
+                <video class="overlay-preview-video" data-overlay-video="2" muted playsinline></video>
+                <div class="overlay-preview-handle" data-overlay-handle="2">
+                  <img class="overlay-preview-image" data-overlay-image-preview="2" alt="" />
+                  <span class="overlay-resize-handle" data-overlay-resize="2" aria-hidden="true"></span>
+                </div>
+              </div>
+            </div>
+            <div class="overlay-slot" data-overlay-slot="3">
+              <label>
+                <div>Banner 3</div>
+                <select id="overlay-enabled-3" class="admin-select">
+                  <option value="false">off</option>
+                  <option value="true">on</option>
+                </select>
+              </label>
+              <label>
+                <div>Image</div>
+                <select id="overlay-image-3" class="admin-select"></select>
+              </label>
+              <label>
+                <div>Position</div>
+                <select id="overlay-position-3" class="admin-select"></select>
+              </label>
+              <label>
+                <div>Width</div>
+                <input id="overlay-width-3" class="admin-input" type="number" min="80" max="1000" value="420" />
+              </label>
+              <label>
+                <div>Margin</div>
+                <input id="overlay-margin-3" class="admin-input" type="number" min="0" max="200" value="24" />
+              </label>
+              <label>
+                <div>X %</div>
+                <input id="overlay-x-3" class="admin-input" type="number" min="0" max="100" value="0" />
+              </label>
+              <label>
+                <div>Y %</div>
+                <input id="overlay-y-3" class="admin-input" type="number" min="0" max="100" value="100" />
+              </label>
+              <div class="overlay-preview" data-overlay-preview="3">
+                <video class="overlay-preview-video" data-overlay-video="3" muted playsinline></video>
+                <div class="overlay-preview-handle" data-overlay-handle="3">
+                  <img class="overlay-preview-image" data-overlay-image-preview="3" alt="" />
+                  <span class="overlay-resize-handle" data-overlay-resize="3" aria-hidden="true"></span>
+                </div>
+              </div>
+            </div>
+            </div>
+          </details>
+
+          <details class="form-panel" data-form-panel="schedule">
+            <summary><span class="form-panel-title">Schedule</span></summary>
+            <div class="form-panel-body admin-grid">
+              <label>
+                <div>Starts at (UTC)</div>
+                <input id="starts-at" class="admin-input" type="datetime-local" />
+              </label>
+              <label>
+                <div>Ends at (UTC)</div>
+                <input id="ends-at" class="admin-input" type="datetime-local" />
+              </label>
+            </div>
+          </details>
+
+          <div class="admin-form-actions">
             <button class="button primary" type="submit">Save stream</button>
             <button class="button secondary" type="button" id="reset-form">Reset</button>
           </div>

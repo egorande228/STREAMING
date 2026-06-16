@@ -33,6 +33,7 @@ window.KINGLIVE_PLAYER_CONFIG = {
   apiBase: unifiedApiBase,
   activeStreamsApiUrl: `${unifiedApiBase}/api/streams/active`,
   streamConfigUrl: './streams.json',
+  allowDirectStreamParams: window.location.hostname === 'player-dev.melteam.org',
   defaultLang: 'en',
   defaultRegion: 'global',
   socialLinksByLang: {

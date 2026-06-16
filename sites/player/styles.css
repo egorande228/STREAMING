@@ -924,15 +924,7 @@ select:focus-visible,
   }
 
   .player-fullscreen-button {
-    right: 10px;
-    bottom: 10px;
-    width: 38px;
-    height: 38px;
-  }
-
-  .stage.stage-videojs .player-fullscreen-button {
-    width: 54px;
-    height: 46px;
+    display: none;
   }
 
   .controls {

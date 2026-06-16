@@ -82,9 +82,7 @@
   function renderTelegramPopup() {
     if (!tgPopup) return;
     const enabled = tgPopupConfig.enabled !== false;
-    const urls = Array.isArray(tgPopupConfig.urls)
-      ? tgPopupConfig.urls.map((item) => String(item || '').trim()).filter(Boolean)
-      : [];
+    const urls = telegramPopupUrls();
     const url = nextTelegramPopupUrl(urls, String(tgPopupConfig.url || '').trim());
     if (!enabled || !url) {
       tgPopup.hidden = true;
@@ -138,6 +136,26 @@
       index = Math.floor(Date.now() / 1000);
     }
     return urls[index % urls.length] || fallbackUrl;
+  }
+
+  function telegramPopupUrls() {
+    const urlsByLang = tgPopupConfig.urlsByLang && typeof tgPopupConfig.urlsByLang === 'object'
+      ? tgPopupConfig.urlsByLang
+      : {};
+    const explicitLangUrls = Array.isArray(urlsByLang[normalizedPreferredLang])
+      ? urlsByLang[normalizedPreferredLang].map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
+    if (explicitLangUrls.length) return explicitLangUrls;
+
+    const socialTelegramUrls = (socialLinksByLang[normalizedPreferredLang] || [])
+      .filter((item) => String(item?.brand || '').toLowerCase() === 'telegram')
+      .map((item) => String(item?.url || '').trim())
+      .filter(Boolean);
+    if (socialTelegramUrls.length) return socialTelegramUrls;
+
+    return Array.isArray(tgPopupConfig.urls)
+      ? tgPopupConfig.urls.map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
   }
 
   function inferType(src, explicitType) {

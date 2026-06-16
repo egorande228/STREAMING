@@ -1024,6 +1024,44 @@ test('rotates Telegram popup channels when tgPopup config is enabled', async () 
   assert.doesNotMatch(result.tgPopup.innerHTML, /kinglive_test/);
 });
 
+test('uses Arabic Telegram channel for Arabic popup language', async () => {
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843&lang=ar',
+    config: {
+      socialLinksByLang: {
+        ar: [
+          { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcup2026arabworld' },
+        ],
+        en: [
+          { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcuplive_international' },
+        ],
+      },
+      tgPopup: {
+        enabled: true,
+        title: 'World Cup Telegram',
+        message: 'Join our Telegram channels.',
+        buttonLabel: 'Open Telegram',
+        urls: ['https://t.me/worldcuplive_international'],
+        delayMs: 0,
+      },
+    },
+    fetchImpl: () =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            home_team: { name_en: 'Arsenal' },
+            away_team: { name_en: 'Atletico Madrid' },
+            streams: [],
+          }),
+      }),
+  });
+
+  assert.equal(result.tgPopup.hidden, false);
+  assert.match(result.tgPopup.innerHTML, /https:\/\/t\.me\/worldcup2026arabworld/);
+  assert.doesNotMatch(result.tgPopup.innerHTML, /worldcuplive_international/);
+});
+
 test('sends stable viewer heartbeat for an active match stream', async () => {
   const requests = [];
   const intervals = [];

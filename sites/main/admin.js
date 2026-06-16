@@ -115,6 +115,7 @@
         image: $(`overlay-image-${slot}`).value,
         position: $(`overlay-position-${slot}`).value,
         width: Number($(`overlay-width-${slot}`).value || 420),
+        height: Number($(`overlay-height-${slot}`).value || 0) || undefined,
         margin: Number($(`overlay-margin-${slot}`).value || 24),
         x_percent: clampPercent($(`overlay-x-${slot}`).value),
         y_percent: clampPercent($(`overlay-y-${slot}`).value),
@@ -159,6 +160,7 @@
       $(`overlay-image-${slot}`).value = overlay.image || 'kinglive_player_leaderboard.png';
       $(`overlay-position-${slot}`).value = overlay.position || defaultOverlayPosition(slot);
       $(`overlay-width-${slot}`).value = String(overlay.width || 420);
+      $(`overlay-height-${slot}`).value = overlay.height ? String(overlay.height) : '';
       $(`overlay-margin-${slot}`).value = String(overlay.margin ?? 24);
       const point = defaultOverlayPoint($(`overlay-position-${slot}`).value);
       $(`overlay-x-${slot}`).value = String(clampPercent(overlay.x_percent ?? point.x));
@@ -188,6 +190,7 @@
       $(`overlay-image-${slot}`).value = 'kinglive_player_leaderboard.png';
       $(`overlay-position-${slot}`).value = defaultOverlayPosition(slot);
       $(`overlay-width-${slot}`).value = '420';
+      $(`overlay-height-${slot}`).value = '';
       $(`overlay-margin-${slot}`).value = '24';
       const point = defaultOverlayPoint($(`overlay-position-${slot}`).value);
       $(`overlay-x-${slot}`).value = String(point.x);
@@ -233,11 +236,13 @@
     const preview = document.querySelector(`[data-overlay-preview="${slot}"]`);
     if (!preview) return;
     const width = Math.min(1000, Math.max(80, Number($(`overlay-width-${slot}`)?.value || 420)));
+    const explicitHeight = Number($(`overlay-height-${slot}`)?.value || 0);
     const previewWidth = Math.min(80, Math.max(1, (width / 1920) * 100));
     const imageId = $(`overlay-image-${slot}`)?.value || '';
     const overlay = overlayCatalog.find((item) => item.id === imageId);
     const aspectRatio = Number(overlay?.aspect_ratio || 0) || 6;
-    const previewHeight = Math.max(1, (width / aspectRatio / 1080) * 100);
+    const height = explicitHeight > 0 ? Math.min(1000, Math.max(20, explicitHeight)) : Math.round(width / aspectRatio);
+    const previewHeight = Math.max(1, (height / 1080) * 100);
     const image = document.querySelector(`[data-overlay-image-preview="${slot}"]`);
     if (image) {
       const src = overlayPreviewSrc(overlay);
@@ -303,16 +308,20 @@
     updateOverlayPreview(slot);
   }
 
-  function resizeOverlayPreview(slot, clientX) {
+  function resizeOverlayPreview(slot, clientX, clientY) {
     const preview = document.querySelector(`[data-overlay-preview="${slot}"]`);
     const handle = document.querySelector(`[data-overlay-handle="${slot}"]`);
     const widthInput = $(`overlay-width-${slot}`);
-    if (!preview || !handle || !widthInput) return;
+    const heightInput = $(`overlay-height-${slot}`);
+    if (!preview || !handle || !widthInput || !heightInput) return;
     const previewRect = preview.getBoundingClientRect();
     const handleRect = handle.getBoundingClientRect();
     const nextWidthPx = Math.max(16, clientX - handleRect.left);
+    const nextHeightPx = Math.max(8, clientY - handleRect.top);
     const width = Math.round((nextWidthPx / previewRect.width) * 1920);
+    const height = Math.round((nextHeightPx / previewRect.height) * 1080);
     widthInput.value = String(Math.min(1000, Math.max(80, width)));
+    heightInput.value = String(Math.min(1000, Math.max(20, height)));
     updateOverlayPreview(slot);
   }
 
@@ -321,6 +330,7 @@
       const position = $(`overlay-position-${slot}`);
       const imageSelect = $(`overlay-image-${slot}`);
       const width = $(`overlay-width-${slot}`);
+      const height = $(`overlay-height-${slot}`);
       const x = $(`overlay-x-${slot}`);
       const y = $(`overlay-y-${slot}`);
       const preview = document.querySelector(`[data-overlay-preview="${slot}"]`);
@@ -333,7 +343,7 @@
           updateOverlayPreview(slot);
         });
       }
-      [width, x, y].forEach((input) => {
+      [width, height, x, y].forEach((input) => {
         if (input) input.addEventListener('input', () => updateOverlayPreview(slot));
       });
       if (imageSelect) imageSelect.addEventListener('change', () => updateOverlayPreview(slot));
@@ -356,10 +366,10 @@
           event.preventDefault();
           event.stopPropagation();
           resize.setPointerCapture?.(event.pointerId);
-          resizeOverlayPreview(slot, event.clientX);
+          resizeOverlayPreview(slot, event.clientX, event.clientY);
           const onMove = (moveEvent) => {
             moveEvent.preventDefault();
-            resizeOverlayPreview(slot, moveEvent.clientX);
+            resizeOverlayPreview(slot, moveEvent.clientX, moveEvent.clientY);
           };
           const onDone = () => {
             window.removeEventListener('pointermove', onMove);
@@ -444,7 +454,8 @@
                 const point = Number.isFinite(Number(overlay.x_percent)) && Number.isFinite(Number(overlay.y_percent))
                   ? ` x${escapeHtml(overlay.x_percent)} y${escapeHtml(overlay.y_percent)}`
                   : '';
-                return `${escapeHtml(overlay.image || 'banner')}<br/>${escapeHtml(overlay.position || 'top-right')} ${escapeHtml(overlay.width || 420)}px${point}`;
+                const size = overlay.height ? `${overlay.width || 420}x${overlay.height}` : `${overlay.width || 420}px`;
+                return `${escapeHtml(overlay.image || 'banner')}<br/>${escapeHtml(overlay.position || 'top-right')} ${escapeHtml(size)}${point}`;
               })
               .join('<br/>')
             : '';

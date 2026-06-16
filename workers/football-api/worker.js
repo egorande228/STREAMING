@@ -1550,6 +1550,9 @@ function normalizeRestreamOverlay(value) {
     image,
     position: normalizeOverlayPosition(value.position),
     width: clampInteger(value.width, 80, 1000, 420),
+    ...(clampOptionalInteger(value.height, 20, 1000) !== null
+      ? { height: clampOptionalInteger(value.height, 20, 1000) }
+      : {}),
     margin: clampInteger(value.margin, 0, 200, 24),
     ...(clampOptionalInteger(value.x_percent, 0, 100) !== null
       ? { x_percent: clampOptionalInteger(value.x_percent, 0, 100) }

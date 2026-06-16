@@ -21,6 +21,7 @@ test('renders a restream transcode profile into the channel env', () => {
       image: 'kinglive_player_leaderboard.png',
       position: 'top-right',
       width: 420,
+      height: 120,
       margin: 24,
       x_percent: 72,
       y_percent: 35,
@@ -34,6 +35,7 @@ test('renders a restream transcode profile into the channel env', () => {
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_IMAGE='kinglive_player_leaderboard\.png'/);
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_POSITION='top-right'/);
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_WIDTH='420'/);
+  assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_HEIGHT='120'/);
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_MARGIN='24'/);
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_X_PERCENT='72'/);
   assert.match(renderEnvFile(item), /RESTREAM_OVERLAY_Y_PERCENT='35'/);
@@ -59,6 +61,7 @@ test('renders multiple restream overlays into numbered env values', () => {
         image: 'kinglive_top_banner_1554x192.png',
         position: 'bottom-center',
         width: 640,
+        height: 80,
         margin: 18,
       },
     ],
@@ -72,6 +75,7 @@ test('renders multiple restream overlays into numbered env values', () => {
   assert.match(envFile, /RESTREAM_OVERLAY_2_IMAGE='kinglive_top_banner_1554x192\.png'/);
   assert.match(envFile, /RESTREAM_OVERLAY_2_POSITION='bottom-center'/);
   assert.match(envFile, /RESTREAM_OVERLAY_2_WIDTH='640'/);
+  assert.match(envFile, /RESTREAM_OVERLAY_2_HEIGHT='80'/);
   assert.match(envFile, /RESTREAM_OVERLAY_2_MARGIN='18'/);
 });
 

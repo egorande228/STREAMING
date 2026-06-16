@@ -137,6 +137,7 @@ export function renderEnvFile(item) {
           `RESTREAM_OVERLAY_DIR=${shellQuote(item.overlayDir || DEFAULT_OVERLAY_DIR)}`,
           `RESTREAM_OVERLAY_POSITION=${shellQuote(item.overlay.position)}`,
           `RESTREAM_OVERLAY_WIDTH=${shellQuote(String(item.overlay.width))}`,
+          ...(Number.isFinite(item.overlay.height) ? [`RESTREAM_OVERLAY_HEIGHT=${shellQuote(String(item.overlay.height))}`] : []),
           `RESTREAM_OVERLAY_MARGIN=${shellQuote(String(item.overlay.margin))}`,
           ...(Number.isFinite(item.overlay.xPercent) ? [`RESTREAM_OVERLAY_X_PERCENT=${shellQuote(String(item.overlay.xPercent))}`] : []),
           ...(Number.isFinite(item.overlay.yPercent) ? [`RESTREAM_OVERLAY_Y_PERCENT=${shellQuote(String(item.overlay.yPercent))}`] : []),
@@ -147,6 +148,7 @@ export function renderEnvFile(item) {
               `RESTREAM_OVERLAY_${slot}_IMAGE=${shellQuote(overlay.image)}`,
               `RESTREAM_OVERLAY_${slot}_POSITION=${shellQuote(overlay.position)}`,
               `RESTREAM_OVERLAY_${slot}_WIDTH=${shellQuote(String(overlay.width))}`,
+              ...(Number.isFinite(overlay.height) ? [`RESTREAM_OVERLAY_${slot}_HEIGHT=${shellQuote(String(overlay.height))}`] : []),
               `RESTREAM_OVERLAY_${slot}_MARGIN=${shellQuote(String(overlay.margin))}`,
               ...(Number.isFinite(overlay.xPercent) ? [`RESTREAM_OVERLAY_${slot}_X_PERCENT=${shellQuote(String(overlay.xPercent))}`] : []),
               ...(Number.isFinite(overlay.yPercent) ? [`RESTREAM_OVERLAY_${slot}_Y_PERCENT=${shellQuote(String(overlay.yPercent))}`] : []),
@@ -467,6 +469,9 @@ function normalizeOverlay(value) {
     image,
     position: normalizeOverlayPosition(value.position),
     width: clampInteger(value.width, 80, 1000, 420),
+    ...(clampOptionalInteger(value.height, 20, 1000) !== null
+      ? { height: clampOptionalInteger(value.height, 20, 1000) }
+      : {}),
     margin: clampInteger(value.margin, 0, 200, 24),
     ...(clampOptionalInteger(value.x_percent ?? value.xPercent, 0, 100) !== null
       ? { xPercent: clampOptionalInteger(value.x_percent ?? value.xPercent, 0, 100) }

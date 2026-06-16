@@ -2053,6 +2053,7 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
               image: 'kinglive_top_banner_1554x192.png',
               position: 'bottom-center',
               width: 640,
+              height: 80,
               margin: 20,
             },
           ],
@@ -2098,6 +2099,7 @@ test('converts hls.gd IPTV donor streams into private restream definitions', asy
     image: 'kinglive_top_banner_1554x192.png',
     position: 'bottom-center',
     width: 640,
+    height: 80,
     margin: 20,
   });
 });
@@ -2153,6 +2155,7 @@ test('admin saves multiple restream banners from overlays payload', async () => 
               image: 'melbet_banner_1870x245_safe_player.png',
               position: 'bottom-center',
               width: 600,
+              height: 140,
               margin: 18,
             },
           ],
@@ -2179,6 +2182,7 @@ test('admin saves multiple restream banners from overlays payload', async () => 
     image: 'melbet_banner_1870x245_safe_player.png',
     position: 'bottom-center',
     width: 600,
+    height: 140,
     margin: 18,
   });
 });

@@ -146,7 +146,7 @@
 }
 .overlay-slot {
   display: grid;
-  grid-template-columns: 80px minmax(150px, 1.3fr) minmax(120px, 1fr) 90px 90px 80px 80px;
+  grid-template-columns: 80px minmax(150px, 1.3fr) minmax(120px, 1fr) 90px 90px 90px 80px 80px;
   gap: 8px;
   align-items: end;
   padding: 10px;

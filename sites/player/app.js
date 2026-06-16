@@ -707,10 +707,10 @@
               xhr.withCredentials = true;
             }
           : undefined,
-        liveSyncDurationCount: 2,
+        liveSyncDurationCount: 3,
         liveMaxLatencyDurationCount: 5,
         backBufferLength: 30,
-        maxBufferLength: 20,
+        maxBufferLength: 30,
       });
       hls.loadSource(playbackUrl);
       hls.attachMedia(video);

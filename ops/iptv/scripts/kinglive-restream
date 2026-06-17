@@ -233,7 +233,7 @@ if [[ "$overlay_enabled" == "true" ]]; then
       esac
     fi
     scale_height="${overlay_heights[$i]:--1}"
-    extra_inputs+=(-loop 1 -i "${overlay_paths[$i]}")
+    extra_inputs+=(-loop 1 -framerate 1 -i "${overlay_paths[$i]}")
     filter_complex+=";[${input_index}:v]scale=${overlay_widths[$i]}:${scale_height}[ov${i}];[${input_label}][ov${i}]overlay=${overlay_x}:${overlay_y}:format=auto[${output_label}]"
   done
   filter_args=(-filter_complex "$filter_complex")

@@ -482,6 +482,7 @@ html[dir="rtl"] .locale-menu {
   min-height: 44px;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   border: 1px solid var(--line);
   border-radius: 6px;
   cursor: pointer;
@@ -857,11 +858,46 @@ html[dir="rtl"] .locale-menu {
   gap: 8px;
 }
 
+.stream-entry.match-stream-buttons,
+.stream-entry.detail-streams {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.stream-entry-label {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  gap: 7px;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.stream-entry-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--red);
+  box-shadow: 0 0 0 5px rgba(255, 87, 87, 0.14);
+}
+
+.stream-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .match-stream-button {
-  min-height: 32px;
-  padding: 0 12px;
+  min-height: 40px;
+  padding: 0 14px;
   position: relative;
   z-index: 1;
+  font-size: 11px;
 }
 
 .match-status {
@@ -2295,6 +2331,8 @@ html[dir="rtl"] .social-dock {
 
 .detail-stream {
   margin-top: 0;
+  min-height: 46px;
+  padding-inline: 18px;
 }
 
 .detail-sponsor {
@@ -2807,6 +2845,18 @@ html[dir="rtl"] .social-dock {
 
   .detail-meta-lines {
     grid-template-columns: 1fr;
+  }
+
+  .stream-entry.match-stream-buttons,
+  .stream-entry.detail-streams,
+  .stream-entry-actions,
+  .stream-button {
+    width: 100%;
+  }
+
+  .stream-entry.match-stream-buttons,
+  .stream-entry.detail-streams {
+    justify-items: stretch;
   }
 
   .formation-grid {

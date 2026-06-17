@@ -72,6 +72,8 @@
       stage: 'Stage',
       updatedAt: 'Updated',
       watchStream: 'Open player',
+      liveStreamTitle: 'Live stream',
+      watchInLanguage: 'Watch in',
       sponsored: 'Sponsored',
       status_live: 'live',
       status_half_time: 'half time',
@@ -141,6 +143,8 @@
       stage: 'Fase',
       updatedAt: 'Actualizado',
       watchStream: 'Abrir player',
+      liveStreamTitle: 'Transmisión en vivo',
+      watchInLanguage: 'Ver en',
       status_live: 'en vivo',
       status_half_time: 'descanso',
       status_scheduled: 'programado',
@@ -209,6 +213,8 @@
       stage: 'Phase',
       updatedAt: 'Mis à jour',
       watchStream: 'Ouvrir le player',
+      liveStreamTitle: 'Stream en direct',
+      watchInLanguage: 'Regarder en',
       status_live: 'en direct',
       status_half_time: 'mi-temps',
       status_scheduled: 'programmé',
@@ -277,6 +283,8 @@
       stage: 'المرحلة',
       updatedAt: 'آخر تحديث',
       watchStream: 'فتح المشغل',
+      liveStreamTitle: 'البث المباشر',
+      watchInLanguage: 'شاهد باللغة',
       status_live: 'مباشر',
       status_half_time: 'استراحة',
       status_scheduled: 'مجدولة',
@@ -348,6 +356,8 @@
       stage: 'Шат',
       updatedAt: 'Шинэчлэгдсэн',
       watchStream: 'Тоглуулагч нээх',
+      liveStreamTitle: 'Шууд дамжуулалт',
+      watchInLanguage: 'Үзэх хэл',
       sponsored: 'Ивээн тэтгэсэн',
       status_live: 'шууд',
       status_half_time: 'завсарлага',
@@ -907,27 +917,39 @@
     const buttonClass = options.buttonClass || '';
     if (streams.length) {
       return `
-        <div class="${escapeHtml(groupClass)}" aria-label="${escapeHtml(t('watchStream'))}">
-          ${streams
-            .map((stream, index) => {
-              const lang = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
-              const source = stream.id || stream.label || stream.source_type || stream.sourceType || '';
-              const href = playerUrl({
-                match: match.id,
-                title,
-                lang,
-                source,
-                src: stream.url,
-                type: stream.source_type || stream.sourceType || inferStreamType(stream.url),
-              });
-              return `<a class="stream-button ${escapeHtml(buttonClass)}" href="${href}">${escapeHtml(streamLanguageLabel(stream, index))}</a>`;
-            })
-            .join('')}
+        <div class="stream-entry ${escapeHtml(groupClass)}" aria-label="${escapeHtml(t('liveStreamTitle'))}">
+          <div class="stream-entry-label"><span class="stream-entry-dot" aria-hidden="true"></span>${escapeHtml(t('liveStreamTitle'))}</div>
+          <div class="stream-entry-actions">
+            ${streams
+              .map((stream, index) => {
+                const lang = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
+                const source = stream.id || stream.label || stream.source_type || stream.sourceType || '';
+                const href = playerUrl({
+                  match: match.id,
+                  title,
+                  lang,
+                  source,
+                  src: stream.url,
+                  type: stream.source_type || stream.sourceType || inferStreamType(stream.url),
+                });
+                const hasLanguageLabel = Boolean(lang || stream.language_code || stream.languageCode || stream.lang || stream.label);
+                const label = hasLanguageLabel ? `${t('watchInLanguage')} ${streamLanguageLabel(stream, index)}` : t('watchStream');
+                return `<a class="stream-button ${escapeHtml(buttonClass)}" href="${href}"><span aria-hidden="true">▶</span>${escapeHtml(label)}</a>`;
+              })
+              .join('')}
+          </div>
         </div>
       `;
     }
     if (!streamEnabledForMatch(match)) return '';
-    return `<a class="stream-button ${escapeHtml(buttonClass)}" href="${playerUrl({ match: match.id, title })}">${escapeHtml(t('watchStream'))}</a>`;
+    return `
+      <div class="stream-entry ${escapeHtml(groupClass)}" aria-label="${escapeHtml(t('liveStreamTitle'))}">
+        <div class="stream-entry-label"><span class="stream-entry-dot" aria-hidden="true"></span>${escapeHtml(t('liveStreamTitle'))}</div>
+        <div class="stream-entry-actions">
+          <a class="stream-button ${escapeHtml(buttonClass)}" href="${playerUrl({ match: match.id, title })}"><span aria-hidden="true">▶</span>${escapeHtml(t('watchStream'))}</a>
+        </div>
+      </div>
+    `;
   }
 
   function setupActiveNav() {

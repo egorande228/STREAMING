@@ -869,8 +869,8 @@ html[dir="rtl"] .locale-menu {
 
 .stream-entry.match-stream-buttons {
   display: grid;
-  grid-column: 2 / 3;
-  width: min(100%, 680px);
+  grid-column: 1 / -1;
+  width: 100%;
   justify-self: center;
   justify-items: center;
   gap: 10px;
@@ -895,8 +895,10 @@ html[dir="rtl"] .locale-menu {
 
 .stream-entry-label {
   display: inline-flex;
+  justify-self: center;
   min-height: 22px;
   align-items: center;
+  justify-content: center;
   gap: 7px;
   color: var(--gold);
   font-size: 11px;
@@ -916,7 +918,7 @@ html[dir="rtl"] .locale-menu {
 .stream-entry-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 8px;
 }
 

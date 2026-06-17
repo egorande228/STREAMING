@@ -1745,8 +1745,9 @@
         const isFinished = status === 'finished';
         const badgeClass = statusBadgeClass(displayStatus);
         const centerLabel = isFinished ? `${match.home_score ?? 0} : ${match.away_score ?? 0}` : 'vs';
+        const hasStreams = displayStreamsForMatch(match).length > 0;
         return `
-          <article class="match-card" data-match-id="${escapeHtml(match.id)}" role="button" tabindex="0">
+          <article class="match-card${hasStreams ? ' has-streams' : ''}" data-match-id="${escapeHtml(match.id)}" role="button" tabindex="0">
             <div class="match-time">
               <span>${escapeHtml(formatDate(match.scheduled_at))}</span>
               <small>${escapeHtml(leagueName(match))}</small>
@@ -1757,13 +1758,13 @@
                 <span class="match-vs${isFinished ? ' match-score' : ''}">${escapeHtml(centerLabel)}</span>
                 <span class="team-side">${renderTeamLogo(match.away_team, away)}<span>${escapeHtml(away)}</span></span>
               </div>
-              ${renderStreamButtons(match, title, { groupClass: 'match-stream-buttons', buttonClass: 'match-stream-button' })}
               <div class="match-title">${escapeHtml(title)}</div>
               <div class="match-meta">${escapeHtml(stageName(match))}</div>
             </div>
             <div class="match-actions">
               <div class="match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</div>
             </div>
+            ${renderStreamButtons(match, title, { groupClass: 'match-stream-buttons', buttonClass: 'match-stream-button' })}
           </article>
         `;
       });

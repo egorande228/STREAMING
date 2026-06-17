@@ -705,6 +705,13 @@ html[dir="rtl"] .locale-menu {
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
+.match-card.has-streams {
+  align-items: stretch;
+  gap: 14px var(--space-4);
+  min-height: 148px;
+  padding-bottom: 14px;
+}
+
 .match-card::before {
   content: "";
   position: absolute;
@@ -862,12 +869,19 @@ html[dir="rtl"] .locale-menu {
 
 .stream-entry.match-stream-buttons {
   display: grid;
-  width: min(100%, 560px);
+  grid-column: 1 / -1;
+  width: 100%;
   justify-self: center;
   justify-items: center;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 10px;
+  margin-top: 2px;
   margin-inline: auto;
+  padding: 14px 16px 16px;
+  border: 1px solid rgba(245, 196, 0, 0.16);
+  border-radius: 7px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(245, 196, 0, 0.13), transparent 38%),
+    rgba(245, 196, 0, 0.055);
   text-align: center;
 }
 
@@ -911,7 +925,8 @@ html[dir="rtl"] .locale-menu {
 
 .match-stream-button {
   min-height: 40px;
-  padding: 0 14px;
+  min-width: 166px;
+  padding: 0 18px;
   position: relative;
   z-index: 1;
   font-size: 11px;
@@ -2712,6 +2727,11 @@ html[dir="rtl"] .social-dock {
     padding: 15px;
   }
 
+  .match-card.has-streams {
+    min-height: 0;
+    padding-bottom: 15px;
+  }
+
   .match-time {
     grid-template-columns: 1fr;
   }
@@ -2741,6 +2761,11 @@ html[dir="rtl"] .social-dock {
 
   .match-actions {
     justify-items: start;
+  }
+
+  .stream-entry.match-stream-buttons {
+    margin-top: 0;
+    padding: 12px;
   }
 
   .news-grid {

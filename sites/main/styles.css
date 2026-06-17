@@ -1147,6 +1147,34 @@ html[dir="rtl"] .locale-menu {
   padding: 28px 34px;
 }
 
+.follow-partner-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: 22px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(245, 196, 0, 0.2);
+}
+
+.follow-partner-cta[hidden] {
+  display: none;
+}
+
+.follow-partner-cta p {
+  max-width: 680px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3vw, 34px);
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.follow-partner-button {
+  flex: 0 0 auto;
+}
+
 .follow-note {
   max-width: 760px;
   margin-top: 12px;
@@ -2594,8 +2622,14 @@ html[dir="rtl"] .social-dock {
     gap: var(--space-3);
   }
 
+  .follow-partner-cta {
+    display: grid;
+    gap: var(--space-3);
+  }
+
   .refresh-button,
-  .follow-band .button {
+  .follow-band .button,
+  .follow-partner-button {
     width: 100%;
   }
 

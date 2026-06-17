@@ -304,6 +304,9 @@
       newsKicker: 'Хөлбөмбөгийн хэмнэл',
       newsTitlePrefix: 'Сүүлийн',
       newsTitleAccent: 'мэдээ',
+      followPartnerText: 'MELBET-н партнерийн сүлжээтэй хамтран ажиллаад орлого олоорой',
+      followPartnerButton: 'Нэгдэх',
+      followPartnerUrl: 'https://t.me/mongolia_partner_bot',
       followBandKicker: 'Хууль эрх зүйн мэдэгдэл',
       followBandTitle: 'Бие даасан мэдээллийн сайт',
       followBandDisclaimer: 'KingLive нь бие даан ажилладаг бөгөөд Melbet-тэй холбоогүй, дэмжигдээгүй, тэдгээрийн ажиллуулдаг сайт биш. Энэ сайтад харагдах аливаа барааны тэмдэг, брэндийн нэр, лого, сурталчилгаа болон гуравдагч талын материал нь тухайн эзэмшигчдийн өмч хэвээр байна.',
@@ -794,6 +797,14 @@
     setText('news-kicker', t('newsKicker'));
     setText('news-title-prefix', t('newsTitlePrefix'));
     setText('news-title-accent', t('newsTitleAccent'));
+    const partnerCta = document.getElementById('follow-partner-cta');
+    const partnerLink = document.getElementById('follow-partner-link');
+    if (partnerCta) partnerCta.hidden = uiLocale !== 'mn';
+    if (uiLocale === 'mn') {
+      setText('follow-partner-text', t('followPartnerText'));
+      setText('follow-partner-link', t('followPartnerButton'));
+      if (partnerLink) partnerLink.href = t('followPartnerUrl');
+    }
     setText('follow-band-kicker', t('followBandKicker'));
     setText('follow-band-title', t('followBandTitle'));
     setText('follow-band-disclaimer', t('followBandDisclaimer'));

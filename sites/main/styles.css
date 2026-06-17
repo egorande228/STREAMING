@@ -749,6 +749,8 @@ html[dir="rtl"] .locale-menu {
 }
 
 .match-main {
+  display: grid;
+  justify-items: stretch;
   min-width: 0;
 }
 
@@ -860,10 +862,13 @@ html[dir="rtl"] .locale-menu {
 
 .stream-entry.match-stream-buttons {
   display: grid;
+  width: min(100%, 560px);
+  justify-self: center;
   justify-items: center;
   gap: 8px;
   margin-top: 10px;
   margin-inline: auto;
+  text-align: center;
 }
 
 .stream-entry.detail-streams {
@@ -900,6 +905,7 @@ html[dir="rtl"] .locale-menu {
 }
 
 .match-stream-buttons .stream-entry-actions {
+  width: 100%;
   justify-content: center;
 }
 
@@ -2341,16 +2347,19 @@ html[dir="rtl"] .social-dock {
 }
 
 .detail-actions-top {
-  justify-content: center;
+  display: grid;
+  justify-items: center;
+  justify-content: stretch;
   margin-top: 14px;
   margin-bottom: 14px;
 }
 
 .detail-actions-top .detail-streams {
-  width: 100%;
+  width: min(100%, 620px);
 }
 
 .detail-actions-top .stream-entry-actions {
+  width: 100%;
   justify-content: center;
 }
 

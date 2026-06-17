@@ -1759,10 +1759,10 @@
               </div>
               <div class="match-title">${escapeHtml(title)}</div>
               <div class="match-meta">${escapeHtml(stageName(match))}</div>
+              ${renderStreamButtons(match, title, { groupClass: 'match-stream-buttons', buttonClass: 'match-stream-button' })}
             </div>
             <div class="match-actions">
               <div class="match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</div>
-              ${renderStreamButtons(match, title, { groupClass: 'match-stream-buttons', buttonClass: 'match-stream-button' })}
             </div>
           </article>
         `;

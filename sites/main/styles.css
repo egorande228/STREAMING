@@ -706,6 +706,7 @@ html[dir="rtl"] .locale-menu {
 }
 
 .match-card.has-streams {
+  grid-template-columns: 138px minmax(0, 1fr) 92px;
   align-items: stretch;
   gap: 14px var(--space-4);
   min-height: 148px;
@@ -870,7 +871,8 @@ html[dir="rtl"] .locale-menu {
 .stream-entry.match-stream-buttons {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 138px minmax(0, 1fr) 92px;
+  column-gap: var(--space-4);
   width: 100%;
   justify-content: stretch;
   justify-self: center;
@@ -926,6 +928,7 @@ html[dir="rtl"] .locale-menu {
 
 .match-stream-buttons .stream-entry-actions {
   display: grid;
+  grid-column: 2;
   grid-template-columns: repeat(3, minmax(0, 180px));
   width: min(100%, 572px);
   justify-content: center;
@@ -933,6 +936,7 @@ html[dir="rtl"] .locale-menu {
 
 .match-stream-buttons .stream-entry-label {
   display: grid;
+  grid-column: 2;
   grid-template-columns: 8px auto 8px;
   column-gap: 7px;
   width: min(100%, 572px);
@@ -2752,6 +2756,7 @@ html[dir="rtl"] .social-dock {
   }
 
   .match-card.has-streams {
+    grid-template-columns: 1fr;
     min-height: 0;
     padding-bottom: 15px;
   }
@@ -2941,10 +2946,13 @@ html[dir="rtl"] .social-dock {
 
   .stream-entry.match-stream-buttons,
   .stream-entry.detail-streams {
+    grid-template-columns: 1fr;
     justify-items: stretch;
   }
 
+  .match-stream-buttons .stream-entry-label,
   .match-stream-buttons .stream-entry-actions {
+    grid-column: 1;
     grid-template-columns: 1fr;
     width: 100%;
   }

@@ -1757,9 +1757,9 @@
                 <span class="match-vs${isFinished ? ' match-score' : ''}">${escapeHtml(centerLabel)}</span>
                 <span class="team-side">${renderTeamLogo(match.away_team, away)}<span>${escapeHtml(away)}</span></span>
               </div>
+              ${renderStreamButtons(match, title, { groupClass: 'match-stream-buttons', buttonClass: 'match-stream-button' })}
               <div class="match-title">${escapeHtml(title)}</div>
               <div class="match-meta">${escapeHtml(stageName(match))}</div>
-              ${renderStreamButtons(match, title, { groupClass: 'match-stream-buttons', buttonClass: 'match-stream-button' })}
             </div>
             <div class="match-actions">
               <div class="match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</div>

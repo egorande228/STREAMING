@@ -860,9 +860,10 @@ html[dir="rtl"] .locale-menu {
 
 .stream-entry.match-stream-buttons {
   display: grid;
-  justify-items: start;
+  justify-items: center;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 10px;
+  margin-inline: auto;
 }
 
 .stream-entry.detail-streams {
@@ -899,7 +900,7 @@ html[dir="rtl"] .locale-menu {
 }
 
 .match-stream-buttons .stream-entry-actions {
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .match-stream-button {

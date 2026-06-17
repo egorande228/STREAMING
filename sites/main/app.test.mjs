@@ -1544,6 +1544,8 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /detail-score-venue/);
   assert.match(modalHtml, /<div class="detail-score">1 : 0<\/div>/);
   assert.match(modalHtml, /Possession 61% - 39%/);
+  assert.ok(modalHtml.indexOf('Live stream') > -1);
+  assert.ok(modalHtml.indexOf('Live stream') < modalHtml.indexOf('MelBet odds'));
   assert.match(modalHtml, /MelBet odds/);
   assert.match(modalHtml, /<details class="detail-accordion odds-accordion" open>/);
   assert.match(modalHtml, /Fulltime Result/);

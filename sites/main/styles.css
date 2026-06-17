@@ -2329,6 +2329,16 @@ html[dir="rtl"] .social-dock {
   gap: 10px;
 }
 
+.detail-actions-top {
+  justify-content: stretch;
+  margin-top: 14px;
+  margin-bottom: 14px;
+}
+
+.detail-actions-top .detail-streams {
+  width: 100%;
+}
+
 .detail-stream {
   margin-top: 0;
   min-height: 46px;

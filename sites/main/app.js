@@ -1952,6 +1952,9 @@
           </div>
         </div>
         ${liveStatusBar}
+        <div class="detail-actions detail-actions-top">
+          ${renderStreamButtons(match, title, { groupClass: 'detail-streams', buttonClass: 'detail-stream' })}
+        </div>
         ${renderMelbetOdds(matchStats, home, away)}
         ${prematchPanel}
         <div class="match-stats detail-meta-lines">
@@ -1964,9 +1967,6 @@
         ${renderMatchDetailPanels(matchStats)}
         <div class="detail-footer">
           <div class="match-meta">${escapeHtml(t('updatedAt'))}: ${escapeHtml(formatDate(new Date().toISOString()))}</div>
-          <div class="detail-actions">
-            ${renderStreamButtons(match, title, { groupClass: 'detail-streams', buttonClass: 'detail-stream' })}
-          </div>
         </div>
         ${sponsorLink(`
         <aside class="detail-sponsor sponsor-slot" aria-label="${escapeHtml(t('sponsored'))}">

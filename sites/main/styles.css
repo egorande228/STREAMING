@@ -869,8 +869,8 @@ html[dir="rtl"] .locale-menu {
 
 .stream-entry.match-stream-buttons {
   display: grid;
-  grid-column: 1 / -1;
-  width: 100%;
+  grid-column: 2 / 3;
+  width: min(100%, 680px);
   justify-self: center;
   justify-items: center;
   gap: 10px;
@@ -887,8 +887,10 @@ html[dir="rtl"] .locale-menu {
 
 .stream-entry.detail-streams {
   display: grid;
+  justify-self: center;
   justify-items: center;
   gap: 8px;
+  text-align: center;
 }
 
 .stream-entry-label {
@@ -2364,13 +2366,15 @@ html[dir="rtl"] .social-dock {
 .detail-actions-top {
   display: grid;
   justify-items: center;
-  justify-content: stretch;
+  justify-content: center;
   margin-top: 14px;
   margin-bottom: 14px;
+  text-align: center;
 }
 
 .detail-actions-top .detail-streams {
   width: min(100%, 620px);
+  margin-inline: auto;
 }
 
 .detail-actions-top .stream-entry-actions {
@@ -2764,6 +2768,8 @@ html[dir="rtl"] .social-dock {
   }
 
   .stream-entry.match-stream-buttons {
+    grid-column: 1 / -1;
+    width: 100%;
     margin-top: 0;
     padding: 12px;
   }

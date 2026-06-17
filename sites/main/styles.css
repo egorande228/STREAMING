@@ -870,7 +870,9 @@ html[dir="rtl"] .locale-menu {
 .stream-entry.match-stream-buttons {
   display: grid;
   grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr);
   width: 100%;
+  justify-content: stretch;
   justify-self: center;
   justify-items: center;
   gap: 10px;
@@ -923,13 +925,29 @@ html[dir="rtl"] .locale-menu {
 }
 
 .match-stream-buttons .stream-entry-actions {
-  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 180px));
+  width: min(100%, 572px);
   justify-content: center;
+}
+
+.match-stream-buttons .stream-entry-label {
+  display: grid;
+  grid-template-columns: 8px auto 8px;
+  column-gap: 7px;
+  width: min(100%, 572px);
+}
+
+.match-stream-buttons .stream-entry-label::after {
+  content: "";
+  width: 8px;
+  height: 8px;
 }
 
 .match-stream-button {
   min-height: 40px;
-  min-width: 166px;
+  width: 100%;
+  min-width: 0;
   padding: 0 18px;
   position: relative;
   z-index: 1;
@@ -2924,6 +2942,11 @@ html[dir="rtl"] .social-dock {
   .stream-entry.match-stream-buttons,
   .stream-entry.detail-streams {
     justify-items: stretch;
+  }
+
+  .match-stream-buttons .stream-entry-actions {
+    grid-template-columns: 1fr;
+    width: 100%;
   }
 
   .formation-grid {

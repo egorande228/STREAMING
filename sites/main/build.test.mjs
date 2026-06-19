@@ -86,4 +86,10 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
   const styles = readFileSync(new URL('./dist/styles.css', import.meta.url), 'utf8');
   assert.match(styles, /\.__fq-trigger/);
   assert.match(styles, /position:\s*fixed\s*!important/);
+  assert.match(styles, /\.__fq-overlay/);
+  assert.match(styles, /pointer-events:\s*none\s*!important/);
+  assert.match(styles, /\.__fq-modal/);
+  assert.match(styles, /pointer-events:\s*auto\s*!important/);
+  assert.match(styles, /body:has\(\.__fq-overlay\.--open\)/);
+  assert.match(styles, /overflow:\s*auto\s*!important/);
 });

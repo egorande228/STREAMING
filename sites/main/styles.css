@@ -1328,6 +1328,49 @@ html[dir="rtl"] .__fq-trigger {
   left: auto !important;
 }
 
+body:has(.__fq-overlay.--open) {
+  overflow: auto !important;
+}
+
+.__fq-overlay {
+  inset: auto auto 84px 22px !important;
+  width: min(440px, calc(100vw - 44px)) !important;
+  height: min(620px, calc(100svh - 124px)) !important;
+  z-index: 76 !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  background: transparent !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+html[dir="rtl"] .__fq-overlay {
+  right: 22px !important;
+  left: auto !important;
+}
+
+.__fq-modal {
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  max-height: none !important;
+  border: 1px solid rgba(245, 196, 0, 0.36) !important;
+  border-radius: 8px !important;
+  background: rgba(3, 4, 3, 0.98) !important;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.5) !important;
+  pointer-events: auto !important;
+}
+
+.__fq-iframe {
+  border-radius: 8px !important;
+}
+
+.__fq-close {
+  top: 8px !important;
+  right: 8px !important;
+  position: absolute !important;
+}
+
 .social-dock {
   position: fixed;
   right: 22px;
@@ -2863,6 +2906,17 @@ html[dir="rtl"] .social-dock {
   }
 
   html[dir="rtl"] .__fq-trigger {
+    right: 12px !important;
+    left: auto !important;
+  }
+
+  .__fq-overlay {
+    inset: auto auto 68px 12px !important;
+    width: min(420px, calc(100vw - 24px)) !important;
+    height: min(560px, calc(100svh - 92px)) !important;
+  }
+
+  html[dir="rtl"] .__fq-overlay {
     right: 12px !important;
     left: auto !important;
   }

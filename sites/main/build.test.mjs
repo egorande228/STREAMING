@@ -75,8 +75,15 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
   assert.doesNotMatch(index, /<script>\s*window\.dataLayer/);
   assert.equal((index.match(/meta-pixel\.js/g) || []).length, 1);
   assert.doesNotMatch(index, /connect\.facebook\.net\/en_US\/fbevents\.js/);
+  assert.doesNotMatch(index, /data-quiz-fallback/);
+  assert.doesNotMatch(index, /class="quiz-floating-button" href="https:\/\/365melbet\.bet"/);
+  assert.match(index, /src="https:\/\/365melbet\.bet\/js\/quiz-widget\.js"/);
 
   const news = readFileSync(new URL('./dist/news.html', import.meta.url), 'utf8');
   assert.equal((news.match(/meta-pixel\.js/g) || []).length, 1);
   assert.doesNotMatch(news, /connect\.facebook\.net\/en_US\/fbevents\.js/);
+
+  const styles = readFileSync(new URL('./dist/styles.css', import.meta.url), 'utf8');
+  assert.match(styles, /\.__fq-trigger/);
+  assert.match(styles, /position:\s*fixed\s*!important/);
 });

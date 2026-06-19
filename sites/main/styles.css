@@ -1307,6 +1307,27 @@ html[dir="rtl"] .quiz-floating-button {
   left: auto;
 }
 
+.__fq-trigger {
+  position: fixed !important;
+  left: 22px !important;
+  bottom: 22px !important;
+  z-index: 75 !important;
+  max-width: min(260px, calc(100vw - 44px)) !important;
+  min-height: 48px !important;
+  border: 1px solid rgba(245, 196, 0, 0.62) !important;
+  border-radius: 8px !important;
+  padding: 0 16px !important;
+  font-size: 13px !important;
+  line-height: 1.1 !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+}
+
+html[dir="rtl"] .__fq-trigger {
+  right: 22px !important;
+  left: auto !important;
+}
+
 .social-dock {
   position: fixed;
   right: 22px;
@@ -2829,6 +2850,21 @@ html[dir="rtl"] .social-dock {
   html[dir="rtl"] .quiz-floating-button {
     right: 12px;
     left: auto;
+  }
+
+  .__fq-trigger {
+    right: auto !important;
+    left: 12px !important;
+    bottom: 12px !important;
+    max-width: calc(100vw - 86px) !important;
+    min-height: 44px !important;
+    padding: 0 12px !important;
+    font-size: 11px !important;
+  }
+
+  html[dir="rtl"] .__fq-trigger {
+    right: 12px !important;
+    left: auto !important;
   }
 
   .social-dock {

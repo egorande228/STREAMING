@@ -54,6 +54,10 @@ window.KINGLIVE_PLAYER_CONFIG = {
       { brand: 'facebook', label: 'Facebook', url: 'https://facebook.com/worldcupliveinternationalll' },
       { brand: 'instagram', label: 'Instagram', url: 'https://www.instagram.com/worldcuplive_international/' },
     ],
+    mn: [
+      { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcuplive_mongolia' },
+      { brand: 'facebook', label: 'Facebook', url: 'https://facebook.com/worldcuplivemongoliaa' },
+    ],
   },
   tgPopup: {
     enabled: true,

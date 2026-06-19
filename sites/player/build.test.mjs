@@ -9,6 +9,8 @@ const arabicTelegramUrl = 'https://t.me/worldcup_live2026arabia';
 const arabicYoutubeUrl =
   'https://www.youtube.com/@%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%85%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A8%D8%B7%D9%88%D9%84%D8%A9%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%852026';
 const staleArabicSocialHandlePattern = new RegExp(`worldcup(?:${['2026', 'arabworld'].join('')}|${['_', 'arabia'].join('')})`);
+const mongolianFacebookUrl = 'https://facebook.com/worldcuplivemongoliaa';
+const staleMongolianInstagramHandle = ['worldcuplive', 'mongolia', 'melbet'].join('_');
 
 test('build creates a deployable dist directory for Cloudflare Pages', () => {
   rmSync(dist, { recursive: true, force: true });
@@ -61,4 +63,6 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
   assert.match(config, new RegExp(arabicTelegramUrl.replaceAll('.', '\\.')));
   assert.match(config, new RegExp(arabicYoutubeUrl.replaceAll('.', '\\.')));
   assert.doesNotMatch(config, staleArabicSocialHandlePattern);
+  assert.match(config, new RegExp(mongolianFacebookUrl.replaceAll('.', '\\.')));
+  assert.doesNotMatch(config, new RegExp(staleMongolianInstagramHandle));
 });

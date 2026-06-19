@@ -402,8 +402,7 @@
     ],
     mn: [
       { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcuplive_mongolia' },
-      { brand: 'instagram', label: 'Instagram', url: 'https://www.instagram.com/worldcuplive_mongolia_melbet/' },
-      { brand: 'facebook', label: 'Facebook coming soon', url: '' },
+      { brand: 'facebook', label: 'Facebook', url: 'https://facebook.com/worldcuplivemongoliaa' },
     ],
   };
   let currentMatches = [];

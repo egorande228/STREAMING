@@ -11,6 +11,8 @@ const arabicTelegramUrl = 'https://t.me/worldcup_live2026arabia';
 const arabicYoutubeUrl =
   'https://www.youtube.com/@%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%85%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A8%D8%B7%D9%88%D9%84%D8%A9%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%852026';
 const staleArabicSocialHandlePattern = new RegExp(`worldcup(?:${['2026', 'arabworld'].join('')}|${['_', 'arabia'].join('')})`);
+const mongolianFacebookUrl = 'https://facebook.com/worldcuplivemongoliaa';
+const staleMongolianInstagramHandle = ['worldcuplive', 'mongolia', 'melbet'].join('_');
 
 function localDateKey(date = new Date()) {
   return [
@@ -44,6 +46,12 @@ test('Arabic locale social links use current regional channels', () => {
   assert.match(appSource, new RegExp(arabicTelegramUrl.replaceAll('.', '\\.')));
   assert.match(appSource, new RegExp(arabicYoutubeUrl.replaceAll('.', '\\.')));
   assert.doesNotMatch(appSource, staleArabicSocialHandlePattern);
+});
+
+test('Mongolian locale social links use Facebook and hide Instagram', () => {
+  assert.match(appSource, new RegExp(mongolianFacebookUrl.replaceAll('.', '\\.')));
+  assert.doesNotMatch(appSource, new RegExp(staleMongolianInstagramHandle));
+  assert.doesNotMatch(appSource, new RegExp(['Facebook', 'coming', 'soon'].join(' ')));
 });
 
 test('renders same-day matches beyond the first six API results', async () => {

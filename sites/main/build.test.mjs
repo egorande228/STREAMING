@@ -54,10 +54,17 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
   const headers = readFileSync(new URL('./dist/_headers', import.meta.url), 'utf8');
   const csp = headers.match(/Content-Security-Policy: ([^\n]+)/)?.[1] || '';
   const scriptSrc = csp.match(/script-src ([^;]+)/)?.[1] || '';
+  const styleSrc = csp.match(/style-src ([^;]+)/)?.[1] || '';
+  const styleSrcElem = csp.match(/style-src-elem ([^;]+)/)?.[1] || '';
+  const styleSrcAttr = csp.match(/style-src-attr ([^;]+)/)?.[1] || '';
   const frameAncestors = csp.match(/frame-ancestors ([^;]+)/)?.[1] || '';
   assert.match(scriptSrc, /https:\/\/www\.facebook\.com/);
   assert.match(scriptSrc, /https:\/\/\*\.facebook\.com/);
   assert.match(scriptSrc, /https:\/\/365melbet\.bet/);
+  assert.doesNotMatch(scriptSrc, /'unsafe-inline'/);
+  assert.equal(styleSrc, "'self'");
+  assert.match(styleSrcElem, /'unsafe-inline'/);
+  assert.match(styleSrcAttr, /'unsafe-inline'/);
   assert.match(frameAncestors, /https:\/\/www\.facebook\.com/);
   assert.match(frameAncestors, /https:\/\/business\.facebook\.com/);
   assert.match(frameAncestors, /https:\/\/\*\.facebook\.com/);

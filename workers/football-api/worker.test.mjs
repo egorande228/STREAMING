@@ -1897,6 +1897,7 @@ test('converts IPTV donor streams into private restream definitions', async () =
   const env = {
     ADMIN_BEARER_TOKEN: 'test-token',
     RESTREAM_SYNC_TOKEN: 'sync-token',
+    AWS_RESTREAM_SYNC_TOKEN: 'aws-sync-token',
     RESTREAM_PUBLIC_BASE_URL: 'https://hls.livekinglive.win/live',
     STREAM_CONFIG_KV: kv,
   };
@@ -1959,6 +1960,7 @@ test('converts generic ip m3u8 donor streams into private restream definitions',
   const env = {
     ADMIN_BEARER_TOKEN: 'test-token',
     RESTREAM_SYNC_TOKEN: 'sync-token',
+    AWS_RESTREAM_SYNC_TOKEN: 'aws-sync-token',
     RESTREAM_PUBLIC_BASE_URL: 'https://hls.livekinglive.win/live',
     STREAM_CONFIG_KV: kv,
   };
@@ -2003,6 +2005,136 @@ test('converts generic ip m3u8 donor streams into private restream definitions',
   assert.equal(restreamBody.restreams[0].slug, '19609159-es-spanish');
   assert.equal(restreamBody.restreams[0].donor_url, donorUrl);
   assert.equal(restreamBody.restreams[0].output_url, 'https://cdn-hls.livekinglive.win/live/19609159-es-spanish/index.m3u8');
+});
+
+test('converts xtream-style TS donor streams into private restream definitions', async () => {
+  const kvData = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value) {
+      kvData.set(key, value);
+    },
+  };
+  const env = {
+    ADMIN_BEARER_TOKEN: 'test-token',
+    RESTREAM_SYNC_TOKEN: 'sync-token',
+    RESTREAM_PUBLIC_BASE_URL: 'https://hls.livekinglive.win/live',
+    STREAM_CONFIG_KV: kv,
+  };
+
+  const donorUrl = 'http://iptv.example:8080/user/pass/22357';
+  const create = await routeRequest(
+    new Request('https://kinglive.test/api/admin/streams', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer test-token',
+      },
+      body: JSON.stringify({
+        match_id: 19609170,
+        url: donorUrl,
+        source_type: 'videojs',
+        label: 'Arabic',
+        language_code: 'ar',
+      }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(create.status, 200);
+
+  const publicStreams = await routeRequest(new Request('https://kinglive.test/api/streams/active'), env, {});
+  assert.equal(publicStreams.status, 200);
+  const publicBody = await publicStreams.json();
+  assert.equal(publicBody.streams['19609170'][0].url, 'https://cdn-hls.livekinglive.win/live/19609170-ar-arabic/index.m3u8');
+  assert.equal(JSON.stringify(publicBody).includes('iptv.example'), false);
+
+  const restreams = await routeRequest(
+    new Request('https://kinglive.test/api/restreams', {
+      headers: { Authorization: 'Bearer sync-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(restreams.status, 200);
+  const restreamBody = await restreams.json();
+  assert.equal(restreamBody.total, 1);
+  assert.equal(restreamBody.restreams[0].slug, '19609170-ar-arabic');
+  assert.equal(restreamBody.restreams[0].donor_url, donorUrl);
+  assert.equal(restreamBody.restreams[0].transcode_profile, 'h264_720p25');
+});
+
+test('routes AWS restreams to a separate origin sync and CDN path', async () => {
+  const kvData = new Map();
+  const kv = {
+    async get(key) {
+      return kvData.get(key) || null;
+    },
+    async put(key, value) {
+      kvData.set(key, value);
+    },
+  };
+  const env = {
+    ADMIN_BEARER_TOKEN: 'test-token',
+    RESTREAM_SYNC_TOKEN: 'sync-token',
+    AWS_RESTREAM_SYNC_TOKEN: 'aws-sync-token',
+    STREAM_CONFIG_KV: kv,
+  };
+
+  const donorUrl = 'http://192.0.2.10/live/channel/index.m3u8?token=secret-token';
+  const create = await routeRequest(
+    new Request('https://kinglive.test/api/admin/streams', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer test-token',
+      },
+      body: JSON.stringify({
+        match_id: 9001,
+        url: donorUrl,
+        source_type: 'videojs',
+        label: 'AWS English',
+        language_code: 'en',
+        restream_origin_id: 'aws-us-1',
+      }),
+    }),
+    env,
+    {},
+  );
+  assert.equal(create.status, 200);
+
+  const publicStreams = await routeRequest(new Request('https://kinglive.test/api/streams/active'), env, {});
+  assert.equal(publicStreams.status, 200);
+  const publicBody = await publicStreams.json();
+  assert.equal(publicBody.streams['9001'][0].url, 'https://cdn-hls.livekinglive.win/aws/live/9001-en-aws-english/index.m3u8');
+  assert.equal(JSON.stringify(publicBody).includes('secret-token'), false);
+
+  const primaryRestreams = await routeRequest(
+    new Request('https://kinglive.test/api/restreams', {
+      headers: { Authorization: 'Bearer sync-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(primaryRestreams.status, 200);
+  assert.equal((await primaryRestreams.json()).total, 0);
+
+  const awsRestreams = await routeRequest(
+    new Request('https://kinglive.test/api/restreams?origin_id=aws-us-1', {
+      headers: { Authorization: 'Bearer aws-sync-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(awsRestreams.status, 200);
+  const restreamBody = await awsRestreams.json();
+  assert.equal(restreamBody.total, 1);
+  assert.equal(restreamBody.restreams[0].origin_id, 'aws-us-1');
+  assert.equal(restreamBody.restreams[0].slug, '9001-en-aws-english');
+  assert.equal(restreamBody.restreams[0].donor_url, donorUrl);
+  assert.equal(restreamBody.restreams[0].output_url, 'https://cdn-hls.livekinglive.win/aws/live/9001-en-aws-english/index.m3u8');
 });
 
 test('converts hls.gd IPTV donor streams into private restream definitions', async () => {
@@ -2267,6 +2399,7 @@ test('admin can upload custom overlay banners for restream sync', async () => {
   const env = {
     ADMIN_BEARER_TOKEN: 'test-token',
     RESTREAM_SYNC_TOKEN: 'sync-token',
+    AWS_RESTREAM_SYNC_TOKEN: 'aws-sync-token',
     RESTREAM_PUBLIC_BASE_URL: 'https://hls.livekinglive.win/live',
     STREAM_CONFIG_KV: kv,
   };
@@ -2316,6 +2449,18 @@ test('admin can upload custom overlay banners for restream sync', async () => {
   assert.equal(syncBody.total, 1);
   assert.equal(syncBody.overlays[0].id, overlayId);
   assert.equal(syncBody.overlays[0].data_base64, pngBase64);
+
+  const awsRestreamOverlays = await routeRequest(
+    new Request('https://kinglive.test/api/restream-overlays', {
+      headers: { Authorization: 'Bearer aws-sync-token' },
+    }),
+    env,
+    {},
+  );
+  assert.equal(awsRestreamOverlays.status, 200);
+  const awsSyncBody = await awsRestreamOverlays.json();
+  assert.equal(awsSyncBody.total, 1);
+  assert.equal(awsSyncBody.overlays[0].id, overlayId);
 
   const donorUrl = 'https://8.hls.gd/ch1197/index.m3u8?token=secret-token';
   const create = await routeRequest(

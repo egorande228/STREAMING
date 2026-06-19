@@ -1,4 +1,5 @@
 const UPSTREAM_ORIGIN = 'https://hls.livekinglive.win';
+const AWS_UPSTREAM_ORIGIN = 'http://ec2-54-164-65-76.compute-1.amazonaws.com';
 const SEGMENT_RE = /\.(ts|m4s|mp4|aac)$/i;
 
 addEventListener('fetch', (event) => {
@@ -17,7 +18,8 @@ async function handleRequest(event) {
     return withCors(new Response('Method Not Allowed', { status: 405 }), 'BYPASS');
   }
 
-  const upstreamUrl = new URL(url.pathname + url.search, UPSTREAM_ORIGIN);
+  const upstream = resolveUpstream(url);
+  const upstreamUrl = new URL(upstream.pathname + url.search, upstream.origin);
   const isSegment = SEGMENT_RE.test(url.pathname);
   const isManifest = url.pathname.toLowerCase().endsWith('.m3u8');
 
@@ -48,6 +50,19 @@ async function handleRequest(event) {
   }
 
   return response;
+}
+
+function resolveUpstream(url) {
+  if (url.pathname === '/aws' || url.pathname.startsWith('/aws/')) {
+    return {
+      origin: AWS_UPSTREAM_ORIGIN,
+      pathname: url.pathname.replace(/^\/aws(?=\/|$)/, '') || '/',
+    };
+  }
+  return {
+    origin: UPSTREAM_ORIGIN,
+    pathname: url.pathname,
+  };
 }
 
 async function fetchUpstream(request, upstreamUrl, cacheable) {

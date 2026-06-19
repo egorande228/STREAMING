@@ -36,6 +36,10 @@
     ['bottom-center', 'bottom center'],
     ['bottom-left', 'bottom left'],
   ];
+  const restreamOrigins = {
+    primary: 'Primary origin',
+    'aws-us-1': 'AWS US',
+  };
   function token() {
     try {
       return window.localStorage.getItem(tokenKey) || '';
@@ -96,7 +100,7 @@
   function logout() {
     setToken('');
     setAuthLabel();
-    streamsBody.innerHTML = '<tr><td colspan="12">Logged out</td></tr>';
+    streamsBody.innerHTML = '<tr><td colspan="15">Logged out</td></tr>';
     if (monitoringBody) monitoringBody.innerHTML = '<tr><td colspan="3">Logged out</td></tr>';
     if (statusBody) statusBody.innerHTML = '<tr><td colspan="7">Logged out</td></tr>';
     if (chatBody) chatBody.innerHTML = '<tr><td colspan="4">Logged out</td></tr>';
@@ -128,11 +132,13 @@
       source_type: $('source-type').value,
       quality: $('quality').value.trim() || '720p',
       restream: {
+        origin_id: $('restream-origin').value || 'primary',
         channel_name: $('channel-name').value.trim(),
         transcode_profile: $('transcode-profile').value || 'auto',
         overlay: overlays[0] || { enabled: false },
         overlays,
       },
+      restream_origin_id: $('restream-origin').value || 'primary',
       language_code: $('lang').value.trim() || 'en',
       region: $('region').value.trim() || 'global',
       priority: Number($('priority').value || 100),
@@ -153,6 +159,7 @@
     $('source-type').value = stream.source_type || 'iframe';
     $('quality').value = stream.quality || '720p';
     $('transcode-profile').value = stream.restream?.transcode_profile || 'auto';
+    $('restream-origin').value = normalizeRestreamOrigin(stream.restream?.origin_id);
     const overlays = normalizeAdminOverlays(stream.restream?.overlays || stream.restream?.overlay);
     overlaySlots.forEach((slot) => {
       const overlay = overlays[slot - 1] || {};
@@ -185,6 +192,7 @@
     $('quality').value = '720p';
     $('channel-name').value = '';
     $('transcode-profile').value = 'auto';
+    $('restream-origin').value = 'primary';
     overlaySlots.forEach((slot) => {
       $(`overlay-enabled-${slot}`).value = 'false';
       $(`overlay-image-${slot}`).value = 'kinglive_player_leaderboard.png';
@@ -211,6 +219,15 @@
   function setFormPanelOpen(panel, open) {
     const element = document.querySelector(`[data-form-panel="${panel}"]`);
     if (element) element.open = Boolean(open);
+  }
+
+  function normalizeRestreamOrigin(value) {
+    const origin = String(value || 'primary').trim();
+    return restreamOrigins[origin] ? origin : 'primary';
+  }
+
+  function restreamOriginLabel(value) {
+    return restreamOrigins[normalizeRestreamOrigin(value)];
   }
 
   function clampPercent(value) {
@@ -432,14 +449,14 @@
 
   async function loadStreams() {
     if (!token()) {
-      streamsBody.innerHTML = '<tr><td colspan="14">Login first</td></tr>';
+      streamsBody.innerHTML = '<tr><td colspan="15">Login first</td></tr>';
       return;
     }
     try {
       const payload = await adminFetch('/api/admin/streams');
       const streams = Array.isArray(payload.streams) ? payload.streams : [];
       if (!streams.length) {
-        streamsBody.innerHTML = '<tr><td colspan="14">No streams</td></tr>';
+        streamsBody.innerHTML = '<tr><td colspan="15">No streams</td></tr>';
         return;
       }
       streamsBody.innerHTML = streams
@@ -467,6 +484,7 @@
               <td>${escapeHtml(stream.source_type || '')}</td>
               <td>${escapeHtml(stream.label || '')}</td>
               <td class="mono">${url}</td>
+              <td>${stream.restream?.enabled ? escapeHtml(restreamOriginLabel(stream.restream?.origin_id)) : '-'}</td>
               <td class="mono">${escapeHtml(stream.restream?.channel_name || '')}</td>
               <td>${escapeHtml(stream.restream?.transcode_profile || '')}</td>
               <td class="mono">${overlayLabel}</td>
@@ -506,7 +524,7 @@
         });
       });
     } catch (error) {
-      streamsBody.innerHTML = `<tr><td colspan="14">${escapeHtml(String(error.message || error))}</td></tr>`;
+      streamsBody.innerHTML = `<tr><td colspan="15">${escapeHtml(String(error.message || error))}</td></tr>`;
     }
   }
 

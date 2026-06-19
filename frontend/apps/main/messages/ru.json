@@ -287,7 +287,8 @@
         "language": "Язык",
         "region": "Регион",
         "commentary": "Комментарий",
-        "priority": "Приоритет"
+        "priority": "Приоритет",
+        "restreamServer": "Сервер restream"
       },
       "table": {
         "match": "Матч",
@@ -296,8 +297,13 @@
         "quality": "Качество",
         "language": "Язык",
         "region": "Регион",
+        "server": "Сервер",
         "active": "Активно",
         "url": "URL"
+      },
+      "restreamOrigins": {
+        "primary": "Основной origin",
+        "awsUs1": "AWS US"
       },
       "sourceTypes": {
         "hls": "HLS",

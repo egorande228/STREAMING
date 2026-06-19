@@ -6,7 +6,7 @@
     <title>KingLive Admin</title>
     <link rel="stylesheet" href="./styles.css" />
     <script src="./config.js"></script>
-    <script defer src="./admin.js?v=overlay-free-size-20260616"></script>
+    <script defer src="./admin.js?v=restream-origin-20260618"></script>
     <link rel="stylesheet" href="./admin.css?v=overlay-free-size-20260616" />
   </head>
   <body>
@@ -99,6 +99,13 @@
                   <option value="h264_720p25">h264 720p25</option>
                   <option value="h264_1080p25">h264 1080p25</option>
                   <option value="h264_1080p50">h264 1080p50</option>
+                </select>
+              </label>
+              <label>
+                <div>Restream server</div>
+                <select id="restream-origin" class="admin-select">
+                  <option value="primary">Primary origin</option>
+                  <option value="aws-us-1">AWS US</option>
                 </select>
               </label>
               <label>
@@ -473,11 +480,11 @@
           <table class="admin-table">
             <thead>
               <tr>
-                <th>ID</th><th>Origin</th><th>Match</th><th>Type</th><th>Label</th><th>URL</th><th>Channel</th><th>Profile</th><th>Overlay</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
+                <th>ID</th><th>Origin</th><th>Match</th><th>Type</th><th>Label</th><th>URL</th><th>Server</th><th>Channel</th><th>Profile</th><th>Overlay</th><th>Prio</th><th>Active</th><th>Window</th><th>Live now</th><th>Actions</th>
               </tr>
             </thead>
             <tbody id="streams-body">
-              <tr><td colspan="14">No data</td></tr>
+              <tr><td colspan="15">No data</td></tr>
             </tbody>
           </table>
         </div>

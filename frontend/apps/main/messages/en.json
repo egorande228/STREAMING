@@ -287,7 +287,8 @@
         "language": "Language",
         "region": "Region",
         "commentary": "Commentary",
-        "priority": "Priority"
+        "priority": "Priority",
+        "restreamServer": "Restream server"
       },
       "table": {
         "match": "Match",
@@ -296,8 +297,13 @@
         "quality": "Quality",
         "language": "Lang",
         "region": "Region",
+        "server": "Server",
         "active": "Active",
         "url": "URL"
+      },
+      "restreamOrigins": {
+        "primary": "Primary origin",
+        "awsUs1": "AWS US"
       },
       "sourceTypes": {
         "hls": "HLS",

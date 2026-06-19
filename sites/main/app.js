@@ -1,7 +1,7 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
-  const apiVersion = 'sportmonks-facts-v13-local-date-carryover';
+  const apiVersion = 'ts-restream-aac-cache-refresh-20260619';
   const scheduleLookaheadDays = 14;
   const playerBase = String(config.playerBase || '../player').replace(/\/$/, '');
   const streamConfigUrl = config.streamConfigUrl || './stream.json';

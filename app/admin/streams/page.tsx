@@ -14,7 +14,16 @@ interface Stream {
   region: string;
   commentary_type: string;
   is_active: boolean;
+  restream?: {
+    enabled?: boolean;
+    origin_id?: string;
+  };
 }
+
+const restreamOrigins = [
+  { id: 'primary', label: 'Primary origin' },
+  { id: 'aws-us-1', label: 'AWS US' },
+];
 
 const emptyForm = {
   match_id: '',
@@ -25,6 +34,7 @@ const emptyForm = {
   priority: '1',
   region: 'global',
   commentary_type: 'full',
+  restream_origin_id: 'primary',
   is_active: true,
 };
 
@@ -71,6 +81,7 @@ export default function AdminStreamsPage() {
       priority: String(stream.priority),
       region: stream.region,
       commentary_type: stream.commentary_type,
+      restream_origin_id: stream.restream?.origin_id ?? 'primary',
       is_active: stream.is_active,
     });
     setShowForm(true);
@@ -248,6 +259,19 @@ export default function AdminStreamsPage() {
             />
           </div>
 
+          <div>
+            <p className="mb-1 text-xs text-gray-400">Restream server</p>
+            <select
+              value={form.restream_origin_id}
+              onChange={(e) => setForm({ ...form, restream_origin_id: e.target.value })}
+              className="w-full rounded bg-gray-700 px-2 py-1 text-sm text-white"
+            >
+              {restreamOrigins.map((origin) => (
+                <option key={origin.id} value={origin.id}>{origin.label}</option>
+              ))}
+            </select>
+          </div>
+
           <label className="col-span-2 flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -282,6 +306,7 @@ export default function AdminStreamsPage() {
               <th className="py-2 pr-3 text-left">Quality</th>
               <th className="py-2 pr-3 text-left">Lang</th>
               <th className="py-2 pr-3 text-left">Region</th>
+              <th className="py-2 pr-3 text-left">Server</th>
               <th className="py-2 pr-3 text-left">Active</th>
               <th className="py-2 pr-3 text-left">URL</th>
               <th className="py-2 text-left">Actions</th>
@@ -296,6 +321,11 @@ export default function AdminStreamsPage() {
                 <td className="py-1.5 pr-3">{stream.quality}</td>
                 <td className="py-1.5 pr-3">{stream.language_code}</td>
                 <td className="py-1.5 pr-3 text-gray-400">{stream.region}</td>
+                <td className="py-1.5 pr-3 text-gray-400">
+                  {stream.restream?.enabled
+                    ? restreamOrigins.find((origin) => origin.id === stream.restream?.origin_id)?.label || 'Primary origin'
+                    : '-'}
+                </td>
                 <td className="py-1.5 pr-3">{stream.is_active ? 'yes' : 'no'}</td>
                 <td className="max-w-xs truncate py-1.5 pr-3 font-mono text-xs text-gray-400">{stream.url}</td>
                 <td className="flex gap-1.5 py-1.5">

@@ -25,6 +25,21 @@ const CACHE_VERSION_KV_KEY = 'api_cache_version';
 const RESTREAM_ORIGIN_HOST = 'hls.livekinglive.win';
 const RESTREAM_CDN_HOST = 'cdn-hls.livekinglive.win';
 const DEFAULT_RESTREAM_PUBLIC_BASE_URL = `https://${RESTREAM_CDN_HOST}/live`;
+const DEFAULT_RESTREAM_ORIGIN_ID = 'primary';
+const RESTREAM_ORIGINS = {
+  primary: {
+    id: 'primary',
+    label: 'Primary origin',
+    envKey: 'RESTREAM_PUBLIC_BASE_URL',
+    defaultPublicBaseUrl: DEFAULT_RESTREAM_PUBLIC_BASE_URL,
+  },
+  'aws-us-1': {
+    id: 'aws-us-1',
+    label: 'AWS US',
+    envKey: 'AWS_RESTREAM_PUBLIC_BASE_URL',
+    defaultPublicBaseUrl: `https://${RESTREAM_CDN_HOST}/aws/live`,
+  },
+};
 const MAX_OVERLAY_ASSET_BYTES = 1_500_000;
 const BUILTIN_RESTREAM_OVERLAYS = [
   { id: 'kinglive_player_leaderboard.png', name: 'KingLive player', builtin: true },
@@ -1065,7 +1080,11 @@ async function routeAdminStreamsRestart(env, streamId) {
 }
 
 async function routeRestreamSyncList(request, env = {}) {
-  const expected = String(env.RESTREAM_SYNC_TOKEN || '').trim();
+  const requestUrl = new URL(request.url);
+  const requestedOriginId = normalizeRestreamOriginId(
+    requestUrl.searchParams.get('origin_id') || request.headers.get('X-Restream-Origin') || DEFAULT_RESTREAM_ORIGIN_ID,
+  );
+  const expected = restreamSyncTokenForOrigin(requestedOriginId, env);
   if (!expected) return jsonResponse({ error: 'restream_sync_not_configured' }, 503, 0);
   const auth = request.headers.get('Authorization') || '';
   if (auth !== `Bearer ${expected}`) return jsonResponse({ error: 'unauthorized' }, 401, 0);
@@ -1079,20 +1098,23 @@ async function routeRestreamSyncList(request, env = {}) {
     list.forEach((entry, index) => {
       const restream = entry?.restream;
       if (!restream?.enabled || !isHttpUrl(restream.donor_url)) return;
+      const originId = normalizeRestreamOriginId(restream.origin_id || DEFAULT_RESTREAM_ORIGIN_ID);
+      if (originId !== requestedOriginId) return;
       const slug = normalizeSlug(restream.slug || `${matchId}-${index + 1}`);
       if (!slug) return;
       const overlays = normalizeRestreamOverlays(restream.overlays || restream.overlay);
       restreams.push({
         id: slug,
         slug,
+        origin_id: originId,
         match_id: matchId,
         label: String(entry?.label || slug),
         donor_url: String(restream.donor_url),
-        output_url: publicRestreamUrl(restream.output_url || entry?.url || `${DEFAULT_RESTREAM_PUBLIC_BASE_URL}/${slug}/index.m3u8`),
+        output_url: publicRestreamUrl(restream.output_url || entry?.url || `${restreamPublicBaseUrl(originId, env)}/${slug}/index.m3u8`),
         desired_state: entry?.is_active === false ? 'stopped' : String(restream.desired_state || 'running'),
         is_active: entry?.is_active !== false,
         channel_name: String(restream.channel_name || ''),
-        transcode_profile: normalizeRestreamTranscodeProfile(restream.transcode_profile),
+        transcode_profile: normalizeRestreamTranscodeProfile(restream.transcode_profile, restream.donor_url),
         overlay: overlays[0] || null,
         overlays,
         restart_requested_at: String(restream.restart_requested_at || ''),
@@ -1104,10 +1126,10 @@ async function routeRestreamSyncList(request, env = {}) {
 }
 
 async function routeRestreamOverlayAssetsList(request, env = {}) {
-  const expected = String(env.RESTREAM_SYNC_TOKEN || '').trim();
-  if (!expected) return jsonResponse({ error: 'restream_sync_not_configured' }, 503, 0);
+  const expected = restreamOverlaySyncTokens(env);
+  if (!expected.length) return jsonResponse({ error: 'restream_sync_not_configured' }, 503, 0);
   const auth = request.headers.get('Authorization') || '';
-  if (auth !== `Bearer ${expected}`) return jsonResponse({ error: 'unauthorized' }, 401, 0);
+  if (!expected.some((token) => auth === `Bearer ${token}`)) return jsonResponse({ error: 'unauthorized' }, 401, 0);
 
   const uploaded = await readOverlayAssetIndex(env);
   const overlays = [];
@@ -1462,6 +1484,9 @@ function normalizeAdminStreamPayload(payload, streamId, env = {}, existingStream
 function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingStream = null) {
   const explicit = payload?.restream && typeof payload.restream === 'object' ? payload.restream : null;
   const donorUrl = String(explicit?.donor_url || payload?.donor_url || options.url || '').trim();
+  const originId = normalizeRestreamOriginId(
+    explicit?.origin_id || payload?.restream_origin_id || payload?.origin_id || existingStream?.restream?.origin_id,
+  );
   const existingRestream = existingStream?.restream && typeof existingStream.restream === 'object'
     ? existingStream.restream
     : null;
@@ -1486,11 +1511,13 @@ function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingS
   ) {
     const nextRestream = {
       ...existingRestream,
+      origin_id: originId,
       desired_state: payload?.is_active === false ? 'stopped' : String(existingRestream.desired_state || 'running'),
       restart_requested_at: String(explicit?.restart_requested_at || payload?.restart_requested_at || existingRestream.restart_requested_at || ''),
       channel_name: String(explicit?.channel_name || payload?.channel_name || existingRestream.channel_name || ''),
       transcode_profile: normalizeRestreamTranscodeProfile(
         explicit?.transcode_profile || payload?.transcode_profile || existingRestream.transcode_profile,
+        existingRestream.donor_url,
       ),
     };
     const overlays = normalizeRestreamOverlays(overlayInputProvided ? overlayInput : existingRestream.overlays || existingRestream.overlay);
@@ -1515,16 +1542,17 @@ function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingS
       || `${options.matchId}-${options.languageCode}-${options.label || 'stream'}`,
   );
   if (!slug) return null;
-  const publicBase = String(options.env?.RESTREAM_PUBLIC_BASE_URL || DEFAULT_RESTREAM_PUBLIC_BASE_URL).replace(/\/+$/, '');
+  const publicBase = restreamPublicBaseUrl(originId, options.env);
   const restream = {
     enabled: true,
+    origin_id: originId,
     slug,
     donor_url: donorUrl,
     output_url: publicRestreamUrl(`${publicBase}/${slug}/index.m3u8`),
     desired_state: payload?.is_active === false ? 'stopped' : String(explicit?.desired_state || payload?.desired_state || 'running'),
     restart_requested_at: String(explicit?.restart_requested_at || payload?.restart_requested_at || ''),
     channel_name: String(explicit?.channel_name || payload?.channel_name || ''),
-    transcode_profile: normalizeRestreamTranscodeProfile(explicit?.transcode_profile || payload?.transcode_profile),
+    transcode_profile: normalizeRestreamTranscodeProfile(explicit?.transcode_profile || payload?.transcode_profile, donorUrl),
   };
   const overlays = normalizeRestreamOverlays(overlayInputProvided ? overlayInput : explicit?.overlays || explicit?.overlay);
   if (overlays.length) {
@@ -1534,8 +1562,9 @@ function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingS
   return restream;
 }
 
-function normalizeRestreamTranscodeProfile(value) {
+function normalizeRestreamTranscodeProfile(value, donorUrl = '') {
   const profile = String(value || '').trim();
+  if ((!profile || profile === 'auto') && isXtreamStyleDonorUrlString(donorUrl)) return 'h264_720p25';
   return ['auto', 'h264_720p25', 'h264_1080p25', 'h264_1080p50'].includes(profile) ? profile : '';
 }
 
@@ -1616,6 +1645,44 @@ function hasOwn(object, key) {
   return Object.prototype.hasOwnProperty.call(object, key);
 }
 
+function normalizeRestreamOriginId(value) {
+  const id = String(value || DEFAULT_RESTREAM_ORIGIN_ID).trim();
+  return RESTREAM_ORIGINS[id] ? id : DEFAULT_RESTREAM_ORIGIN_ID;
+}
+
+function restreamPublicBaseUrl(originId, env = {}) {
+  const origin = RESTREAM_ORIGINS[normalizeRestreamOriginId(originId)] || RESTREAM_ORIGINS[DEFAULT_RESTREAM_ORIGIN_ID];
+  return String(env?.[origin.envKey] || origin.defaultPublicBaseUrl).replace(/\/+$/, '');
+}
+
+function restreamSyncTokenForOrigin(originId, env = {}) {
+  const normalizedOriginId = normalizeRestreamOriginId(originId);
+  if (normalizedOriginId === 'aws-us-1') {
+    return String(env?.AWS_RESTREAM_SYNC_TOKEN || env?.RESTREAM_SYNC_TOKEN || '').trim();
+  }
+  return String(env?.RESTREAM_SYNC_TOKEN || '').trim();
+}
+
+function restreamOverlaySyncTokens(env = {}) {
+  return [
+    String(env?.RESTREAM_SYNC_TOKEN || '').trim(),
+    String(env?.AWS_RESTREAM_SYNC_TOKEN || '').trim(),
+  ].filter(Boolean);
+}
+
+function isKnownRestreamPublicUrl(url) {
+  if (url.hostname === RESTREAM_ORIGIN_HOST || url.hostname === RESTREAM_CDN_HOST) return true;
+  return Object.values(RESTREAM_ORIGINS).some((origin) => {
+    try {
+      const base = new URL(origin.defaultPublicBaseUrl);
+      const basePath = base.pathname.replace(/\/+$/, '');
+      return url.hostname === base.hostname && url.pathname.startsWith(`${basePath}/`);
+    } catch {
+      return false;
+    }
+  });
+}
+
 function isIptvDonorUrl(value) {
   try {
     const url = new URL(String(value || ''));
@@ -1626,7 +1693,23 @@ function isIptvDonorUrl(value) {
       || host.includes('plinkspile.cc')
       || host.includes('hls.gd')
       || host.includes('sharavoz')
-      || host.includes('rv77.pw');
+      || host.includes('rv77.pw')
+      || isXtreamStyleDonorUrl(url);
+  } catch {
+    return false;
+  }
+}
+
+function isXtreamStyleDonorUrl(url) {
+  const parts = String(url.pathname || '').split('/').filter(Boolean);
+  if (parts.length < 3 || !url.port) return false;
+  const streamId = parts[parts.length - 1] || '';
+  return /^\d+$/.test(streamId) || (!streamId.includes('.') && parts.length >= 3);
+}
+
+function isXtreamStyleDonorUrlString(value) {
+  try {
+    return isXtreamStyleDonorUrl(new URL(String(value || '')));
   } catch {
     return false;
   }
@@ -1635,7 +1718,7 @@ function isIptvDonorUrl(value) {
 function isPublicRestreamUrl(value) {
   try {
     const url = new URL(String(value || ''));
-    return url.hostname === RESTREAM_ORIGIN_HOST || url.hostname === RESTREAM_CDN_HOST;
+    return isKnownRestreamPublicUrl(url);
   } catch {
     return false;
   }

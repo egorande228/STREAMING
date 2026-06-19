@@ -39,6 +39,10 @@ export interface AdminStream {
   region: string;
   commentary_type: string;
   is_active: boolean;
+  restream?: {
+    enabled?: boolean;
+    origin_id?: string;
+  };
 }
 
 export interface AdminMirror {

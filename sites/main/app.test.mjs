@@ -7,6 +7,10 @@ const appSource = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
 const indexHtml = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
 const adminSource = readFileSync(new URL('./admin.js', import.meta.url), 'utf8');
 const apiVersion = appSource.match(/const apiVersion = '([^']+)'/)?.[1] || '';
+const arabicTelegramUrl = 'https://t.me/worldcup_live2026arabia';
+const arabicYoutubeUrl =
+  'https://www.youtube.com/@%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%85%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A8%D8%B7%D9%88%D9%84%D8%A9%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%852026';
+const staleArabicSocialHandlePattern = new RegExp(`worldcup(?:${['2026', 'arabworld'].join('')}|${['_', 'arabia'].join('')})`);
 
 function localDateKey(date = new Date()) {
   return [
@@ -34,6 +38,12 @@ test('admin API errors prefer server message details', () => {
 test('odds panel stays branded to MelBet only', () => {
   assert.match(appSource, /t\('melbetOdds'\)/);
   assert.doesNotMatch(appSource, /\$\{bookmaker\} odds/);
+});
+
+test('Arabic locale social links use current regional channels', () => {
+  assert.match(appSource, new RegExp(arabicTelegramUrl.replaceAll('.', '\\.')));
+  assert.match(appSource, new RegExp(arabicYoutubeUrl.replaceAll('.', '\\.')));
+  assert.doesNotMatch(appSource, staleArabicSocialHandlePattern);
 });
 
 test('renders same-day matches beyond the first six API results', async () => {

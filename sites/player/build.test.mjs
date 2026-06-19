@@ -5,6 +5,10 @@ import { test } from 'node:test';
 
 const cwd = new URL('./', import.meta.url);
 const dist = new URL('./dist/', import.meta.url);
+const arabicTelegramUrl = 'https://t.me/worldcup_live2026arabia';
+const arabicYoutubeUrl =
+  'https://www.youtube.com/@%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%85%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A8%D8%B7%D9%88%D9%84%D8%A9%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%852026';
+const staleArabicSocialHandlePattern = new RegExp(`worldcup(?:${['2026', 'arabworld'].join('')}|${['_', 'arabia'].join('')})`);
 
 test('build creates a deployable dist directory for Cloudflare Pages', () => {
   rmSync(dist, { recursive: true, force: true });
@@ -54,4 +58,7 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
   assert.match(config, /playerTop: banner\('melbet_top_banner_1554x192\.png', 1554, 192/);
   assert.match(config, /playerBottom: banner\('melbet_bottom_banner_1554x192\.png', 1554, 192/);
   assert.match(config, /playerRail: banner\('melbet_right_banner\.png', 717, 2194/);
+  assert.match(config, new RegExp(arabicTelegramUrl.replaceAll('.', '\\.')));
+  assert.match(config, new RegExp(arabicYoutubeUrl.replaceAll('.', '\\.')));
+  assert.doesNotMatch(config, staleArabicSocialHandlePattern);
 });

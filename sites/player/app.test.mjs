@@ -4,6 +4,9 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 
 const appSource = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
+const arabicTelegramUrl = 'https://t.me/worldcup_live2026arabia';
+const arabicYoutubeUrl =
+  'https://www.youtube.com/@%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%85%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A8%D8%B7%D9%88%D9%84%D8%A9%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%852026';
 
 async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorOverrides = {} }) {
   const appended = [];
@@ -665,8 +668,8 @@ test('renders social contacts for the selected player language', async () => {
     config: {
       socialLinksByLang: {
         ar: [
-          { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcup2026arabworld' },
-          { brand: 'youtube', label: 'YouTube', url: 'https://www.youtube.com/@worldcup_arabia' },
+          { brand: 'telegram', label: 'Telegram', url: arabicTelegramUrl },
+          { brand: 'youtube', label: 'YouTube', url: arabicYoutubeUrl },
         ],
         en: [
           { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcuplive_international' },
@@ -695,8 +698,8 @@ test('renders social contacts for the selected player language', async () => {
     },
   });
 
-  assert.match(result.socialPanel.innerHTML, /worldcup2026arabworld/);
-  assert.match(result.socialPanel.innerHTML, /worldcup_arabia/);
+  assert.match(result.socialPanel.innerHTML, /worldcup_live2026arabia/);
+  assert.match(result.socialPanel.innerHTML, /%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%85/);
   assert.doesNotMatch(result.socialPanel.innerHTML, /worldcuplive_international/);
 });
 
@@ -1030,7 +1033,7 @@ test('uses Arabic Telegram channel for Arabic popup language', async () => {
     config: {
       socialLinksByLang: {
         ar: [
-          { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcup2026arabworld' },
+          { brand: 'telegram', label: 'Telegram', url: arabicTelegramUrl },
         ],
         en: [
           { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcuplive_international' },
@@ -1058,7 +1061,7 @@ test('uses Arabic Telegram channel for Arabic popup language', async () => {
   });
 
   assert.equal(result.tgPopup.hidden, false);
-  assert.match(result.tgPopup.innerHTML, /https:\/\/t\.me\/worldcup2026arabworld/);
+  assert.match(result.tgPopup.innerHTML, /https:\/\/t\.me\/worldcup_live2026arabia/);
   assert.doesNotMatch(result.tgPopup.innerHTML, /worldcuplive_international/);
 });
 

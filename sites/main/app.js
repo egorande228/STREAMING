@@ -385,8 +385,8 @@
   };
   const socialLinksByLocale = {
     ar: [
-      { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcup2026arabworld' },
-      { brand: 'youtube', label: 'YouTube', url: 'https://www.youtube.com/@worldcup_arabia' },
+      { brand: 'telegram', label: 'Telegram', url: 'https://t.me/worldcup_live2026arabia' },
+      { brand: 'youtube', label: 'YouTube', url: 'https://www.youtube.com/@%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%85%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A8%D8%B7%D9%88%D9%84%D8%A9%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%852026' },
       { brand: 'tiktok', label: 'TikTok', url: 'https://www.tiktok.com/@2026melbetworldcuparabia?_r=1&_t=ZS-96xaxd2saoP' },
       { brand: 'facebook', label: 'Facebook', url: 'https://www.facebook.com/share/18nunR1PmA/?mibextid=wwXIfr' },
       { brand: 'instagram', label: 'Instagram', url: 'https://www.instagram.com/2026melbetfifaworldcuparabia?igsh=aDZsY3R6eHhxYzkx&utm_source=qr' },

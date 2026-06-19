@@ -21,6 +21,7 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
     'app.js',
     'news.js',
     'admin.js',
+    'analytics-init.js',
     'url-propagation.js',
     'meta-pixel.js',
     'styles.css',
@@ -49,4 +50,26 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
   assert.match(config, /runtimeConfig\.playerBase/);
   assert.match(config, /window\.KINGLIVE_PLAYER_BASE/);
   assert.match(config, /livekinglive\.win/);
+
+  const headers = readFileSync(new URL('./dist/_headers', import.meta.url), 'utf8');
+  const csp = headers.match(/Content-Security-Policy: ([^\n]+)/)?.[1] || '';
+  const scriptSrc = csp.match(/script-src ([^;]+)/)?.[1] || '';
+  const frameAncestors = csp.match(/frame-ancestors ([^;]+)/)?.[1] || '';
+  assert.match(scriptSrc, /https:\/\/www\.facebook\.com/);
+  assert.match(scriptSrc, /https:\/\/\*\.facebook\.com/);
+  assert.match(scriptSrc, /https:\/\/365melbet\.bet/);
+  assert.match(frameAncestors, /https:\/\/www\.facebook\.com/);
+  assert.match(frameAncestors, /https:\/\/business\.facebook\.com/);
+  assert.match(frameAncestors, /https:\/\/\*\.facebook\.com/);
+  assert.doesNotMatch(frameAncestors, /'none'/);
+
+  const index = readFileSync(new URL('./dist/index.html', import.meta.url), 'utf8');
+  assert.match(index, /src="\.\/analytics-init\.js/);
+  assert.doesNotMatch(index, /<script>\s*window\.dataLayer/);
+  assert.equal((index.match(/meta-pixel\.js/g) || []).length, 1);
+  assert.doesNotMatch(index, /connect\.facebook\.net\/en_US\/fbevents\.js/);
+
+  const news = readFileSync(new URL('./dist/news.html', import.meta.url), 'utf8');
+  assert.equal((news.match(/meta-pixel\.js/g) || []).length, 1);
+  assert.doesNotMatch(news, /connect\.facebook\.net\/en_US\/fbevents\.js/);
 });

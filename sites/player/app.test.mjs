@@ -49,8 +49,15 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
     addEventListener() {},
   };
   const viewerCount = {
+    attributes: {},
     hidden: true,
     textContent: '',
+    removeAttribute(name) {
+      delete this.attributes[name];
+    },
+    setAttribute(name, value) {
+      this.attributes[name] = String(value);
+    },
   };
   const localStorageStore = new Map();
   const stageClasses = new Set(['stage']);
@@ -1144,7 +1151,8 @@ test('sends stable viewer heartbeat for an active match stream', async () => {
   assert.equal(typeof firstBody.client_id, 'string');
   assert.equal(firstBody.client_id.length > 0, true);
   assert.equal(result.viewerCount.hidden, false);
-  assert.equal(result.viewerCount.textContent, '1 watching');
+  assert.equal(result.viewerCount.textContent, '1');
+  assert.equal(result.viewerCount.attributes['aria-label'], '1 watching');
 
   const heartbeatTimer = intervals.find((item) => item.delay === 25_000);
   assert.ok(heartbeatTimer);
@@ -1153,7 +1161,8 @@ test('sends stable viewer heartbeat for an active match stream', async () => {
   await new Promise((resolve) => setImmediate(resolve));
   const secondHeartbeat = requests.filter((request) => request.url === 'https://kinglive-football-api.test/api/viewers/1540843/heartbeat')[1];
   assert.equal(JSON.parse(secondHeartbeat.init.body).client_id, firstBody.client_id);
-  assert.equal(result.viewerCount.textContent, '2 watching');
+  assert.equal(result.viewerCount.textContent, '2');
+  assert.equal(result.viewerCount.attributes['aria-label'], '2 watching');
 
   listeners.get('pagehide')();
   assert.equal(beacons.length, 1);

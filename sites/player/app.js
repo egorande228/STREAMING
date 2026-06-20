@@ -936,10 +936,13 @@
     if (!Number.isFinite(count) || count <= 0) {
       viewerCountEl.hidden = true;
       viewerCountEl.textContent = '';
+      viewerCountEl.removeAttribute?.('aria-label');
       return;
     }
     const normalized = Math.max(1, Math.round(count));
-    viewerCountEl.textContent = `${normalized.toLocaleString('en-US')} watching`;
+    const formatted = normalized.toLocaleString('en-US');
+    viewerCountEl.textContent = formatted;
+    viewerCountEl.setAttribute?.('aria-label', `${formatted} watching`);
     viewerCountEl.hidden = false;
   }
 

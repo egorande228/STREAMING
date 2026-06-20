@@ -15,6 +15,7 @@
   const titleEl = document.getElementById('title');
   const sourceSelect = document.getElementById('source-select');
   const copyEmbed = document.getElementById('copy-embed');
+  const viewerCountEl = document.getElementById('viewer-count');
   const tgPopup = document.getElementById('tg-popup');
   const adSlots = config.adSlots || {};
   const tgPopupConfig = config.tgPopup || {};
@@ -929,15 +930,31 @@
     });
   }
 
+  function updateViewerCount(value) {
+    if (!viewerCountEl) return;
+    const count = Number(value);
+    if (!Number.isFinite(count) || count <= 0) {
+      viewerCountEl.hidden = true;
+      viewerCountEl.textContent = '';
+      return;
+    }
+    const normalized = Math.max(1, Math.round(count));
+    viewerCountEl.textContent = `${normalized.toLocaleString('en-US')} watching`;
+    viewerCountEl.hidden = false;
+  }
+
   async function sendViewerHeartbeat(matchId, options = {}) {
     if (!viewerHeartbeatBase || !matchId) return;
     try {
-      await fetch(`${viewerHeartbeatBase}/${encodeURIComponent(matchId)}/heartbeat`, {
+      const response = await fetch(`${viewerHeartbeatBase}/${encodeURIComponent(matchId)}/heartbeat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: viewerHeartbeatPayload(),
         keepalive: options.keepalive !== false,
       });
+      if (!response.ok || typeof response.json !== 'function') return;
+      const payload = await response.json().catch(() => null);
+      updateViewerCount(payload?.viewers);
     } catch {}
   }
 
@@ -957,6 +974,7 @@
       viewerHeartbeatTimer = null;
     }
     viewerMatchId = '';
+    updateViewerCount(0);
   }
 
   function sendFinalViewerHeartbeat() {

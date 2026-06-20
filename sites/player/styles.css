@@ -145,6 +145,8 @@ body {
   display: flex;
   min-height: 54px;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   border-bottom: 1px solid var(--line);
   background: rgba(0, 0, 0, 0.38);
   padding: 10px 14px;
@@ -538,6 +540,35 @@ p {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.viewer-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  padding: 0 14px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.viewer-count-header {
+  min-height: 34px;
+  margin-left: auto;
+  border-color: rgba(246, 196, 0, 0.32);
+  background: rgba(246, 196, 0, 0.08);
+  color: var(--gold);
+  box-shadow: 0 0 24px rgba(246, 196, 0, 0.08);
+}
+
+.viewer-count[hidden] {
+  display: none;
 }
 
 label {
@@ -934,6 +965,17 @@ select:focus-visible,
 
   .control-row {
     justify-content: stretch;
+  }
+
+  .viewer-count {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .viewer-count-header {
+    width: auto;
+    min-height: 34px;
+    padding: 0 12px;
   }
 
   label,

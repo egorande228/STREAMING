@@ -48,6 +48,10 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
     textContent: 'Copy iframe',
     addEventListener() {},
   };
+  const viewerCount = {
+    hidden: true,
+    textContent: '',
+  };
   const localStorageStore = new Map();
   const stageClasses = new Set(['stage']);
   const documentElementClasses = new Set();
@@ -182,6 +186,7 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
         if (id === 'title') return titleEl;
         if (id === 'source-select') return sourceSelect;
         if (id === 'copy-embed') return copyEmbed;
+        if (id === 'viewer-count') return viewerCount;
         if (id === 'tg-popup') return tgPopup;
         return null;
       },
@@ -233,6 +238,7 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
     stageHtml,
     tgPopup,
     title: titleEl.textContent,
+    viewerCount,
   };
 }
 
@@ -1070,7 +1076,8 @@ test('sends stable viewer heartbeat for an active match stream', async () => {
   const intervals = [];
   const listeners = new Map();
   const beacons = [];
-  await runPlayer({
+  let heartbeatCount = 0;
+  const result = await runPlayer({
     href: 'https://player.test/?match=1540843&lang=en&region=global',
     config: {
       apiBase: 'https://kinglive-football-api.test',
@@ -1104,9 +1111,10 @@ test('sends stable viewer heartbeat for an active match stream', async () => {
         });
       }
       if (String(url).includes('/api/viewers/1540843/heartbeat')) {
+        heartbeatCount += 1;
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ ok: true, viewers: 1 }),
+          json: () => Promise.resolve({ ok: true, viewers: heartbeatCount }),
         });
       }
       if (String(url).includes('/api/streams/active')) {
@@ -1135,12 +1143,17 @@ test('sends stable viewer heartbeat for an active match stream', async () => {
   assert.equal(firstBody.page, 'player');
   assert.equal(typeof firstBody.client_id, 'string');
   assert.equal(firstBody.client_id.length > 0, true);
+  assert.equal(result.viewerCount.hidden, false);
+  assert.equal(result.viewerCount.textContent, '1 watching');
 
   const heartbeatTimer = intervals.find((item) => item.delay === 25_000);
   assert.ok(heartbeatTimer);
   await heartbeatTimer.handler();
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
   const secondHeartbeat = requests.filter((request) => request.url === 'https://kinglive-football-api.test/api/viewers/1540843/heartbeat')[1];
   assert.equal(JSON.parse(secondHeartbeat.init.body).client_id, firstBody.client_id);
+  assert.equal(result.viewerCount.textContent, '2 watching');
 
   listeners.get('pagehide')();
   assert.equal(beacons.length, 1);

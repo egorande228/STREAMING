@@ -1740,10 +1740,11 @@
         const title = `${home} vs ${away}`;
         const status = String(match.status || 'scheduled');
         const displayStatus = status;
-        const isLive = displayStatus === 'live' || displayStatus === 'half_time';
-        const isFinished = status === 'finished';
+        const normalizedStatus = displayStatus.toLowerCase();
+        const isLive = normalizedStatus === 'live' || normalizedStatus === 'half_time';
+        const hasScore = isLive || normalizedStatus === 'finished';
         const badgeClass = statusBadgeClass(displayStatus);
-        const centerLabel = isFinished ? `${match.home_score ?? 0} : ${match.away_score ?? 0}` : 'vs';
+        const centerLabel = hasScore ? `${match.home_score ?? 0} : ${match.away_score ?? 0}` : 'vs';
         const hasStreams = displayStreamsForMatch(match).length > 0;
         return `
           <article class="match-card${hasStreams ? ' has-streams' : ''}" data-match-id="${escapeHtml(match.id)}" role="button" tabindex="0">
@@ -1754,7 +1755,7 @@
             <div class="match-main">
               <div class="match-teams" aria-label="${escapeHtml(title)}">
                 <span class="team-side">${renderTeamLogo(match.home_team, home)}<span>${escapeHtml(home)}</span></span>
-                <span class="match-vs${isFinished ? ' match-score' : ''}">${escapeHtml(centerLabel)}</span>
+                <span class="match-vs${hasScore ? ' match-score' : ''}">${escapeHtml(centerLabel)}</span>
                 <span class="team-side">${renderTeamLogo(match.away_team, away)}<span>${escapeHtml(away)}</span></span>
               </div>
               <div class="match-title">${escapeHtml(title)}</div>

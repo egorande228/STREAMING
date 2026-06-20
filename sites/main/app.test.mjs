@@ -1039,6 +1039,102 @@ test('renders finished match score in the match list', async () => {
   assert.match(gridHtml, /2 : 1/);
 });
 
+test('renders live match score in the match list', async () => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const today = localDateKey();
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: '',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch(url) {
+      if (String(url).endsWith('/stream.json') || String(url).endsWith('stream.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            matches: [
+              {
+                id: 19609172,
+                scheduled_at: `${today}T19:00:00+00:00`,
+                status: 'live',
+                home_score: 3,
+                away_score: 0,
+                stage: 'Group Stage',
+                home_team: { name_en: 'Brazil' },
+                away_team: { name_en: 'Haiti' },
+              },
+              {
+                id: 19609173,
+                scheduled_at: `${today}T21:00:00+00:00`,
+                status: 'scheduled',
+                home_score: 0,
+                away_score: 0,
+                stage: 'Group Stage',
+                home_team: { name_en: 'Türkiye' },
+                away_team: { name_en: 'Paraguay' },
+              },
+            ],
+          }),
+      });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /Brazil vs Haiti/);
+  assert.match(gridHtml, /3 : 0/);
+  assert.match(gridHtml, /match-score/);
+  assert.match(gridHtml, /Türkiye vs Paraguay/);
+  assert.match(gridHtml, /<span class="match-vs">vs<\/span>/);
+});
+
 test('renders football news from the backend news endpoint', async () => {
   let newsHtml = '';
   const newsGrid = {

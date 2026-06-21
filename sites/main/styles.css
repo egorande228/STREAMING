@@ -1430,20 +1430,11 @@ html[dir="rtl"] .social-dock {
   color: rgba(244, 239, 226, 0.56);
 }
 
-html[dir="rtl"] .social-link {
-  direction: rtl;
-  padding: 5px 5px 5px 12px;
-}
-
 .social-link-copy {
   display: grid;
   min-width: 0;
   gap: 2px;
   line-height: 1.12;
-}
-
-html[dir="rtl"] .social-link-copy {
-  text-align: right;
 }
 
 .social-link-copy strong {

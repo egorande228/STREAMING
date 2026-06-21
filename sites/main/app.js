@@ -405,42 +405,12 @@
       { brand: 'facebook', label: 'Facebook', url: 'https://facebook.com/worldcuplivemongoliaa' },
     ],
   };
-  const socialBenefitCopyByLocale = {
-    en: {
-      telegram: { title: 'Live links in Telegram', subtitle: 'Stream alerts' },
-      facebook: { title: 'Match reminders', subtitle: 'Kickoff updates' },
-      instagram: { title: 'Stream updates', subtitle: 'Stories and highlights' },
-      youtube: { title: 'Video updates', subtitle: 'World Cup channel' },
-      tiktok: { title: 'Short match clips', subtitle: 'Fast World Cup updates' },
-    },
-    es: {
-      telegram: { title: 'Enlaces en Telegram', subtitle: 'Alertas de stream' },
-      facebook: { title: 'Recordatorios', subtitle: 'Horarios y marcador' },
-      instagram: { title: 'Novedades del stream', subtitle: 'Stories y momentos' },
-      youtube: { title: 'Videos del Mundial', subtitle: 'Canal de video' },
-      tiktok: { title: 'Clips rapidos', subtitle: 'Mundial al instante' },
-    },
-    fr: {
-      telegram: { title: 'Liens live Telegram', subtitle: 'Alertes de stream' },
-      facebook: { title: 'Rappels de match', subtitle: 'Coups d’envoi' },
-      instagram: { title: 'Actus du stream', subtitle: 'Stories et moments' },
-      youtube: { title: 'Videos Coupe du monde', subtitle: 'Chaine video' },
-      tiktok: { title: 'Clips rapides', subtitle: 'Actus express' },
-    },
-    ar: {
-      telegram: { title: 'روابط البث في تيليجرام', subtitle: 'تنبيهات مباشرة' },
-      facebook: { title: 'تذكير المباريات', subtitle: 'مواعيد ونتائج' },
-      instagram: { title: 'تحديثات البث', subtitle: 'قصص ولقطات' },
-      youtube: { title: 'فيديوهات كأس العالم', subtitle: 'قناة الفيديو' },
-      tiktok: { title: 'لقطات سريعة', subtitle: 'أخبار فورية' },
-    },
-    mn: {
-      telegram: { title: 'Шууд үзэх холбоос', subtitle: 'Telegram alert' },
-      facebook: { title: 'Тоглолтын сануулга', subtitle: 'Эхлэх цагийн мэдээ' },
-      instagram: { title: 'Stream мэдээ', subtitle: 'Stories ба highlights' },
-      youtube: { title: 'World Cup видео', subtitle: 'Видео суваг' },
-      tiktok: { title: 'Богино клипүүд', subtitle: 'Шуурхай мэдээ' },
-    },
+  const socialBenefitCopy = {
+    telegram: { title: 'Live links in Telegram', subtitle: 'Stream alerts' },
+    facebook: { title: 'Match reminders', subtitle: 'Kickoff updates' },
+    instagram: { title: 'Stream updates', subtitle: 'Stories and highlights' },
+    youtube: { title: 'Video updates', subtitle: 'World Cup channel' },
+    tiktok: { title: 'Short match clips', subtitle: 'Fast World Cup updates' },
   };
   let currentMatches = [];
   let activeStreamMatchIds = new Set();
@@ -814,8 +784,7 @@
   }
 
   function socialLinkCopy(item = {}) {
-    const localeCopy = socialBenefitCopyByLocale[uiLocale] || socialBenefitCopyByLocale.en;
-    const benefit = localeCopy[item.brand] || socialBenefitCopyByLocale.en[item.brand] || {};
+    const benefit = socialBenefitCopy[item.brand] || {};
     const title = item.title || item.cta || benefit.title || item.label || 'Live updates';
     const subtitle = item.subtitle || item.hint || benefit.subtitle || item.label || 'Social channel';
     return { title, subtitle };

@@ -57,9 +57,6 @@ test('Mongolian locale social links use Facebook and hide Instagram', () => {
 test('social dock presents social links as stream benefits', () => {
   assert.match(appSource, /Live links in Telegram/);
   assert.match(appSource, /Match reminders/);
-  assert.match(appSource, /Enlaces en Telegram/);
-  assert.match(appSource, /روابط البث في تيليجرام/);
-  assert.match(appSource, /Тоглолтын сануулга/);
   assert.match(appSource, /social-link-copy/);
 });
 

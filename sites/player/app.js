@@ -20,6 +20,13 @@
   const adSlots = config.adSlots || {};
   const tgPopupConfig = config.tgPopup || {};
   const socialLinksByLang = config.socialLinksByLang || {};
+  const socialBenefitCopy = {
+    telegram: { title: 'Live links in Telegram', subtitle: 'Stream alerts' },
+    facebook: { title: 'Match reminders', subtitle: 'Kickoff updates' },
+    instagram: { title: 'Stream updates', subtitle: 'Stories and highlights' },
+    youtube: { title: 'Video updates', subtitle: 'World Cup channel' },
+    tiktok: { title: 'Short match clips', subtitle: 'Fast World Cup updates' },
+  };
   const allowDirectStreamParams = config.allowDirectStreamParams === true;
   let matchStreams = config.matchStreams || {};
   let tgPopupDismissed = false;
@@ -201,12 +208,20 @@
     panel.innerHTML = links
       .map((item) => {
         const icon = socialIcon(item.brand);
+        const copy = socialLinkCopy(item);
+        const label = socialLinkLabel(item, copy);
+        const text = `
+          <span class="social-link-copy">
+            <strong>${escapeHtml(copy.title)}</strong>
+            <small>${escapeHtml(copy.subtitle)}</small>
+          </span>
+        `;
         if (!item.url) {
-          return `<span class="social-link disabled" title="${escapeHtml(item.label)}">${icon}<span>${escapeHtml(item.label)}</span></span>`;
+          return `<span class="social-link disabled" title="${escapeHtml(label)}">${icon}${text}</span>`;
         }
         return `
-          <a class="social-link ${escapeHtml(item.brand)}" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.label)}" aria-label="${escapeHtml(item.label)}">
-            ${icon}<span>${escapeHtml(item.label)}</span>
+          <a class="social-link ${escapeHtml(item.brand)}" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">
+            ${icon}${text}
           </a>
         `;
       })
@@ -217,6 +232,17 @@
         toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
       });
     }
+  }
+
+  function socialLinkCopy(item = {}) {
+    const benefit = socialBenefitCopy[item.brand] || {};
+    const title = item.title || item.cta || benefit.title || item.label || 'Live updates';
+    const subtitle = item.subtitle || item.hint || benefit.subtitle || item.label || 'Social channel';
+    return { title, subtitle };
+  }
+
+  function socialLinkLabel(item = {}, copy = socialLinkCopy(item)) {
+    return [copy.title, copy.subtitle, item.label].filter(Boolean).join(' - ');
   }
 
   function socialIcon(brand = '') {

@@ -713,6 +713,8 @@ test('renders social contacts for the selected player language', async () => {
 
   assert.match(result.socialPanel.innerHTML, /worldcup_live2026arabia/);
   assert.match(result.socialPanel.innerHTML, /%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%85/);
+  assert.match(result.socialPanel.innerHTML, /Live links in Telegram/);
+  assert.match(result.socialPanel.innerHTML, /Video updates/);
   assert.doesNotMatch(result.socialPanel.innerHTML, /worldcuplive_international/);
 });
 

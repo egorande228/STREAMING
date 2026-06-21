@@ -54,12 +54,6 @@ test('Mongolian locale social links use Facebook and hide Instagram', () => {
   assert.doesNotMatch(appSource, new RegExp(['Facebook', 'coming', 'soon'].join(' ')));
 });
 
-test('social dock presents social links as stream benefits', () => {
-  assert.match(appSource, /Live links in Telegram/);
-  assert.match(appSource, /Match reminders/);
-  assert.match(appSource, /social-link-copy/);
-});
-
 test('renders same-day matches beyond the first six API results', async () => {
   let gridHtml = '';
   const matchGrid = {

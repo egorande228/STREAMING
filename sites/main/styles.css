@@ -1412,42 +1412,24 @@ html[dir="rtl"] .social-dock {
 .social-link {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
-  min-width: 214px;
-  min-height: 50px;
+  min-width: 152px;
+  min-height: 42px;
   align-items: center;
   gap: 9px;
   border: 1px solid rgba(245, 196, 0, 0.24);
   border-radius: 8px;
   background: rgba(12, 14, 12, 0.9);
   color: var(--text);
-  padding: 5px 12px 5px 5px;
+  padding: 4px 11px 4px 4px;
+  font-size: 12px;
   font-weight: 900;
   text-decoration: none;
+  text-transform: uppercase;
   backdrop-filter: blur(10px);
 }
 
 .social-link.disabled {
   color: rgba(244, 239, 226, 0.56);
-}
-
-.social-link-copy {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-  line-height: 1.12;
-}
-
-.social-link-copy strong {
-  overflow-wrap: anywhere;
-  font-size: 12px;
-  font-weight: 950;
-  text-transform: uppercase;
-}
-
-.social-link-copy small {
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 800;
 }
 
 .social-mark {

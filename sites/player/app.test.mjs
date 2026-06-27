@@ -165,6 +165,7 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
       },
       videojs: timers.videojs,
     },
+    Date: timers.Date || Date,
     navigator: {
       clipboard: {
         writeText: () => Promise.resolve(),
@@ -246,6 +247,7 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
     tgPopup,
     title: titleEl.textContent,
     viewerCount,
+    managedIntervals,
   };
 }
 
@@ -434,6 +436,80 @@ test('uses hls.js without credentials for KingLive HLS streams marked as videojs
   assert.match(result.getStageClassName(), /stage-videojs/);
   assert.equal(result.appended.some((element) => String(element.className).includes('player-brand-overlay')), false);
   assert.ok(result.appended.find((element) => element.className === 'player-fullscreen-button'));
+});
+
+test('reloads managed HLS only after a long local playback stall', async () => {
+  const calls = [];
+  const intervals = [];
+  class MockHls {
+    static Events = { MANIFEST_PARSED: 'manifest', ERROR: 'error' };
+    static isSupported() {
+      return true;
+    }
+    constructor() {
+      this.liveSyncPosition = 90;
+      calls.push({ type: 'new' });
+    }
+    loadSource(src) {
+      calls.push({ type: 'source', src });
+    }
+    attachMedia(element) {
+      calls.push({ type: 'media', element });
+    }
+    on() {}
+    destroy() {
+      calls.push({ type: 'destroy' });
+    }
+  }
+
+  const result = await runPlayer({
+    href: 'https://player.test/?match=1540843',
+    config: {
+      matchStreams: {
+        1540843: {
+          url: 'https://cdn-hls.livekinglive.win/aws/live/test/index.m3u8',
+          source_type: 'videojs',
+          label: 'Managed HLS',
+        },
+      },
+    },
+    timers: {
+      Hls: MockHls,
+      setInterval(handler, delay) {
+        const id = intervals.length + 1;
+        intervals.push({ id, handler, delay });
+        return id;
+      },
+      clearInterval() {},
+    },
+    fetchImpl: (url) => {
+      if (String(url).endsWith('/streams.json') || String(url).endsWith('streams.json')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ home_team: { name_en: 'A' }, away_team: { name_en: 'B' } }),
+      });
+    },
+  });
+
+  const video = result.appended.find((element) => element.tagName === 'video');
+  const playbackTimer = intervals.find((item) => item.delay === 3000);
+  assert.ok(video);
+  assert.ok(playbackTimer);
+  assert.equal(calls.filter((call) => call.type === 'source').length, 1);
+
+  video.paused = false;
+  video.readyState = 4;
+  video.currentTime = 10;
+  video.getVideoPlaybackQuality = () => ({ totalVideoFrames: 100 });
+
+  for (let index = 0; index < 30; index += 1) playbackTimer.handler();
+  assert.equal(calls.filter((call) => call.type === 'source').length, 1);
+
+  playbackTimer.handler();
+  assert.equal(calls.filter((call) => call.type === 'source').length, 2);
+  assert.equal(calls.some((call) => call.type === 'destroy'), true);
 });
 
 test('uses native iOS HLS master playlist for KingLive HLS streams marked as videojs', async () => {

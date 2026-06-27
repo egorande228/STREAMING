@@ -5,7 +5,11 @@ BASE_URL="${KINGLIVE_WATCHDOG_BASE_URL:-https://hls.livekinglive.win}"
 SAMPLE_SECONDS="${KINGLIVE_WATCHDOG_SAMPLE_SECONDS:-8}"
 MIN_UNIQUE_FRAMES="${KINGLIVE_WATCHDOG_MIN_UNIQUE_FRAMES:-2}"
 COOLDOWN_SECONDS="${KINGLIVE_WATCHDOG_COOLDOWN_SECONDS:-180}"
-FRAME_CHECK="${KINGLIVE_WATCHDOG_FRAME_CHECK:-true}"
+FRAME_CHECK="${KINGLIVE_WATCHDOG_FRAME_CHECK:-false}"
+FRAME_CHECK_SLUGS="${KINGLIVE_WATCHDOG_FRAME_CHECK_SLUGS:-}"
+FRAME_FREEZE_FAILURES="${KINGLIVE_WATCHDOG_FRAME_FREEZE_FAILURES:-2}"
+MAX_TARGET_DURATION_SECONDS="${KINGLIVE_WATCHDOG_MAX_TARGET_DURATION_SECONDS:-20}"
+MAX_SEGMENT_DURATION_SECONDS="${KINGLIVE_WATCHDOG_MAX_SEGMENT_DURATION_SECONDS:-20}"
 STATE_DIR="${KINGLIVE_WATCHDOG_STATE_DIR:-/run/kinglive-restream-watchdog}"
 
 mkdir -p "$STATE_DIR"
@@ -20,6 +24,18 @@ if ! [[ "$MIN_UNIQUE_FRAMES" =~ ^[0-9]+$ ]] || [[ "$MIN_UNIQUE_FRAMES" -lt 1 || 
 fi
 if ! [[ "$COOLDOWN_SECONDS" =~ ^[0-9]+$ ]] || [[ "$COOLDOWN_SECONDS" -lt 30 ]]; then
   echo "KINGLIVE_WATCHDOG_COOLDOWN_SECONDS must be at least 30" >&2
+  exit 65
+fi
+if ! [[ "$FRAME_FREEZE_FAILURES" =~ ^[0-9]+$ ]] || [[ "$FRAME_FREEZE_FAILURES" -lt 1 || "$FRAME_FREEZE_FAILURES" -gt 10 ]]; then
+  echo "KINGLIVE_WATCHDOG_FRAME_FREEZE_FAILURES must be between 1 and 10" >&2
+  exit 65
+fi
+if ! [[ "$MAX_TARGET_DURATION_SECONDS" =~ ^[0-9]+$ ]] || [[ "$MAX_TARGET_DURATION_SECONDS" -lt 8 ]]; then
+  echo "KINGLIVE_WATCHDOG_MAX_TARGET_DURATION_SECONDS must be at least 8" >&2
+  exit 65
+fi
+if ! [[ "$MAX_SEGMENT_DURATION_SECONDS" =~ ^[0-9]+$ ]] || [[ "$MAX_SEGMENT_DURATION_SECONDS" -lt 8 ]]; then
+  echo "KINGLIVE_WATCHDOG_MAX_SEGMENT_DURATION_SECONDS must be at least 8" >&2
   exit 65
 fi
 
@@ -82,6 +98,124 @@ check_frames() {
   return 0
 }
 
+frame_check_enabled_for_slug() {
+  local slug="$1"
+  if [[ "${FRAME_CHECK,,}" != "true" && "$FRAME_CHECK" != "1" && "${FRAME_CHECK,,}" != "yes" ]]; then
+    return 1
+  fi
+  if [[ -z "$FRAME_CHECK_SLUGS" ]]; then
+    return 0
+  fi
+  local item
+  IFS=',' read -ra items <<<"$FRAME_CHECK_SLUGS"
+  for item in "${items[@]}"; do
+    item="${item#"${item%%[![:space:]]*}"}"
+    item="${item%"${item##*[![:space:]]}"}"
+    if [[ "$item" == "$slug" || "$slug" == $item ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+record_frame_check_pass() {
+  local slug="$1"
+  rm -f "${STATE_DIR}/${slug}.frame_failures"
+}
+
+record_frame_check_failure() {
+  local slug="$1"
+  local marker="${STATE_DIR}/${slug}.frame_failures"
+  local failures="0"
+  if [[ -r "$marker" ]]; then
+    failures="$(cat "$marker" 2>/dev/null || echo 0)"
+  fi
+  if ! [[ "$failures" =~ ^[0-9]+$ ]]; then
+    failures="0"
+  fi
+  failures=$((failures + 1))
+  echo "$failures" >"$marker"
+  if (( failures < FRAME_FREEZE_FAILURES )); then
+    echo "warn ${slug}: frame freeze check failed ${failures}/${FRAME_FREEZE_FAILURES}"
+    return 0
+  fi
+  rm -f "$marker"
+  restart_stream "$slug" "frame freeze detected after ${FRAME_FREEZE_FAILURES} checks"
+}
+
+check_manifest_timing() {
+  local slug="$1"
+  local manifest_url="${BASE_URL%/}/live/${slug}/index.m3u8"
+  local playlist_url tmp_manifest tmp_media playlist_item result status
+
+  tmp_manifest="$(mktemp "${STATE_DIR}/${slug}.manifest.XXXXXX")"
+  if ! curl -fsSL --max-time 10 -o "$tmp_manifest" "$manifest_url"; then
+    rm -f "$tmp_manifest"
+    echo "manifest fetch failed"
+    return 1
+  fi
+
+  playlist_url="$manifest_url"
+  tmp_media=""
+  if ! grep -q '^#EXTINF:' "$tmp_manifest"; then
+    playlist_item="$(awk 'NF && $0 !~ /^#/ { print; exit }' "$tmp_manifest")"
+    if [[ -z "$playlist_item" ]]; then
+      rm -f "$tmp_manifest"
+      echo "manifest has no media playlist or segments"
+      return 1
+    fi
+    if [[ "$playlist_item" == http://* || "$playlist_item" == https://* ]]; then
+      playlist_url="$playlist_item"
+    else
+      playlist_url="${manifest_url%/*}/${playlist_item#./}"
+    fi
+
+    tmp_media="$(mktemp "${STATE_DIR}/${slug}.media.XXXXXX")"
+    if ! curl -fsSL --max-time 10 -o "$tmp_media" "$playlist_url"; then
+      rm -f "$tmp_manifest" "$tmp_media"
+      echo "media playlist fetch failed"
+      return 1
+    fi
+  fi
+
+  status=0
+  result="$(
+    awk \
+      -v max_target="$MAX_TARGET_DURATION_SECONDS" \
+      -v max_segment="$MAX_SEGMENT_DURATION_SECONDS" '
+        /^#EXT-X-TARGETDURATION:/ {
+          split($0, parts, ":")
+          target = parts[2] + 0
+          if (target > max_target && reason == "") {
+            reason = "target duration " target "s exceeds " max_target "s"
+          }
+        }
+        /^#EXTINF:/ {
+          line = $0
+          sub(/^#EXTINF:/, "", line)
+          sub(/,.*/, "", line)
+          duration = line + 0
+          if (duration > max_segment && reason == "") {
+            reason = "segment duration " duration "s exceeds " max_segment "s"
+          }
+        }
+        END {
+          if (reason != "") {
+            print reason
+            exit 1
+          }
+        }
+      ' "${tmp_media:-$tmp_manifest}"
+  )" || status=$?
+  rm -f "$tmp_manifest" "$tmp_media"
+
+  if (( status != 0 )); then
+    echo "$result"
+    return 1
+  fi
+  return 0
+}
+
 for unit in "${units[@]}"; do
   slug="${unit#kinglive-restream@}"
   slug="${slug%.service}"
@@ -95,11 +229,17 @@ for unit in "${units[@]}"; do
     continue
   fi
 
-  if [[ "${FRAME_CHECK,,}" == "true" || "$FRAME_CHECK" == "1" || "${FRAME_CHECK,,}" == "yes" ]]; then
+  if ! timing_reason="$(check_manifest_timing "$slug")"; then
+    restart_stream "$slug" "HLS timing unhealthy: ${timing_reason:-unknown timing error}"
+    continue
+  fi
+
+  if frame_check_enabled_for_slug "$slug"; then
     if ! check_frames "$slug"; then
-      restart_stream "$slug" "frame freeze detected"
+      record_frame_check_failure "$slug"
       continue
     fi
+    record_frame_check_pass "$slug"
   fi
 
   echo "ok ${slug}"

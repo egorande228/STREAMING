@@ -54,6 +54,13 @@ test('Mongolian locale social links use Facebook and hide Instagram', () => {
   assert.doesNotMatch(appSource, new RegExp(['Facebook', 'coming', 'soon'].join(' ')));
 });
 
+test('top sponsor banner switches to Arabic asset only for Arabic locale', () => {
+  assert.match(indexHtml, /data-locale-top-banner/);
+  assert.match(indexHtml, /melbet_top_en_1870x245\.jpg/);
+  assert.match(indexHtml, /melbet_top_ar_1870x245\.jpg/);
+  assert.match(appSource, /uiLocale === 'ar' \? 'arSrc' : 'enSrc'/);
+});
+
 test('renders same-day matches beyond the first six API results', async () => {
   let gridHtml = '';
   const matchGrid = {

@@ -382,6 +382,18 @@ html[dir="rtl"] .locale-menu {
   margin-bottom: var(--space-4);
 }
 
+.hero-mobile-sponsor-link {
+  display: none;
+}
+
+.hero-mobile-sponsor {
+  aspect-ratio: 1870 / 245;
+}
+
+.hero-mobile-sponsor img {
+  height: 100%;
+}
+
 .hero-card {
   position: relative;
   display: grid;
@@ -542,9 +554,114 @@ html[dir="rtl"] .locale-menu {
   margin-top: 8px;
   color: var(--text);
   font-family: var(--font-display);
-  font-size: 31px;
+  font-size: 28px;
   font-weight: 950;
-  line-height: 0.9;
+  line-height: 1;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.next-match-live {
+  display: grid;
+  width: 100%;
+  gap: 7px;
+  margin-top: 16px;
+  padding: 13px;
+  border: 1px solid rgba(245, 196, 0, 0.28);
+  border-radius: 7px;
+  background: rgba(245, 196, 0, 0.08);
+  box-shadow: 0 0 28px rgba(245, 196, 0, 0.1);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transition), background var(--transition), transform var(--transition);
+}
+
+.next-match-live:hover,
+.next-match-live:focus-visible {
+  border-color: rgba(245, 196, 0, 0.72);
+  background: rgba(245, 196, 0, 0.13);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.next-match-live:disabled {
+  cursor: default;
+  transform: none;
+}
+
+[dir="rtl"] .next-match-live {
+  text-align: right;
+}
+
+.next-match-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.next-match-row {
+  display: grid;
+  width: 100%;
+  gap: 4px;
+  padding: 10px 11px;
+  border: 1px solid rgba(245, 196, 0, 0.22);
+  border-radius: 7px;
+  background: rgba(5, 6, 5, 0.48);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.next-match-row:hover,
+.next-match-row:focus-visible {
+  border-color: rgba(245, 196, 0, 0.62);
+  background: rgba(245, 196, 0, 0.1);
+  outline: none;
+}
+
+.next-match-row strong {
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.next-match-row span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+[dir="rtl"] .next-match-row {
+  text-align: right;
+}
+
+.next-match-live span {
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.next-match-live strong {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.next-match-meta {
+  margin-top: 11px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.35;
   text-transform: uppercase;
 }
 
@@ -2741,7 +2858,7 @@ html[dir="rtl"] .social-dock {
 
   .page-stack {
     gap: 18px;
-    padding-top: 18px;
+    padding-top: 12px;
   }
 
   .ad-top {
@@ -2752,38 +2869,66 @@ html[dir="rtl"] .social-dock {
     aspect-ratio: 1870 / 245;
   }
 
+  .match-sponsor-link {
+    display: none;
+  }
+
+  .hero-mobile-sponsor-link {
+    display: block;
+    margin-top: 18px;
+  }
+
+  .hero-mobile-sponsor {
+    border-radius: 7px;
+  }
+
   .sponsor-footer {
     aspect-ratio: 557 / 96;
   }
 
   .broadcast-panel {
     grid-template-columns: 1fr;
-    min-height: 460px;
+    min-height: 0;
   }
 
   .broadcast-copy {
-    padding: 26px 20px;
+    padding: 22px 18px 14px;
   }
 
   .hero-card h1 {
-    font-size: clamp(31px, 9.5vw, 36px);
+    margin-top: 11px;
+    font-size: clamp(28px, 8.6vw, 34px);
     max-width: 100%;
   }
 
   .hero-text {
     max-width: 285px;
+    margin-top: 14px;
     font-size: 14px;
     overflow-wrap: break-word;
+  }
+
+  .hero-actions {
+    margin-top: 17px;
   }
 
   .broadcast-board {
     justify-self: stretch;
     width: auto;
-    margin: 0 20px 20px;
+    margin: 0 18px 18px;
   }
 
   .board-brand {
-    font-size: 26px;
+    font-size: 24px;
+  }
+
+  .next-match-live {
+    margin-top: 13px;
+    padding: 12px;
+  }
+
+  .next-match-live strong {
+    font-size: 30px;
   }
 
   .board-strip span {

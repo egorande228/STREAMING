@@ -18,12 +18,20 @@
       navSchedule: 'Schedule',
       navGroups: 'News',
       heroKicker: 'Road to glory',
-      heroLine1: 'Follow every',
-      heroHighlight: 'World Cup 26',
-      heroLine2: 'matchday',
+      heroLine1: 'All World Cup',
+      heroHighlight: 'matches',
+      heroLine2: 'live broadcast',
       heroText: 'KingLive keeps fixtures, live entry points, scores and match details in one sharp matchday hub.',
       heroActionMain: 'Match center',
       heroActionGroups: 'News',
+      nextMatchLabel: 'Next match',
+      nextMatchLiveLabel: 'Live in',
+      nextMatchSoon: 'Starting soon',
+      nextMatchLiveNow: 'LIVE NOW',
+      nextMatchHalfTime: 'HALF TIME',
+      nextMatchesLabel: 'Next matches',
+      liveMatchesLabel: 'Live matches',
+      nextMatchFallback: 'Schedule loading',
       tournamentTitle: 'KingLive World Cup 26',
       tournamentDates: 'June 11 - July 19, 2026',
       scheduleTitlePrefix: 'Upcoming',
@@ -229,12 +237,20 @@
       navSchedule: 'المباريات',
       navGroups: 'الأخبار',
       heroKicker: 'طريق المجد',
-      heroLine1: 'تابع كل',
-      heroHighlight: 'مباراة في كأس العالم 26',
-      heroLine2: 'لحظة بلحظة',
+      heroLine1: 'شاهد جميع مباريات',
+      heroHighlight: 'كأس العالم',
+      heroLine2: 'بثًا مباشرًا',
       heroText: 'KingLive يجمع المواعيد، روابط البث، النتائج وتفاصيل المباريات في صفحة واحدة واضحة.',
       heroActionMain: 'مركز المباريات',
       heroActionGroups: 'الأخبار',
+      nextMatchLabel: 'المباراة القادمة',
+      nextMatchLiveLabel: 'البث المباشر قريبًا',
+      nextMatchSoon: 'سيبدأ قريبًا',
+      nextMatchLiveNow: 'مباشر الآن',
+      nextMatchHalfTime: 'استراحة',
+      nextMatchesLabel: 'المباريات القادمة',
+      liveMatchesLabel: 'مباريات مباشرة',
+      nextMatchFallback: 'جارٍ تحميل الجدول',
       tournamentTitle: 'KingLive كأس العالم 26',
       tournamentDates: '11 يونيو - 19 يوليو 2026',
       scheduleTitlePrefix: 'المباريات',
@@ -299,12 +315,20 @@
       navSchedule: 'Хуваарь',
       navGroups: 'Мэдээ',
       heroKicker: 'Алдрын зам',
-      heroLine1: 'Бүх',
-      heroHighlight: 'World Cup 26',
-      heroLine2: 'тоглолтын өдрийг дага',
+      heroLine1: 'Дэлхийн аваргын',
+      heroHighlight: 'бүх тоглолтыг',
+      heroLine2: 'ШУУД ҮЗЭЭРЭЙ',
       heroText: 'KingLive нь хуваарь, шууд үзэх холбоос, оноо болон тоглолтын дэлгэрэнгүйг нэг тодорхой төвд нэгтгэнэ.',
       heroActionMain: 'Тоглолтын төв',
       heroActionGroups: 'Мэдээ',
+      nextMatchLabel: 'Дараагийн тоглолтын',
+      nextMatchLiveLabel: 'ШУУД ДАМЖУУЛАЛТ удахгүй',
+      nextMatchSoon: 'Удахгүй эхэлнэ',
+      nextMatchLiveNow: 'ШУУД ОДОО',
+      nextMatchHalfTime: 'ЗАВСАРЛАГА',
+      nextMatchesLabel: 'Дараагийн тоглолтууд',
+      liveMatchesLabel: 'Шууд тоглолтууд',
+      nextMatchFallback: 'Хуваарь ачаалж байна',
       tournamentTitle: 'KingLive World Cup 26',
       tournamentDates: '2026 оны 6 сарын 11 - 7 сарын 19',
       scheduleTitlePrefix: 'Удахгүй болох',
@@ -371,6 +395,14 @@
   const uiLocale = resolveLocale();
   const grid = document.getElementById('match-grid');
   const newsGrid = document.getElementById('news-grid');
+  const nextMatchLabel = document.getElementById('next-match-label');
+  const nextMatchTeams = document.getElementById('next-match-teams');
+  const nextMatchOpen = document.getElementById('next-match-open');
+  const nextMatchLiveLabel = document.getElementById('next-match-live-label');
+  const nextMatchCountdown = document.getElementById('next-match-countdown');
+  const nextMatchList = document.getElementById('next-match-list');
+  const nextMatchMeta = document.getElementById('next-match-meta');
+  const nextMatchDay = document.getElementById('next-match-day');
   const adSlots = config.adSlots || {};
   const sponsorUrl = config.sponsorUrl || 'https://qweqr.sbs/jJQN6M';
   const manualMatches = Array.isArray(config.manualMatches) ? config.manualMatches : [];
@@ -409,6 +441,7 @@
   let activeStreamMatchIds = new Set();
   let openMatchId = '';
   let liveDetailTimer = null;
+  let heroCountdownTimer = null;
   const modal = document.createElement('div');
   modal.className = 'match-modal';
   modal.hidden = true;
@@ -416,6 +449,11 @@
 
   function t(key) {
     return i18n[uiLocale]?.[key] ?? i18n.en[key] ?? key;
+  }
+
+  function setNodeText(id, value) {
+    const node = document.getElementById(id);
+    if (node) node.textContent = value == null ? '' : String(value);
   }
 
   function todayLocalKey() {
@@ -801,6 +839,7 @@
     setText('hero-action-groups', t('heroActionGroups'));
     setText('tournament-title', t('tournamentTitle'));
     setText('tournament-dates', t('tournamentDates'));
+    renderNextMatchBoard();
     setText('schedule-title-prefix', t('scheduleTitlePrefix'));
     setText('schedule-title-accent', t('scheduleTitleAccent'));
     setText('news-kicker', t('newsKicker'));
@@ -817,6 +856,12 @@
     setText('follow-band-kicker', t('followBandKicker'));
     setText('follow-band-title', t('followBandTitle'));
     setText('follow-band-disclaimer', t('followBandDisclaimer'));
+    const topBannerSrcKey = uiLocale === 'ar' ? 'arSrc' : 'enSrc';
+    Array.from(document.querySelectorAll?.('[data-locale-top-banner]') || []).forEach((image) => {
+      const nextSrc = image.dataset?.[topBannerSrcKey] || image.dataset?.enSrc;
+      if (nextSrc && image.getAttribute('src') !== nextSrc) image.setAttribute('src', nextSrc);
+      image.setAttribute('alt', t('sponsored'));
+    });
 
     const controls = typeof document.querySelector === 'function' ? document.querySelector('.carousel-controls') : null;
     if (controls) controls.setAttribute('aria-label', t('carouselControls'));
@@ -1122,16 +1167,172 @@
         ar: 'ar-SA',
         mn: 'mn-MN',
       };
-      return new Intl.DateTimeFormat(dateLocales[uiLocale] || 'en-GB', {
+      const dateTimeZones = {
+        en: 'Europe/Paris',
+        es: 'Europe/Paris',
+        fr: 'Asia/Riyadh',
+        ar: 'Asia/Riyadh',
+        mn: 'Asia/Ulaanbaatar',
+      };
+      const timeZoneLabels = {
+        en: 'CEST',
+        es: 'CEST',
+        fr: 'GMT+3',
+        ar: 'GMT+3',
+        mn: 'GMT+8',
+      };
+      const formatted = new Intl.DateTimeFormat(dateLocales[uiLocale] || 'en-GB', {
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        timeZone: 'America/New_York',
-        timeZoneName: 'short',
+        timeZone: dateTimeZones[uiLocale] || dateTimeZones.en,
       }).format(new Date(value));
+      return `${formatted} ${timeZoneLabels[uiLocale] || timeZoneLabels.en}`;
     } catch {
       return value || 'TBD';
+    }
+  }
+
+  function formatCountdown(value) {
+    const kickoff = Date.parse(value || '');
+    if (Number.isNaN(kickoff)) return '--';
+    const delta = kickoff - Date.now();
+    if (delta <= 0) return '00:00:00';
+    const totalSeconds = Math.ceil(delta / 1000);
+    const days = Math.floor(totalSeconds / 86_400);
+    const hours = Math.floor((totalSeconds % 86_400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const time = [hours, minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
+    return days > 0 ? `${days}d ${time}` : time;
+  }
+
+  function selectHeroMatch(matches = []) {
+    const now = Date.now();
+    const playableStatuses = new Set(['scheduled', 'live', 'half_time']);
+    const playableMatches = heroPlayableMatches(matches, playableStatuses, now);
+    return playableMatches.find((match) => {
+      const status = String(match?.status || '').toLowerCase();
+      return status === 'live' || status === 'half_time';
+    }) || playableMatches.find((match) => {
+      const kickoff = Date.parse(match?.scheduled_at || match?.scheduledAt || '');
+      return !Number.isNaN(kickoff) && kickoff > now;
+    }) || playableMatches[0] || null;
+  }
+
+  function heroPlayableMatches(matches = [], playableStatuses = new Set(['scheduled', 'live', 'half_time']), now = Date.now()) {
+    return matches
+      .filter((match) => playableStatuses.has(String(match?.status || 'scheduled')))
+      .filter((match) => {
+        const kickoff = Date.parse(match?.scheduled_at || match?.scheduledAt || '');
+        return Number.isNaN(kickoff) || kickoff > now - 2 * 60 * 60 * 1000;
+      })
+      .sort((left, right) => {
+        const leftTime = Date.parse(left?.scheduled_at || left?.scheduledAt || '');
+        const rightTime = Date.parse(right?.scheduled_at || right?.scheduledAt || '');
+        return (Number.isNaN(leftTime) ? Number.MAX_SAFE_INTEGER : leftTime)
+          - (Number.isNaN(rightTime) ? Number.MAX_SAFE_INTEGER : rightTime);
+      });
+  }
+
+  function selectHeroMatchGroup(matches = []) {
+    const now = Date.now();
+    const playableMatches = heroPlayableMatches(matches, new Set(['scheduled', 'live', 'half_time']), now);
+    const liveMatches = playableMatches.filter((match) => {
+      const status = String(match?.status || '').toLowerCase();
+      return status === 'live' || status === 'half_time';
+    });
+    if (liveMatches.length) return liveMatches;
+    const nextMatch = playableMatches.find((match) => {
+      const kickoff = Date.parse(match?.scheduled_at || match?.scheduledAt || '');
+      return !Number.isNaN(kickoff) && kickoff > now;
+    }) || playableMatches[0] || null;
+    if (!nextMatch) return [];
+    const nextKickoff = Date.parse(nextMatch.scheduled_at || nextMatch.scheduledAt || '');
+    if (Number.isNaN(nextKickoff)) return [nextMatch];
+    return playableMatches.filter((match) => {
+      const kickoff = Date.parse(match?.scheduled_at || match?.scheduledAt || '');
+      return !Number.isNaN(kickoff) && Math.abs(kickoff - nextKickoff) < 60_000;
+    });
+  }
+
+  function renderNextMatchBoard(matches = currentMatches) {
+    if (!nextMatchTeams) return;
+    if (heroCountdownTimer) {
+      clearInterval(heroCountdownTimer);
+      heroCountdownTimer = null;
+    }
+
+    const group = selectHeroMatchGroup(matches);
+    const match = group[0] || null;
+    setNodeText('next-match-label', t('nextMatchLabel'));
+    setNodeText('next-match-live-label', t('nextMatchLiveLabel'));
+
+    if (!match) {
+      if (nextMatchOpen) {
+        nextMatchOpen.disabled = true;
+        nextMatchOpen.removeAttribute('data-match-id');
+      }
+      setNodeText('next-match-teams', t('nextMatchFallback'));
+      setNodeText('next-match-countdown', '--');
+      setNodeText('next-match-meta', t('tournamentTitle'));
+      setNodeText('next-match-day', '26');
+      if (nextMatchList) {
+        nextMatchList.hidden = true;
+        nextMatchList.innerHTML = '';
+      }
+      return;
+    }
+
+    const home = teamName(match.home_team);
+    const away = teamName(match.away_team);
+    const kickoff = match.scheduled_at || match.scheduledAt || '';
+    const status = String(match.status || 'scheduled').toLowerCase();
+    const hasMultipleMatches = group.length > 1;
+    if (nextMatchOpen) {
+      nextMatchOpen.disabled = false;
+      nextMatchOpen.dataset.matchId = String(match.id || '');
+    }
+    const updateCountdown = () => {
+      if (status === 'live') {
+        setNodeText('next-match-countdown', t('nextMatchLiveNow'));
+        return;
+      }
+      if (status === 'half_time') {
+        setNodeText('next-match-countdown', t('nextMatchHalfTime'));
+        return;
+      }
+      setNodeText('next-match-countdown', formatCountdown(kickoff));
+    };
+    if (hasMultipleMatches) {
+      const hasLiveGroup = group.some((item) => {
+        const itemStatus = String(item?.status || '').toLowerCase();
+        return itemStatus === 'live' || itemStatus === 'half_time';
+      });
+      setNodeText('next-match-label', hasLiveGroup ? t('liveMatchesLabel') : t('nextMatchesLabel'));
+    }
+    setNodeText('next-match-teams', `${home} vs ${away}`);
+    setNodeText('next-match-meta', `${stageName(match)} · ${formatDate(kickoff)}`);
+    setNodeText('next-match-day', new Date(kickoff).getDate() || '26');
+    if (nextMatchList) {
+      const extraMatches = group.slice(1, 4);
+      nextMatchList.hidden = extraMatches.length === 0;
+      nextMatchList.innerHTML = extraMatches.map((item) => {
+        const itemHome = teamName(item.home_team);
+        const itemAway = teamName(item.away_team);
+        const itemKickoff = item.scheduled_at || item.scheduledAt || '';
+        return `
+          <button class="next-match-row" type="button" data-match-id="${escapeHtml(item.id)}">
+            <strong>${escapeHtml(`${itemHome} vs ${itemAway}`)}</strong>
+            <span>${escapeHtml(stageName(item))} · ${escapeHtml(formatDate(itemKickoff))}</span>
+          </button>
+        `;
+      }).join('');
+    }
+    updateCountdown();
+    if (typeof setInterval === 'function') {
+      heroCountdownTimer = setInterval(updateCountdown, 1000);
     }
   }
 
@@ -1729,6 +1930,7 @@
   function renderMatches(matches) {
     if (!grid) return;
     currentMatches = matches;
+    renderNextMatchBoard(matches);
     if (!matches.length) {
       grid.innerHTML = `<article class="empty-card">${escapeHtml(t('matchesUnavailable'))}</article>`;
       return;
@@ -2053,6 +2255,20 @@
       if (!card) return;
       event.preventDefault();
       openMatchDetails(card.dataset.matchId);
+    });
+  }
+
+  if (nextMatchOpen) {
+    nextMatchOpen.addEventListener('click', () => {
+      const matchId = nextMatchOpen.dataset.matchId;
+      if (matchId) void openMatchDetails(matchId);
+    });
+  }
+
+  if (nextMatchList) {
+    nextMatchList.addEventListener('click', (event) => {
+      const row = event.target.closest('[data-match-id]');
+      if (row) void openMatchDetails(row.dataset.matchId);
     });
   }
 

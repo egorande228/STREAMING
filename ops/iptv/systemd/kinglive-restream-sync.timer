@@ -1,0 +1,11 @@
+[Unit]
+Description=Run KingLive IPTV restream sync
+
+[Timer]
+OnBootSec=30
+OnUnitActiveSec=30
+AccuracySec=5
+Unit=kinglive-restream-sync.service
+
+[Install]
+WantedBy=timers.target

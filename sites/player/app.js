@@ -30,10 +30,15 @@
     'player-bottom': 'playerBottom',
     'player-rail': 'playerRail',
   };
+  const MANAGED_PLAYBACK_CHECK_INTERVAL_MS = 3000;
+  const MANAGED_PLAYBACK_NUDGE_AFTER_MS = 20000;
+  const MANAGED_PLAYBACK_RELOAD_AFTER_MS = 90000;
+  const MANAGED_PLAYBACK_RELOAD_COOLDOWN_MS = 300000;
   let currentStreams = [];
   let hls;
   let videoJsPlayer = null;
   let managedPlaybackTimer = null;
+  let managedPlaybackReloadedAt = 0;
 
   const isAdmin = params.get('admin') === '1';
   const viewerClientId = getViewerClientId();
@@ -591,11 +596,11 @@
     }
   }
 
-  function startNativeManagedHls(video, value) {
+  function startNativeManagedHls(video, value, recoverPlayback) {
     const fallbackUrl = withManagedHlsCookieCheck(value);
     video.src = fallbackUrl;
     requestMutedPlayback(video);
-    startManagedPlaybackWatch(video);
+    startManagedPlaybackWatch(video, recoverPlayback);
   }
 
   function configureVideoElement(video, streamUrl, options = {}) {
@@ -636,34 +641,93 @@
     if (result && typeof result.catch === 'function') result.catch(() => {});
   }
 
-  function startManagedPlaybackWatch(video) {
+  function decodedFrameCount(video) {
+    try {
+      if (typeof video.getVideoPlaybackQuality === 'function') {
+        const count = Number(video.getVideoPlaybackQuality()?.totalVideoFrames);
+        if (Number.isFinite(count)) return count;
+      }
+    } catch {}
+    const webkitCount = Number(video.webkitDecodedFrameCount);
+    if (Number.isFinite(webkitCount)) return webkitCount;
+    const mozCount = Number(video.mozParsedFrames);
+    if (Number.isFinite(mozCount)) return mozCount;
+    return null;
+  }
+
+  function playbackSnapshot(video) {
+    return {
+      time: Number(video.currentTime || 0),
+      frames: decodedFrameCount(video),
+    };
+  }
+
+  function playbackAdvanced(previous, current) {
+    if (!previous) return true;
+    if (Number.isFinite(previous.frames) && Number.isFinite(current.frames) && current.frames > previous.frames) {
+      return true;
+    }
+    return current.time > previous.time + 0.25;
+  }
+
+  function recoverManagedPlayback(recoverPlayback) {
+    const now = Date.now();
+    if (managedPlaybackReloadedAt && now - managedPlaybackReloadedAt < MANAGED_PLAYBACK_RELOAD_COOLDOWN_MS) {
+      return false;
+    }
+    managedPlaybackReloadedAt = now;
+    stopManagedPlaybackWatch();
+    if (typeof recoverPlayback === 'function') recoverPlayback();
+    return true;
+  }
+
+  function startManagedPlaybackWatch(video, recoverPlayback) {
     stopManagedPlaybackWatch();
     if (!video || typeof video.play !== 'function') return;
-    let lastTime = -1;
-    let stalledTicks = 0;
-    let ticks = 0;
+    let lastSnapshot = null;
+    let stalledMs = 0;
+    let nudged = false;
     const tick = () => {
-      ticks += 1;
-      const currentTime = Number(video.currentTime || 0);
+      if (document.hidden) {
+        lastSnapshot = playbackSnapshot(video);
+        stalledMs = 0;
+        nudged = false;
+        return;
+      }
+      if (video.ended || video.seeking) {
+        lastSnapshot = playbackSnapshot(video);
+        stalledMs = 0;
+        return;
+      }
       if (video.paused) {
         requestMutedPlayback(video);
-      } else if (currentTime === lastTime && Number(video.readyState || 0) >= 2) {
-        stalledTicks += 1;
-        if (stalledTicks >= 2 && hls && Number.isFinite(hls.liveSyncPosition) && hls.liveSyncPosition > 0) {
+        lastSnapshot = playbackSnapshot(video);
+        stalledMs = 0;
+        return;
+      }
+
+      const currentSnapshot = playbackSnapshot(video);
+      if (!playbackAdvanced(lastSnapshot, currentSnapshot) && Number(video.readyState || 0) >= 2) {
+        stalledMs += MANAGED_PLAYBACK_CHECK_INTERVAL_MS;
+        if (!nudged && stalledMs >= MANAGED_PLAYBACK_NUDGE_AFTER_MS && hls && Number.isFinite(hls.liveSyncPosition) && hls.liveSyncPosition > 0) {
           try {
             video.currentTime = Math.max(0, hls.liveSyncPosition - 1);
           } catch {}
+          currentSnapshot.time = Number(video.currentTime || currentSnapshot.time);
           requestMutedPlayback(video);
-          stalledTicks = 0;
+          nudged = true;
+        }
+        if (stalledMs >= MANAGED_PLAYBACK_RELOAD_AFTER_MS && recoverManagedPlayback(recoverPlayback)) {
+          return;
         }
       } else {
-        stalledTicks = 0;
+        stalledMs = 0;
+        nudged = false;
       }
-      lastTime = currentTime;
-      if (ticks >= 40) stopManagedPlaybackWatch();
+      lastSnapshot = currentSnapshot;
     };
     tick();
-    managedPlaybackTimer = setInterval(tick, 1500);
+    managedPlaybackTimer = setInterval(tick, MANAGED_PLAYBACK_CHECK_INTERVAL_MS);
   }
 
   function renderHls(stream, options = {}) {
@@ -679,6 +743,7 @@
     const video = document.createElement('video');
     const nativeManagedHls = usesManagedHls(stream.url) && isAppleTouchBrowser();
     const playbackUrl = nativeManagedHls ? withManagedHlsCookieCheck(stream.url) : stream.url;
+    const recoverManagedHls = () => renderHls(stream, options);
     configureVideoElement(video, stream.url, { crossOrigin: !nativeManagedHls });
     stage.appendChild(video);
     if (!isVideoJsLike) attachPlayerBrandOverlays();
@@ -688,7 +753,7 @@
 
     const preferHlsJs = /dami-tv\.pro/i.test(stream.url || '') || usesManagedHls(stream.url);
     if (nativeManagedHls) {
-      startNativeManagedHls(video, stream.url);
+      startNativeManagedHls(video, stream.url, recoverManagedHls);
       return;
     }
 
@@ -715,7 +780,7 @@
       });
       hls.loadSource(playbackUrl);
       hls.attachMedia(video);
-      if (managedHls) startManagedPlaybackWatch(video);
+      if (managedHls) startManagedPlaybackWatch(video, recoverManagedHls);
       hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
         if (managedHls) requestMutedPlayback(video);
         else video.play().catch(() => {});

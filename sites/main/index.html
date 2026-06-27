@@ -13,7 +13,7 @@
     <script src="./meta-pixel.js?v=20260615-meta-pixel"></script>
     <script src="./config.js"></script>
     <script defer src="./url-propagation.js"></script>
-    <script defer src="./app.js?v=20260620-live-score-list"></script>
+    <script defer src="./app.js?v=20260623-locale-timezones"></script>
   </head>
   <body>
     <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1563885125322058&ev=PageView&noscript=1" alt="" /></noscript>
@@ -56,18 +56,35 @@
               <a class="button primary" href="#schedule" id="hero-action-main">Match center</a>
               <a class="button secondary" href="#news" id="hero-action-groups">News</a>
             </div>
+            <a class="sponsor-link hero-mobile-sponsor-link" href="https://qweqr.sbs/jJQN6M" target="_blank" rel="nofollow sponsored noopener">
+              <aside class="hero-mobile-sponsor sponsor-slot" aria-label="Sponsored">
+                <img
+                  id="top-banner-mobile"
+                  data-locale-top-banner
+                  data-en-src="../banners/melbet_top_en_1870x245.jpg"
+                  data-ar-src="../banners/melbet_top_ar_1870x245.jpg"
+                  src="../banners/melbet_top_en_1870x245.jpg"
+                  width="1870"
+                  height="245"
+                  alt="Sponsored"
+                  loading="eager"
+                  fetchpriority="high"
+                />
+              </aside>
+            </a>
           </div>
 
           <div class="broadcast-board" aria-label="KingLive tournament board">
-            <div class="board-label">On air</div>
-            <div class="board-brand">KINGLIVE</div>
-            <div class="board-strip">
-              <span>Fixtures</span>
-              <span>Stats</span>
-              <span>Streams</span>
-            </div>
-            <div class="tournament-pill">
-              <span class="pill-mark">26</span>
+            <div class="board-label" id="next-match-label">Next match</div>
+            <div class="board-brand" id="next-match-teams">Team 1 vs Team 2</div>
+            <button class="next-match-live" type="button" id="next-match-open">
+              <span id="next-match-live-label">Live in</span>
+              <strong id="next-match-countdown">--</strong>
+            </button>
+            <div class="next-match-list" id="next-match-list" hidden></div>
+            <div class="next-match-meta" id="next-match-meta">KingLive World Cup 26</div>
+            <div class="tournament-pill next-match-time">
+              <span class="pill-mark" id="next-match-day">26</span>
               <span>
                 <strong id="tournament-title">KingLive World Cup 26</strong>
                 <em id="tournament-dates">June 11 - July 19, 2026</em>
@@ -81,9 +98,17 @@
         <div class="match-column">
           <a class="sponsor-link match-sponsor-link" href="https://qweqr.sbs/jJQN6M" target="_blank" rel="nofollow sponsored noopener">
             <aside class="match-sponsor schedule-sponsor sponsor-slot" aria-label="Sponsored">
-              <picture>
-                <img src="../banners/melbet_banner_1870x245_safe_player.png" width="1870" height="245" alt="Sponsored" loading="lazy" />
-              </picture>
+              <img
+                id="top-banner-desktop"
+                data-locale-top-banner
+                data-en-src="../banners/melbet_top_en_1870x245.jpg"
+                data-ar-src="../banners/melbet_top_ar_1870x245.jpg"
+                src="../banners/melbet_top_en_1870x245.jpg"
+                width="1870"
+                height="245"
+                alt="Sponsored"
+                loading="lazy"
+              />
             </aside>
           </a>
 

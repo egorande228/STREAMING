@@ -439,6 +439,7 @@
   };
   let currentMatches = [];
   let activeStreamMatchIds = new Set();
+  let activeStreamDetails = new Map();
   let openMatchId = '';
   let liveDetailTimer = null;
   let heroCountdownTimer = null;
@@ -544,9 +545,14 @@
     const cachedEntry = readDailyCacheEntry(scope);
     const ageMs = cachedEntry?.fetched_at ? Date.now() - Number(cachedEntry.fetched_at) : Infinity;
     if (!force && cachedEntry?.data != null && ageMs <= maxAgeMs) return cachedEntry.data;
-    const data = await fetchJson(url);
-    writeDailyCache(scope, data);
-    return data;
+    try {
+      const data = await fetchJson(url);
+      writeDailyCache(scope, data);
+      return data;
+    } catch (error) {
+      if (cachedEntry?.data != null) return cachedEntry.data;
+      throw error;
+    }
   }
 
   function addUtcDays(date, days) {
@@ -593,12 +599,33 @@
     };
   }
 
+  function readCachedMatchesForDate(date) {
+    const scope = `matches:${uiLocale}:${date}:${apiVersion}`;
+    const cachedEntry = readDailyCacheEntry(scope);
+    return Array.isArray(cachedEntry?.data?.matches) ? cachedEntry.data.matches : [];
+  }
+
+  function readCachedScheduleMatches(today) {
+    const previousDate = addUtcDays(today, -1);
+    const upcomingDates = Array.from({ length: scheduleLookaheadDays }, (_, index) => addUtcDays(today, index + 1));
+    const previousMatches = readCachedMatchesForDate(previousDate).filter((match) => matchLocalDateKey(match) === today || isLiveCarryoverMatch(match));
+    const cachedMatches = [
+      ...previousMatches,
+      ...readCachedMatchesForDate(today),
+      ...upcomingDates.flatMap((date) => readCachedMatchesForDate(date)),
+    ];
+    return uniqueMatchesById(cachedMatches)
+      .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || '')));
+  }
+
   async function fetchScheduleMatches(today, options = {}) {
     const previousDate = addUtcDays(today, -1);
-    const previousResult = await fetchMatchesForDate(previousDate, options);
-    const todayResult = await fetchMatchesForDate(today, options);
     const upcomingDates = Array.from({ length: scheduleLookaheadDays }, (_, index) => addUtcDays(today, index + 1));
-    const upcomingResults = await Promise.all(upcomingDates.map((date) => fetchMatchesForDate(date, options)));
+    const [previousResult, todayResult, ...upcomingResults] = await Promise.all([
+      fetchMatchesForDate(previousDate, options),
+      fetchMatchesForDate(today, options),
+      ...upcomingDates.map((date) => fetchMatchesForDate(date, options)),
+    ]);
     const previousLocalDateMatches = previousResult.matches.filter((match) => matchLocalDateKey(match) === today || isLiveCarryoverMatch(match));
     const upcomingMatches = [
       ...previousLocalDateMatches,
@@ -951,7 +978,14 @@
   }
 
   function shouldShowPlayerButtons(match = {}) {
-    return matchLocalDateKey(match) === localDateKey(new Date()) || isLiveCarryoverMatch(match);
+    if (matchLocalDateKey(match) === localDateKey(new Date()) || isLiveCarryoverMatch(match)) return true;
+    if (!streamEnabledForMatch(match)) return false;
+
+    const kickoff = Date.parse(match.scheduled_at || match.scheduledAt || '');
+    if (Number.isNaN(kickoff)) return true;
+
+    const now = Date.now();
+    return kickoff > now - 4 * 60 * 60 * 1000 && kickoff < now + 6 * 60 * 60 * 1000;
   }
 
   function renderStreamButtons(match, title, options = {}) {
@@ -1371,6 +1405,15 @@
         maxAgeMs: 30_000,
       });
       const idsFromList = Array.isArray(payload?.match_ids) ? payload.match_ids.map((id) => String(id)) : [];
+      if (payload && typeof payload.streams === 'object' && payload.streams !== null) {
+        activeStreamDetails = new Map(
+          Object.entries(payload.streams)
+            .filter(([, streams]) => Array.isArray(streams) && streams.some((stream) => stream && stream.url))
+            .map(([matchId, streams]) => [String(matchId), streams.filter((stream) => stream && stream.url)]),
+        );
+      } else if (!idsFromList.length) {
+        activeStreamDetails = new Map();
+      }
       if (idsFromList.length) return new Set(idsFromList);
       if (payload && typeof payload.streams === 'object' && payload.streams !== null) {
         return new Set(Object.keys(payload.streams));
@@ -1379,6 +1422,16 @@
     } catch {
       return fetchLegacyStreamConfigMatchIds();
     }
+  }
+
+  function mergeActiveStreamDetails(matches) {
+    return (Array.isArray(matches) ? matches : []).map((match) => {
+      const id = String(match?.id || '');
+      if (!id || streamsForMatch(match).length) return match;
+      const streams = activeStreamDetails.get(id);
+      if (!Array.isArray(streams) || !streams.length) return match;
+      return { ...match, streams };
+    });
   }
 
   function streamEnabledForMatch(match) {
@@ -1929,7 +1982,9 @@
 
   function renderMatches(matches) {
     if (!grid) return;
-    currentMatches = matches;
+    const displayMatches = mergeActiveStreamDetails(matches);
+    currentMatches = displayMatches;
+    matches = displayMatches;
     renderNextMatchBoard(matches);
     if (!matches.length) {
       grid.innerHTML = `<article class="empty-card">${escapeHtml(t('matchesUnavailable'))}</article>`;
@@ -2104,6 +2159,13 @@
     stopLiveDetailRefresh();
     if (options.updateUrl !== false) setMatchUrlParam(matchId);
 
+    if (!streamsForMatch(match).length && streamEnabledForMatch(match)) {
+      const detailedMatch = await fetchMatchDetailPayload(match.id, {
+        live: match.status === 'live' || match.status === 'half_time',
+      });
+      if (detailedMatch) match = updateCurrentMatch(detailedMatch) || match;
+    }
+
     const home = teamName(match.home_team);
     const away = teamName(match.away_team);
     const title = `${home} vs ${away}`;
@@ -2198,8 +2260,13 @@
 
   async function loadMatches(options = {}) {
     if (!grid) return;
-    renderMatchSkeleton();
     const today = todayLocalKey();
+    const cachedScheduleMatches = mergeManualMatches(readCachedScheduleMatches(today));
+    if (cachedScheduleMatches.length) {
+      renderMatches(cachedScheduleMatches);
+    } else {
+      renderMatchSkeleton();
+    }
 
     try {
       const schedule = await fetchScheduleMatches(today, options);
@@ -2232,7 +2299,7 @@
         void fetchMatchStats(match.id, { live: true, maxAgeMs: 30_000 });
       });
     } catch {
-      renderMatches([]);
+      renderMatches(cachedScheduleMatches.length ? cachedScheduleMatches : []);
     }
   }
 

@@ -92,6 +92,34 @@
   gap: 12px;
   margin-bottom: 14px;
 }
+.admin-collapsible-card {
+  display: block;
+}
+.admin-collapsible-summary {
+  cursor: pointer;
+  list-style: none;
+  margin-bottom: 0;
+}
+.admin-collapsible-summary::-webkit-details-marker {
+  display: none;
+}
+.admin-collapsible-card[open] .admin-collapsible-summary {
+  margin-bottom: 14px;
+}
+.admin-collapse-label::after {
+  content: "Open";
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.admin-collapsible-card[open] .admin-collapse-label::after {
+  content: "Close";
+}
+.admin-collapsible-body {
+  display: grid;
+  gap: 0;
+}
 .admin-grid {
   display: grid;
   gap: 12px;

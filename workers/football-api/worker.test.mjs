@@ -630,6 +630,69 @@ test('admin refresh bumps cache version and forces a fresh Sportmonks request', 
   }
 });
 
+test('serves public match list from KV cache after first upstream response', async () => {
+  const previousFetch = globalThis.fetch;
+  const previousCaches = globalThis.caches;
+  const kvData = new Map();
+  let sportmonksCalls = 0;
+
+  globalThis.caches = undefined;
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    if (requestUrl.includes('api.sportmonks.com')) {
+      sportmonksCalls += 1;
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 1540843,
+              starting_at: '2026-06-11 18:00:00',
+              state: { short_name: 'NS' },
+              league: { id: 732, name: 'FIFA World Cup', country: { name: 'World' } },
+              participants: [
+                { id: 1, name: 'Brazil', short_code: 'BRA', meta: { location: 'home' } },
+                { id: 2, name: 'Japan', short_code: 'JPN', meta: { location: 'away' } },
+              ],
+              scores: [],
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (requestUrl.includes('/papi/api/streams')) {
+      return new Response(JSON.stringify({ success: true, streams: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ data: [] }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  const env = {
+    SPORTMONKS_TOKEN: 'test-token',
+    STREAM_CONFIG_KV: {
+      async get(key) {
+        return kvData.get(key) || null;
+      },
+      async put(key, value) {
+        kvData.set(key, value);
+      },
+    },
+  };
+
+  try {
+    const first = await routeRequest(new Request('https://kinglive.test/api/matches?date=2026-06-11'), env, {});
+    const second = await routeRequest(new Request('https://kinglive.test/api/matches?date=2026-06-11'), env, {});
+
+    assert.equal(first.status, 200);
+    assert.equal(second.status, 200);
+    assert.equal(second.headers.get('X-KingLive-Cache'), 'kv');
+    assert.equal(sportmonksCalls, 1);
+    assert.equal((await second.json()).matches.length, 1);
+  } finally {
+    globalThis.fetch = previousFetch;
+    globalThis.caches = previousCaches;
+  }
+});
+
 test('tracks viewer heartbeats and returns admin monitoring snapshot from KV', async () => {
   const kvData = new Map();
   const expirations = new Map();

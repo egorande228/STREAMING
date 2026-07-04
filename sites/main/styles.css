@@ -415,7 +415,7 @@ html[dir="rtl"] .locale-menu {
   border-radius: var(--radius);
   background:
     linear-gradient(90deg, rgba(5, 6, 5, 0.98) 0%, rgba(5, 6, 5, 0.86) 48%, rgba(5, 6, 5, 0.42) 100%),
-    url("./assets/world-cup-hero.png") center / cover;
+    url("./assets/world-cup-hero-optimized.jpg") center / cover;
   box-shadow: var(--shadow);
 }
 

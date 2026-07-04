@@ -6,7 +6,7 @@
     <title>KingLive Admin</title>
     <link rel="stylesheet" href="./styles.css" />
     <script src="./config.js"></script>
-    <script defer src="./admin.js?v=restream-origin-20260618"></script>
+    <script defer src="./admin.js?v=hls-referrers-20260702"></script>
     <link rel="stylesheet" href="./admin.css?v=overlay-free-size-20260616" />
   </head>
   <body>
@@ -339,6 +339,29 @@
         </div>
         <p id="monitoring-meta" class="mono"></p>
             </section>
+
+            <details class="admin-card admin-collapsible-card">
+        <summary class="admin-card-header admin-collapsible-summary">
+          <h2>HLS Referrers</h2>
+          <span class="admin-collapse-label" aria-hidden="true"></span>
+        </summary>
+        <div class="admin-collapsible-body">
+          <div class="admin-actions">
+            <button id="reload-hls-referrers" class="button secondary" type="button">Reload</button>
+          </div>
+          <div class="admin-table-wrap" style="margin-top:12px;">
+            <table class="admin-table">
+              <thead>
+                <tr><th>Source</th><th>Country</th><th>Stream</th><th>Hits</th><th>Last seen</th></tr>
+              </thead>
+              <tbody id="hls-referrers-body">
+                <tr><td colspan="5">No data</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="hls-referrers-meta" class="mono"></p>
+        </div>
+            </details>
           </div>
         </div>
       </div>

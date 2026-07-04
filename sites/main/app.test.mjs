@@ -840,6 +840,111 @@ test('does not reuse empty daily match cache after API recovers', async () => {
   assert.match(gridHtml, /Canada vs Brazil/);
 });
 
+test('keeps stale cached matches visible when schedule refresh fails', async () => {
+  let gridHtml = '';
+  const storage = new Map();
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const localStorage = {
+    get length() {
+      return storage.size;
+    },
+    getItem(key) {
+      return storage.get(key) ?? null;
+    },
+    setItem(key, value) {
+      storage.set(key, String(value));
+    },
+    removeItem(key) {
+      storage.delete(key);
+    },
+    key(index) {
+      return Array.from(storage.keys())[index] ?? null;
+    },
+  };
+  const today = localDateKey();
+  const cachedMatch = {
+    id: 19609177,
+    scheduled_at: `${today}T19:00:00+00:00`,
+    status: 'scheduled',
+    stage: 'Group Stage',
+    league: { name: 'World Cup' },
+    home_team: { name_en: 'Portugal' },
+    away_team: { name_en: 'Uzbekistan' },
+  };
+  storage.set(
+    `kinglive.daily.v2.no-cyrillic:matches:en:${today}:${apiVersion}:${today}`,
+    JSON.stringify({
+      day: today,
+      data: { matches: [cachedMatch] },
+      fetched_at: Date.now() - 10 * 60 * 1000,
+    }),
+  );
+
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/' },
+      localStorage,
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: 'https://kinglive-football-api.test',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+      },
+    },
+    document: {
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch(url) {
+      const request = String(url);
+      if (request.endsWith('/stream.json') || request.endsWith('stream.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      }
+      return Promise.reject(new Error('network down'));
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(gridHtml, /Portugal vs Uzbekistan/);
+  assert.doesNotMatch(gridHtml, /Loading matches/);
+});
+
 test('sends site locale with match API requests', async () => {
   let gridHtml = '';
   let modalHtml = '';

@@ -1,6 +1,7 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.adminApiBase || config.apiBase || '').replace(/\/$/, '');
+  const hlsReferrersApiUrl = String(config.hlsReferrersApiUrl || 'https://cdn-hls.livekinglive.win/__admin/hls-referrers');
   const tokenKey = 'kinglive_admin_token';
 
   const $ = (id) => document.getElementById(id);
@@ -11,6 +12,8 @@
   const monitoringMetrics = $('monitoring-metrics');
   const monitoringBody = $('monitoring-body');
   const monitoringMeta = $('monitoring-meta');
+  const hlsReferrersBody = $('hls-referrers-body');
+  const hlsReferrersMeta = $('hls-referrers-meta');
   const refreshResult = $('refresh-result');
   const statusBody = $('status-body');
   const settingsStatus = $('settings-status');
@@ -73,6 +76,17 @@
     return payload;
   }
 
+  async function hlsReferrersFetch() {
+    const response = await fetch(hlsReferrersApiUrl, {
+      headers: {
+        ...(token() ? { Authorization: `Bearer ${token()}` } : {}),
+      },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.message || payload.error || `Request failed (${response.status})`);
+    return payload;
+  }
+
   async function login() {
     saveMsg.textContent = '';
     saveErr.textContent = '';
@@ -90,6 +104,7 @@
       await loadSettings();
       await loadOverlays();
       await loadMonitoring();
+      await loadHlsReferrers();
       await loadStreams();
       await loadStatuses();
     } catch (error) {
@@ -102,6 +117,7 @@
     setAuthLabel();
     streamsBody.innerHTML = '<tr><td colspan="15">Logged out</td></tr>';
     if (monitoringBody) monitoringBody.innerHTML = '<tr><td colspan="3">Logged out</td></tr>';
+    if (hlsReferrersBody) hlsReferrersBody.innerHTML = '<tr><td colspan="5">Logged out</td></tr>';
     if (statusBody) statusBody.innerHTML = '<tr><td colspan="7">Logged out</td></tr>';
     if (chatBody) chatBody.innerHTML = '<tr><td colspan="4">Logged out</td></tr>';
     if (overlayBody) overlayBody.innerHTML = '<tr><td colspan="4">Logged out</td></tr>';
@@ -979,6 +995,38 @@
     }
   }
 
+  async function loadHlsReferrers() {
+    if (!hlsReferrersBody) return;
+    if (!token()) {
+      hlsReferrersBody.innerHTML = '<tr><td colspan="5">Login first</td></tr>';
+      return;
+    }
+
+    try {
+      const payload = await hlsReferrersFetch();
+      const referrers = Array.isArray(payload.referrers) ? payload.referrers : [];
+      if (!referrers.length) {
+        hlsReferrersBody.innerHTML = '<tr><td colspan="5">No HLS referrers yet</td></tr>';
+      } else {
+        hlsReferrersBody.innerHTML = referrers.map((item) => `
+          <tr>
+            <td>
+              <strong>${escapeHtml(item.source || 'direct')}</strong>
+              ${item.origin_host && item.origin_host !== item.source ? `<div class="mono">origin: ${escapeHtml(item.origin_host)}</div>` : ''}
+            </td>
+            <td>${escapeHtml(item.country || 'XX')}</td>
+            <td class="mono">${escapeHtml(item.path || '')}</td>
+            <td>${escapeHtml(item.count || 0)}</td>
+            <td>${escapeHtml(formatAdminDateTime(item.last_seen_at) || item.last_seen_at || '')}</td>
+          </tr>
+        `).join('');
+      }
+      if (hlsReferrersMeta) hlsReferrersMeta.textContent = `Generated: ${payload.generated_at || ''}`;
+    } catch (error) {
+      hlsReferrersBody.innerHTML = `<tr><td colspan="5">${escapeHtml(String(error.message || error))}</td></tr>`;
+    }
+  }
+
   async function runRefresh(scope) {
     saveMsg.textContent = '';
     saveErr.textContent = '';
@@ -1042,6 +1090,7 @@
   if ($('status-form')) $('status-form').addEventListener('submit', saveStatus);
   $('reload-streams').addEventListener('click', loadStreams);
   $('reload-monitoring').addEventListener('click', loadMonitoring);
+  if ($('reload-hls-referrers')) $('reload-hls-referrers').addEventListener('click', loadHlsReferrers);
   if ($('reload-statuses')) $('reload-statuses').addEventListener('click', loadStatuses);
   if ($('reload-chat')) $('reload-chat').addEventListener('click', loadChat);
   if ($('clear-chat')) $('clear-chat').addEventListener('click', clearChat);
@@ -1060,6 +1109,7 @@
   loadOverlays();
   loadSettings();
   loadMonitoring();
+  loadHlsReferrers();
   loadStreams();
   loadStatuses();
 })();

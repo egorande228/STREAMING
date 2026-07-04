@@ -22,6 +22,9 @@ const ADMIN_SETTINGS_KV_KEY = 'admin_settings_json';
 const OVERLAY_ASSETS_INDEX_KV_KEY = 'restream_overlay_assets_index_json';
 const OVERLAY_ASSET_KV_PREFIX = 'restream_overlay_asset:';
 const CACHE_VERSION_KV_KEY = 'api_cache_version';
+const MATCH_LIST_KV_CACHE_PREFIX = 'public_matches_cache:';
+const MATCH_LIST_KV_MAX_AGE_SECONDS = 60;
+const MATCH_LIST_KV_STALE_TTL_SECONDS = 15 * 60;
 const RESTREAM_ORIGIN_HOST = 'hls.livekinglive.win';
 const RESTREAM_CDN_HOST = 'cdn-hls.livekinglive.win';
 const DEFAULT_RESTREAM_PUBLIC_BASE_URL = `https://${RESTREAM_CDN_HOST}/live`;
@@ -216,11 +219,31 @@ export async function routeRequest(request, env = {}, ctx = {}) {
     return cached;
   }
 
+  const publicMatchListRequest = isPublicMatchListRequest(url);
+  const kvMatchListCache = publicMatchListRequest
+    ? await readPublicMatchListKvCache(env, url, provider, cacheVersion)
+    : null;
+  if (kvMatchListCache?.fresh) {
+    await recordMetric(env, 'cache_hits');
+    return cachedPublicMatchListResponse(kvMatchListCache.entry, ttl, 'kv');
+  }
+
   let response;
   if (provider === 'sportmonks') {
     response = await routeSportmonksFootballRequest(url, env, ttl, ctx);
   } else {
     response = await routeApiFootballRequest(url, env, ttl);
+  }
+
+  if (!response.ok && kvMatchListCache?.entry) {
+    return cachedPublicMatchListResponse(kvMatchListCache.entry, 30, 'kv-stale');
+  }
+
+  if (response.ok && publicMatchListRequest) {
+    const cacheableMatchList = response.clone();
+    const cacheWrite = writePublicMatchListKvCache(env, url, provider, cacheVersion, cacheableMatchList);
+    if (ctx.waitUntil) ctx.waitUntil(cacheWrite);
+    else await cacheWrite;
   }
 
   if (cache && response.ok) {
@@ -230,6 +253,56 @@ export async function routeRequest(request, env = {}, ctx = {}) {
   }
 
   return response;
+}
+
+function isPublicMatchListRequest(url) {
+  return url.pathname === '/api/matches' && !url.searchParams.has('admin');
+}
+
+async function readPublicMatchListKvCache(env = {}, url, provider = '', cacheVersion = '') {
+  if (!env.STREAM_CONFIG_KV?.get) return null;
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(publicMatchListKvCacheKey(url, provider, cacheVersion));
+    const entry = raw ? JSON.parse(raw) : null;
+    const createdAt = Number(entry?.created_at || 0);
+    if (!entry?.body || !createdAt) return null;
+    const ageSeconds = Math.floor((Date.now() - createdAt) / 1000);
+    return {
+      entry: { ...entry, age_seconds: Math.max(0, ageSeconds) },
+      fresh: ageSeconds <= MATCH_LIST_KV_MAX_AGE_SECONDS,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function writePublicMatchListKvCache(env = {}, url, provider = '', cacheVersion = '', response) {
+  if (!env.STREAM_CONFIG_KV?.put || !response?.ok) return false;
+  try {
+    const body = await response.json();
+    if (!body || typeof body !== 'object' || !Array.isArray(body.matches)) return false;
+    const entry = {
+      created_at: Date.now(),
+      body,
+    };
+    await env.STREAM_CONFIG_KV.put(publicMatchListKvCacheKey(url, provider, cacheVersion), JSON.stringify(entry), {
+      expirationTtl: MATCH_LIST_KV_STALE_TTL_SECONDS,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function cachedPublicMatchListResponse(entry, maxAge = 30, source = 'kv') {
+  const response = jsonResponse(entry.body, 200, Math.min(Math.max(Number(maxAge) || 30, 30), MATCH_LIST_KV_MAX_AGE_SECONDS));
+  response.headers.set('X-KingLive-Cache', source);
+  response.headers.set('X-KingLive-Cache-Age', String(entry.age_seconds || 0));
+  return response;
+}
+
+function publicMatchListKvCacheKey(url, provider = '', cacheVersion = '') {
+  return `${MATCH_LIST_KV_CACHE_PREFIX}${safeKeyPart(normalizeCacheUrl(url, provider, cacheVersion).toString())}`;
 }
 
 async function routeApiFootballRequest(url, env, ttl) {

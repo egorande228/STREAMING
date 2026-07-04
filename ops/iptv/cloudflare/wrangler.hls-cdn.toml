@@ -1,0 +1,7 @@
+name = "kinglive-hls-cdn-proxy"
+main = "livekinglive-hls-cdn-worker.js"
+compatibility_date = "2026-07-02"
+
+[[kv_namespaces]]
+binding = "HLS_LOG_KV"
+id = "b5b5ee98975b4210bfb9a62182fc47e1"

@@ -7,11 +7,8 @@ const appSource = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
 const indexHtml = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
 const adminSource = readFileSync(new URL('./admin.js', import.meta.url), 'utf8');
 const apiVersion = appSource.match(/const apiVersion = '([^']+)'/)?.[1] || '';
-const arabicTelegramUrl = 'https://t.me/worldcup_live2026arabia';
-const arabicYoutubeUrl =
-  'https://www.youtube.com/@%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%85%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A8%D8%B7%D9%88%D9%84%D8%A9%D8%A7%D9%84%D8%B9%D8%A7%D9%84%D9%852026';
+const sharedTelegramUrl = 'https://t.me/Teamcash_x_Melbet_Asia';
 const staleArabicSocialHandlePattern = new RegExp(`worldcup(?:${['2026', 'arabworld'].join('')}|${['_', 'arabia'].join('')})`);
-const mongolianFacebookUrl = 'https://facebook.com/worldcuplivemongoliaa';
 const staleMongolianInstagramHandle = ['worldcuplive', 'mongolia', 'melbet'].join('_');
 
 function localDateKey(date = new Date()) {
@@ -42,16 +39,16 @@ test('odds panel stays branded to MelBet only', () => {
   assert.doesNotMatch(appSource, /\$\{bookmaker\} odds/);
 });
 
-test('Arabic locale social links use current regional channels', () => {
-  assert.match(appSource, new RegExp(arabicTelegramUrl.replaceAll('.', '\\.')));
-  assert.match(appSource, new RegExp(arabicYoutubeUrl.replaceAll('.', '\\.')));
+test('social links use only the shared Telegram contact', () => {
+  assert.match(appSource, new RegExp(sharedTelegramUrl.replaceAll('.', '\\.')));
   assert.doesNotMatch(appSource, staleArabicSocialHandlePattern);
-});
-
-test('Mongolian locale social links use Facebook and hide Instagram', () => {
-  assert.match(appSource, new RegExp(mongolianFacebookUrl.replaceAll('.', '\\.')));
   assert.doesNotMatch(appSource, new RegExp(staleMongolianInstagramHandle));
-  assert.doesNotMatch(appSource, new RegExp(['Facebook', 'coming', 'soon'].join(' ')));
+  assert.doesNotMatch(appSource, /worldcuplive_international/);
+  assert.doesNotMatch(appSource, /worldcuplive_french/);
+  assert.doesNotMatch(appSource, /worldcuplive_mongolia/);
+  assert.doesNotMatch(appSource, /youtube\.com/);
+  assert.doesNotMatch(appSource, /instagram\.com/);
+  assert.doesNotMatch(appSource, /facebook\.com/);
 });
 
 test('top sponsor banner switches to Arabic asset only for Arabic locale', () => {

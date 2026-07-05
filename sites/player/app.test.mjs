@@ -825,7 +825,7 @@ test('renders iframe streams with browser sandbox restrictions', async () => {
   assert.equal(iframe.sandbox, 'allow-scripts allow-same-origin allow-forms allow-presentation');
 });
 
-test('renders KingLive text overlays above iframe streams', async () => {
+test('does not render KingLive text overlays above iframe streams', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',
     config: {
@@ -854,10 +854,7 @@ test('renders KingLive text overlays above iframe streams', async () => {
   });
 
   const overlays = result.appended.filter((element) => String(element.className).includes('player-brand-overlay'));
-  assert.equal(overlays.length, 2);
-  assert.equal(overlays[0].textContent, 'KINGLIVE');
-  assert.equal(overlays[1].textContent, 'KINGLIVE');
-  assert.equal(overlays.every((element) => element['aria-hidden'] === 'true'), true);
+  assert.equal(overlays.length, 0);
 });
 
 test('stage fullscreen button keeps player overlays inside fullscreen surface', async () => {

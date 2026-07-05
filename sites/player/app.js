@@ -415,19 +415,8 @@
       adCover.setAttribute('aria-hidden', 'true');
       stage.appendChild(adCover);
     }
-    attachPlayerBrandOverlays();
     attachPlayerFullscreenButton();
     attachTelegramPopupToStage();
-  }
-
-  function attachPlayerBrandOverlays() {
-    ['top', 'bottom'].forEach((position) => {
-      const overlay = document.createElement('div');
-      overlay.className = `player-brand-overlay player-brand-overlay-${position}`;
-      overlay.textContent = 'KINGLIVE';
-      overlay.setAttribute('aria-hidden', 'true');
-      stage.appendChild(overlay);
-    });
   }
 
   function attachPlayerFullscreenButton() {
@@ -746,7 +735,6 @@
     const recoverManagedHls = () => renderHls(stream, options);
     configureVideoElement(video, stream.url, { crossOrigin: !nativeManagedHls });
     stage.appendChild(video);
-    if (!isVideoJsLike) attachPlayerBrandOverlays();
     attachStreamPlayButton(video);
     attachPlayerFullscreenButton();
     attachTelegramPopupToStage();

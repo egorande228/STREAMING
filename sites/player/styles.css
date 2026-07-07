@@ -201,6 +201,23 @@ body {
   background: #000;
 }
 
+.stage video.stream-video-live-controls::-webkit-media-controls-timeline,
+.stage video.stream-video-live-controls::-webkit-media-controls-timeline-container,
+.stage video.stream-video-live-controls::-webkit-media-controls-current-time-display,
+.stage video.stream-video-live-controls::-webkit-media-controls-time-remaining-display,
+.stage video.stream-video-live-controls::-webkit-media-controls-seek-back-button,
+.stage video.stream-video-live-controls::-webkit-media-controls-seek-forward-button {
+  display: none !important;
+}
+
+.stage .vjs-progress-control,
+.stage .vjs-current-time,
+.stage .vjs-time-divider,
+.stage .vjs-duration,
+.stage .vjs-remaining-time {
+  display: none !important;
+}
+
 .stream-play-button {
   position: absolute;
   left: 50%;

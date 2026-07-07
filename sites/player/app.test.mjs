@@ -340,8 +340,15 @@ test('uses Video.js only for streams explicitly marked as videojs', async () => 
         videoJsCalled = true;
         assert.equal(element.tagName, 'video');
         assert.equal(element.crossOrigin, 'anonymous');
+        assert.match(element.className, /stream-video-live-controls/);
+        assert.equal(element['data-live-controls'], 'true');
         assert.equal(options.html5, undefined);
         assert.equal(options.sources[0].src, 'https://stream.test/live.m3u8');
+        assert.equal(options.controlBar.progressControl, false);
+        assert.equal(options.controlBar.currentTimeDisplay, false);
+        assert.equal(options.controlBar.timeDivider, false);
+        assert.equal(options.controlBar.durationDisplay, false);
+        assert.equal(options.controlBar.remainingTimeDisplay, false);
         return {
           ready(handler) {
             handler();
@@ -423,6 +430,8 @@ test('uses hls.js without credentials for KingLive HLS streams marked as videojs
 
   const video = result.appended.find((element) => element.tagName === 'video');
   assert.equal(videoJsCalled, false);
+  assert.match(video.className, /stream-video-live-controls/);
+  assert.equal(video['data-live-controls'], 'true');
   assert.equal(video.crossOrigin, 'anonymous');
   assert.equal(video.muted, true);
   assert.equal(calls.find((call) => call.type === 'options').options.xhrSetup, undefined);
@@ -548,6 +557,8 @@ test('uses native iOS HLS master playlist for KingLive HLS streams marked as vid
   const video = result.appended.find((element) => element.tagName === 'video');
   assert.equal(videoJsCalled, false);
   assert.equal(video.src, 'https://hls.livekinglive.win/live/test/index.m3u8?cookieCheck=1');
+  assert.match(video.className, /stream-video-live-controls/);
+  assert.equal(video['data-live-controls'], 'true');
   assert.equal(video.crossOrigin, undefined);
   assert.equal(video.autoplay, true);
   assert.equal(video.muted, true);

@@ -538,7 +538,9 @@
 
   function configureVideoElement(video, streamUrl, options = {}) {
     if (!video) return;
+    video.className = [video.className, 'stream-video-live-controls'].filter(Boolean).join(' ');
     if (typeof video.setAttribute === 'function') {
+      video.setAttribute('data-live-controls', 'true');
       video.setAttribute('autoplay', '');
       video.setAttribute('playsinline', '');
       video.setAttribute('webkit-playsinline', '');
@@ -751,6 +753,13 @@
       videoJsPlayer = window.videojs(video, {
         autoplay: true,
         controls: true,
+        controlBar: {
+          progressControl: false,
+          currentTimeDisplay: false,
+          timeDivider: false,
+          durationDisplay: false,
+          remainingTimeDisplay: false,
+        },
         fluid: false,
         responsive: true,
         liveui: true,

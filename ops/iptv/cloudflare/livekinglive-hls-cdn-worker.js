@@ -1,5 +1,5 @@
 const UPSTREAM_ORIGIN = 'https://hls.livekinglive.win';
-const AWS_UPSTREAM_ORIGIN = 'http://ec2-54-164-65-76.compute-1.amazonaws.com';
+const AWS_UPSTREAM_ORIGIN = 'http://vast-origin.livekinglive.win:46204';
 const API_ADMIN_CHECK_URL = 'https://kinglive-football-api.figurator228.workers.dev/api/admin/monitoring';
 const SEGMENT_RE = /\.(ts|m4s|mp4|aac)$/i;
 const HLS_REFERRER_KV_PREFIX = 'hls_referrer:';
@@ -299,8 +299,13 @@ function resolveUpstream(url) {
 }
 
 async function fetchUpstream(request, upstreamUrl, cacheable) {
-  const headers = new Headers(request.headers);
-  headers.delete('host');
+  const headers = new Headers();
+  const range = request.headers.get('range');
+  const ifModifiedSince = request.headers.get('if-modified-since');
+  const ifNoneMatch = request.headers.get('if-none-match');
+  if (range) headers.set('Range', range);
+  if (ifModifiedSince) headers.set('If-Modified-Since', ifModifiedSince);
+  if (ifNoneMatch) headers.set('If-None-Match', ifNoneMatch);
   headers.set('Origin', 'https://livekinglive.win');
   headers.set(
     'User-Agent',

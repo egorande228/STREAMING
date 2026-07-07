@@ -1688,10 +1688,10 @@ html[dir="rtl"] .social-dock {
     var(--surface);
   box-shadow: 0 34px 100px rgba(0, 0, 0, 0.68);
   padding: 24px;
-  padding-right: 78px;
 }
 
 .match-detail > .section-kicker {
+  padding-right: 62px;
   max-width: calc(100% - 16px);
 }
 
@@ -3101,7 +3101,6 @@ html[dir="rtl"] .social-dock {
 
   .match-detail {
     padding: 20px;
-    padding-right: 68px;
   }
 
   .detail-head {

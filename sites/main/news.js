@@ -24,7 +24,6 @@
       fallbackMetaSource: 'Football',
       noText: 'News text is not available right now.',
       localeCode: 'EN',
-      localeFlag: '🇬🇧',
     },
     es: {
       brandTitle: 'Noticias',
@@ -41,7 +40,6 @@
       fallbackMetaSource: 'Fútbol',
       noText: 'El texto de la noticia no está disponible ahora.',
       localeCode: 'ES',
-      localeFlag: '🇪🇸',
     },
     fr: {
       brandTitle: 'Actualités',
@@ -58,7 +56,6 @@
       fallbackMetaSource: 'Football',
       noText: 'Le texte de l’article n’est pas disponible pour le moment.',
       localeCode: 'FR',
-      localeFlag: '🇫🇷',
     },
     ar: {
       brandTitle: 'الأخبار',
@@ -75,7 +72,6 @@
       fallbackMetaSource: 'كرة القدم',
       noText: 'نص الخبر غير متاح حالياً.',
       localeCode: 'AR',
-      localeFlag: '🇸🇦',
     },
   };
   const uiLocale = resolveLocale();
@@ -187,11 +183,12 @@
   function setupLocaleButton() {
     if (!localeButton) return;
     const locales = [
-      { code: 'en', flag: '🇬🇧', label: 'English' },
-      { code: 'es', flag: '🇪🇸', label: 'Español' },
-      { code: 'fr', flag: '🇫🇷', label: 'Français' },
-      { code: 'ar', flag: '🇸🇦', label: 'العربية' },
+      { code: 'en', label: 'English' },
+      { code: 'es', label: 'Español' },
+      { code: 'fr', label: 'Français' },
+      { code: 'ar', label: 'العربية' },
     ];
+    const localeFlag = (code) => `<span class="locale-flag locale-flag-${escapeHtml(code)}" aria-hidden="true"></span>`;
     const container = localeButton.parentElement;
     const picker = document.createElement('div');
     picker.className = 'locale-picker';
@@ -212,7 +209,7 @@
             data-locale="${item.code}"
             ${item.code === uiLocale ? 'aria-current="true"' : ''}
           >
-            <span>${item.flag}</span>
+            ${localeFlag(item.code)}
             <span>${item.label}</span>
           </button>
         `,
@@ -223,7 +220,7 @@
 
     localeButton.setAttribute('aria-haspopup', 'menu');
     localeButton.setAttribute('aria-expanded', 'false');
-    localeButton.innerHTML = `<span>${t('localeFlag')}</span><span>${t('localeCode')}</span><span aria-hidden="true">⌄</span>`;
+    localeButton.innerHTML = `${localeFlag(uiLocale)}<span>${t('localeCode')}</span><span aria-hidden="true">⌄</span>`;
     const closeMenu = () => {
       menu.hidden = true;
       localeButton.setAttribute('aria-expanded', 'false');

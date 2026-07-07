@@ -89,7 +89,6 @@
       status_finished: 'finished',
       status_postponed: 'postponed',
       localeCode: 'EN',
-      localeFlag: '🇬🇧',
     },
     es: {
       brandTitle: 'Centro de partidos',
@@ -159,7 +158,6 @@
       status_finished: 'finalizado',
       status_postponed: 'pospuesto',
       localeCode: 'ES',
-      localeFlag: '🇪🇸',
     },
     fr: {
       brandTitle: 'Centre des matchs',
@@ -229,7 +227,6 @@
       status_finished: 'terminé',
       status_postponed: 'reporté',
       localeCode: 'FR',
-      localeFlag: '🇫🇷',
     },
     ar: {
       brandTitle: 'مركز المباريات',
@@ -307,7 +304,6 @@
       status_finished: 'منتهية',
       status_postponed: 'مؤجلة',
       localeCode: 'AR',
-      localeFlag: '🇸🇦',
     },
     mn: {
       brandTitle: 'Тоглолтын төв',
@@ -389,7 +385,6 @@
       status_finished: 'дууссан',
       status_postponed: 'хойшлогдсон',
       localeCode: 'MN',
-      localeFlag: '🇲🇳',
     },
   };
   const uiLocale = resolveLocale();
@@ -705,12 +700,13 @@
   function setupLocaleButton() {
     if (!localeButton) return;
     const locales = [
-      { code: 'en', flag: '🇬🇧', label: 'English' },
-      { code: 'es', flag: '🇪🇸', label: 'Español' },
-      { code: 'fr', flag: '🇫🇷', label: 'Français' },
-      { code: 'ar', flag: '🇸🇦', label: 'العربية' },
-      { code: 'mn', flag: '🇲🇳', label: 'Монгол' },
+      { code: 'en', label: 'English' },
+      { code: 'es', label: 'Español' },
+      { code: 'fr', label: 'Français' },
+      { code: 'ar', label: 'العربية' },
+      { code: 'mn', label: 'Монгол' },
     ];
+    const localeFlag = (code) => `<span class="locale-flag locale-flag-${escapeHtml(code)}" aria-hidden="true"></span>`;
     const container = localeButton.parentElement;
     const picker = document.createElement('div');
     picker.className = 'locale-picker';
@@ -731,7 +727,7 @@
             data-locale="${item.code}"
             ${item.code === uiLocale ? 'aria-current="true"' : ''}
           >
-            <span>${item.flag}</span>
+            ${localeFlag(item.code)}
             <span>${item.label}</span>
           </button>
         `,
@@ -742,7 +738,7 @@
 
     localeButton.setAttribute('aria-haspopup', 'menu');
     localeButton.setAttribute('aria-expanded', 'false');
-    localeButton.innerHTML = `<span>${t('localeFlag')}</span><span>${t('localeCode')}</span><span aria-hidden="true">⌄</span>`;
+    localeButton.innerHTML = `${localeFlag(uiLocale)}<span>${t('localeCode')}</span><span aria-hidden="true">⌄</span>`;
     const closeMenu = () => {
       menu.hidden = true;
       localeButton.setAttribute('aria-expanded', 'false');

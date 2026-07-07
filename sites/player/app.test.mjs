@@ -103,12 +103,6 @@ async function runPlayer({ href, config = {}, fetchImpl, timers = {}, navigatorO
       appended.push(element);
     },
   };
-  if (!timers.disableStageFullscreen) {
-    stage.requestFullscreen = () => {
-      timers.stageFullscreenRequested = true;
-      return Promise.resolve();
-    };
-  }
   const makeElement = (tagName) => ({
     tagName,
     className: '',
@@ -374,7 +368,7 @@ test('uses Video.js only for streams explicitly marked as videojs', async () => 
   assert.ok(result.appended.find((element) => element.className.includes('video-js')));
   assert.match(result.getStageClassName(), /stage-videojs/);
   assert.equal(result.appended.some((element) => String(element.className).includes('player-brand-overlay')), false);
-  assert.ok(result.appended.find((element) => element.className === 'player-fullscreen-button'));
+  assert.equal(result.appended.some((element) => element.className === 'player-fullscreen-button'), false);
 });
 
 test('uses hls.js without credentials for KingLive HLS streams marked as videojs', async () => {
@@ -435,7 +429,7 @@ test('uses hls.js without credentials for KingLive HLS streams marked as videojs
   assert.equal(calls.find((call) => call.type === 'source').src, 'https://hls.livekinglive.win/live/test/index.m3u8');
   assert.match(result.getStageClassName(), /stage-videojs/);
   assert.equal(result.appended.some((element) => String(element.className).includes('player-brand-overlay')), false);
-  assert.ok(result.appended.find((element) => element.className === 'player-fullscreen-button'));
+  assert.equal(result.appended.some((element) => element.className === 'player-fullscreen-button'), false);
 });
 
 test('reloads managed HLS only after a long local playback stall', async () => {
@@ -562,7 +556,7 @@ test('uses native iOS HLS master playlist for KingLive HLS streams marked as vid
   assert.equal(video['webkit-playsinline'], '');
   assert.match(result.getStageClassName(), /stage-videojs/);
   assert.equal(result.appended.some((element) => String(element.className).includes('player-brand-overlay')), false);
-  assert.ok(result.appended.find((element) => element.className === 'player-fullscreen-button'));
+  assert.equal(result.appended.some((element) => element.className === 'player-fullscreen-button'), false);
 });
 
 test('uses native iOS HLS fallback when managed playlist cannot be resolved', async () => {
@@ -857,11 +851,9 @@ test('does not render KingLive text overlays above iframe streams', async () => 
   assert.equal(overlays.length, 0);
 });
 
-test('stage fullscreen button keeps player overlays inside fullscreen surface', async () => {
-  const timers = {};
+test('does not render custom fullscreen button above iframe streams', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',
-    timers,
     config: {
       matchStreams: {
         1540843: {
@@ -887,28 +879,18 @@ test('stage fullscreen button keeps player overlays inside fullscreen surface', 
     },
   });
 
-  const fullscreenButton = result.appended.find((element) => element.className === 'player-fullscreen-button');
-
-  assert.ok(fullscreenButton);
-  assert.equal(fullscreenButton.type, 'button');
-  assert.equal(fullscreenButton['aria-label'], 'Fullscreen');
-
-  fullscreenButton.click();
-
-  assert.equal(timers.stageFullscreenRequested, true);
+  assert.equal(result.appended.some((element) => element.className === 'player-fullscreen-button'), false);
 });
 
-test('stage fullscreen button falls back to viewport mode when native fullscreen is unavailable', async () => {
-  const timers = { disableStageFullscreen: true };
+test('does not render custom fullscreen button above HLS streams', async () => {
   const result = await runPlayer({
     href: 'https://player.test/?match=1540843',
-    timers,
     config: {
       matchStreams: {
         1540843: {
-          url: 'https://third-party.test/embed',
-          source_type: 'iframe',
-          label: 'Third-party iframe',
+          url: 'https://hls.livekinglive.win/live/test/index.m3u8',
+          source_type: 'hls',
+          label: 'HLS stream',
         },
       },
     },
@@ -928,10 +910,7 @@ test('stage fullscreen button falls back to viewport mode when native fullscreen
     },
   });
 
-  const fullscreenButton = result.appended.find((element) => element.className === 'player-fullscreen-button');
-  fullscreenButton.click();
-
-  assert.match(result.getStageClassName(), /stage-pseudo-fullscreen/);
+  assert.equal(result.appended.some((element) => element.className === 'player-fullscreen-button'), false);
 });
 
 test('keeps DAMI resolver working while click shield blocks ad redirects', async () => {

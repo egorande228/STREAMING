@@ -308,75 +308,8 @@ body {
   transform: translateX(-50%);
 }
 
-.player-fullscreen-button {
-  position: absolute;
-  right: clamp(10px, 1.8vw, 22px);
-  bottom: clamp(10px, 1.8vw, 22px);
-  z-index: 10;
-  display: grid;
-  width: clamp(38px, 4vw, 52px);
-  height: clamp(38px, 4vw, 52px);
-  place-items: center;
-  border: 1px solid rgba(246, 196, 0, 0.78);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.76);
-  color: #ffd43d;
-  cursor: pointer;
-  pointer-events: auto;
-  transition:
-    border-color 0.18s ease,
-    background 0.18s ease,
-    transform 0.18s ease;
-}
-
-.player-fullscreen-button::before {
-  width: 20px;
-  height: 20px;
-  background:
-    linear-gradient(currentColor, currentColor) 0 0 / 8px 2px no-repeat,
-    linear-gradient(currentColor, currentColor) 0 0 / 2px 8px no-repeat,
-    linear-gradient(currentColor, currentColor) 100% 0 / 8px 2px no-repeat,
-    linear-gradient(currentColor, currentColor) 100% 0 / 2px 8px no-repeat,
-    linear-gradient(currentColor, currentColor) 0 100% / 8px 2px no-repeat,
-    linear-gradient(currentColor, currentColor) 0 100% / 2px 8px no-repeat,
-    linear-gradient(currentColor, currentColor) 100% 100% / 8px 2px no-repeat,
-    linear-gradient(currentColor, currentColor) 100% 100% / 2px 8px no-repeat;
-  content: "";
-}
-
-.player-fullscreen-button:hover {
-  border-color: rgba(255, 212, 61, 0.95);
-  background: rgba(0, 0, 0, 0.86);
-  transform: translateY(-1px);
-}
-
-.player-fullscreen-button:focus-visible {
-  outline: 2px solid #ffd43d;
-  outline-offset: 3px;
-}
-
-.stage.stage-videojs .player-fullscreen-button {
-  width: clamp(56px, 5.2vw, 74px);
-  height: clamp(48px, 4.8vw, 64px);
-}
-
-.stage.stage-videojs .player-fullscreen-button::before {
-  width: 28px;
-  height: 28px;
-  background:
-    linear-gradient(currentColor, currentColor) 0 0 / 11px 3px no-repeat,
-    linear-gradient(currentColor, currentColor) 0 0 / 3px 11px no-repeat,
-    linear-gradient(currentColor, currentColor) 100% 0 / 11px 3px no-repeat,
-    linear-gradient(currentColor, currentColor) 100% 0 / 3px 11px no-repeat,
-    linear-gradient(currentColor, currentColor) 0 100% / 11px 3px no-repeat,
-    linear-gradient(currentColor, currentColor) 0 100% / 3px 11px no-repeat,
-    linear-gradient(currentColor, currentColor) 100% 100% / 11px 3px no-repeat,
-    linear-gradient(currentColor, currentColor) 100% 100% / 3px 11px no-repeat;
-}
-
 .stage:fullscreen,
-.stage:-webkit-full-screen,
-.stage.stage-pseudo-fullscreen {
+.stage:-webkit-full-screen {
   width: 100vw;
   height: 100vh;
   min-height: 0;
@@ -384,33 +317,19 @@ body {
   background: #000;
 }
 
-.stage.stage-pseudo-fullscreen {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-}
-
-body.stage-pseudo-fullscreen-active {
-  overflow: hidden;
-}
-
 .stage:fullscreen video,
 .stage:fullscreen iframe,
 .stage:fullscreen .video-js,
 .stage:-webkit-full-screen video,
 .stage:-webkit-full-screen iframe,
-.stage:-webkit-full-screen .video-js,
-.stage.stage-pseudo-fullscreen video,
-.stage.stage-pseudo-fullscreen iframe,
-.stage.stage-pseudo-fullscreen .video-js {
+.stage:-webkit-full-screen .video-js {
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
 
 .stage:fullscreen .player-brand-overlay-top,
-.stage:-webkit-full-screen .player-brand-overlay-top,
-.stage.stage-pseudo-fullscreen .player-brand-overlay-top {
+.stage:-webkit-full-screen .player-brand-overlay-top {
   top: 8px;
   right: 8px;
   min-width: 230px;
@@ -419,20 +338,12 @@ body.stage-pseudo-fullscreen-active {
 }
 
 .stage:fullscreen .player-brand-overlay-bottom,
-.stage:-webkit-full-screen .player-brand-overlay-bottom,
-.stage.stage-pseudo-fullscreen .player-brand-overlay-bottom {
+.stage:-webkit-full-screen .player-brand-overlay-bottom {
   bottom: 18px;
   width: min(32vw, 360px);
   min-width: 250px;
   height: 48px;
   font-size: 30px;
-}
-
-.stage:fullscreen .player-fullscreen-button,
-.stage:-webkit-full-screen .player-fullscreen-button,
-.stage.stage-pseudo-fullscreen .player-fullscreen-button {
-  right: 14px;
-  bottom: 14px;
 }
 
 .stage.stage-iframe {
@@ -530,7 +441,6 @@ p {
 }
 
 .player-preview-mode .player-brand-overlay,
-.player-preview-mode .player-fullscreen-button,
 .player-preview-mode .stream-play-button {
   display: none !important;
 }
@@ -978,10 +888,6 @@ select:focus-visible,
     min-width: 0;
     height: 36px;
     font-size: 18px;
-  }
-
-  .player-fullscreen-button {
-    display: none;
   }
 
   .controls {

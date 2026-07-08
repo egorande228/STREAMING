@@ -25,6 +25,7 @@ const CACHE_VERSION_KV_KEY = 'api_cache_version';
 const MATCH_LIST_KV_CACHE_PREFIX = 'public_matches_cache:';
 const MATCH_LIST_KV_MAX_AGE_SECONDS = 60;
 const MATCH_LIST_KV_STALE_TTL_SECONDS = 15 * 60;
+const EXTERNAL_MELBET_ODDS_CACHE_NAMESPACE = 'external-melbet-odds-v1';
 const RESTREAM_ORIGIN_HOST = 'hls.livekinglive.win';
 const RESTREAM_CDN_HOST = 'cdn-hls.livekinglive.win';
 const DEFAULT_RESTREAM_PUBLIC_BASE_URL = `https://${RESTREAM_CDN_HOST}/live`;
@@ -98,6 +99,15 @@ const DAMI_TEAM_CODE_ALIASES = {
   UKR: 'ukraine',
   URU: 'uruguay',
   USA: 'usa',
+};
+const EXTERNAL_ODDS_TEAM_ALIASES = {
+  'u s a': 'usa',
+  us: 'usa',
+  usa: 'usa',
+  'united states': 'usa',
+  'united states of america': 'usa',
+  'korea republic': 'south korea',
+  'republic of korea': 'south korea',
 };
 const SPORTMONKS_SUPPORTED_LOCALES = new Set(['ar', 'ckb', 'de', 'el', 'es', 'fa', 'fr', 'hu', 'it', 'ja', 'kmr', 'ru', 'ua', 'zh']);
 const NEWS_SUPPORTED_LOCALES = new Set(['en', 'es', 'fr', 'ar', 'mn']);
@@ -361,23 +371,27 @@ async function routeSportmonksFootballRequest(url, env, ttl, ctx = {}) {
   if (statsMatch) {
     const matchId = Number(statsMatch[1]);
     const liveTtl = isLiveStatsRequest(url) ? 30 : 1800;
-    const [statisticsPayload, eventsPayload, lineupsPayload, factsPayload, oddsPayload] = await Promise.all([
+    const [statisticsPayload, eventsPayload, lineupsPayload, factsPayload, oddsPayload, externalOddsPayload] = await Promise.all([
       fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, SPORTMONKS_STATS_INCLUDES), env, liveTtl, ctx),
       fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, SPORTMONKS_EVENTS_INCLUDES), env, liveTtl, ctx),
       fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, SPORTMONKS_LINEUPS_INCLUDES), env, 1800, ctx),
       fetchCachedSportmonksJson(buildSportmonksMatchFactsUrl(matchId, url), env, 1800, ctx),
       fetchCachedSportmonksJson(buildSportmonksOddsUrl(matchId, url), env, 300, ctx),
+      fetchCachedExternalMelbetOddsJson(env, 300, ctx),
     ]);
     if (!statisticsPayload.ok && !eventsPayload.ok && !lineupsPayload.ok) {
       return jsonResponse({ error: 'sportmonks_api_error', status: statisticsPayload.status || eventsPayload.status || lineupsPayload.status }, 502, 30);
     }
     const facts = factsPayload.ok ? sportmonksDataList(factsPayload.body) : [];
     const odds = oddsPayload.ok ? sportmonksDataList(oddsPayload.body) : [];
+    const detailFixture = statisticsPayload.body?.data || eventsPayload.body?.data || lineupsPayload.body?.data;
+    const externalOdds = externalOddsPayload.ok ? normalizeExternalMelbetOddsForSportmonksFixture(externalOddsPayload.body, detailFixture) : null;
     return jsonResponse(
-      normalizeSportmonksMatchDetails(matchId, statisticsPayload.body?.data || eventsPayload.body?.data || lineupsPayload.body?.data, facts, odds, {
+      normalizeSportmonksMatchDetails(matchId, detailFixture, facts, odds, {
         statistics: statisticsPayload.ok ? statisticsPayload.body?.data : null,
         events: eventsPayload.ok ? eventsPayload.body?.data : null,
         lineups: lineupsPayload.ok ? lineupsPayload.body?.data : null,
+        externalOdds,
       }),
       200,
       ttl,
@@ -416,9 +430,16 @@ async function routeSportmonksSplitDetailRequest(url, env, ttl, ctx, matchId, se
   }
 
   if (section === 'odds') {
-    const payload = await fetchCachedSportmonksJson(buildSportmonksOddsUrl(matchId, url), env, ttl, ctx);
-    if (!payload.ok) return jsonResponse({ error: 'sportmonks_api_error', status: payload.status }, 502, 30);
-    return jsonResponse({ match_id: matchId, odds: normalizeSportmonksOdds(sportmonksDataList(payload.body)) }, 200, ttl);
+    const externalOddsSource = externalMelbetOddsSourceUrl(env);
+    const [payload, fixturePayload, externalOddsPayload] = await Promise.all([
+      fetchCachedSportmonksJson(buildSportmonksOddsUrl(matchId, url), env, ttl, ctx),
+      externalOddsSource ? fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, 'participants'), env, ttl, ctx) : Promise.resolve(null),
+      externalOddsSource ? fetchCachedExternalMelbetOddsJson(env, ttl, ctx) : Promise.resolve({ ok: false, body: null }),
+    ]);
+    const sportmonksOdds = payload.ok ? normalizeSportmonksOdds(sportmonksDataList(payload.body)) : null;
+    const externalOdds = externalOddsPayload.ok ? normalizeExternalMelbetOddsForSportmonksFixture(externalOddsPayload.body, fixturePayload?.body?.data) : null;
+    if (!payload.ok && !externalOdds) return jsonResponse({ error: 'sportmonks_api_error', status: payload.status }, 502, 30);
+    return jsonResponse({ match_id: matchId, odds: sportmonksOdds || externalOdds }, 200, ttl);
   }
 
   const include = section === 'lineups' ? SPORTMONKS_LINEUPS_INCLUDES : SPORTMONKS_EVENTS_INCLUDES;
@@ -465,6 +486,62 @@ async function fetchCachedSportmonksJson(apiUrl, env = {}, ttl = 0, ctx = {}) {
     else await cache.put(cacheKey, cacheable);
   }
   return payload;
+}
+
+async function fetchCachedExternalMelbetOddsJson(env = {}, ttl = 0, ctx = {}) {
+  const apiUrl = externalMelbetOddsSourceUrl(env);
+  if (!apiUrl) return { ok: false, status: 0, body: null };
+  const cache = globalThis.caches?.default;
+  const cacheVersion = await readCacheVersion(env);
+  const cacheKey = cache && ttl > 0 ? new Request(normalizeExternalMelbetOddsCacheUrl(apiUrl, cacheVersion).toString()) : null;
+  if (cacheKey) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      await recordMetric(env, 'cache_hits');
+      try {
+        return await cached.json();
+      } catch {}
+    }
+  }
+
+  const payload = await fetchExternalMelbetOddsJson(apiUrl, env);
+  if (cache && cacheKey && payload.ok) {
+    const cacheable = jsonResponse(payload, 200, ttl);
+    if (ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, cacheable));
+    else await cache.put(cacheKey, cacheable);
+  }
+  return payload;
+}
+
+async function fetchExternalMelbetOddsJson(apiUrl, env = {}) {
+  await recordMetric(env, 'upstream_calls');
+  const response = await fetch(apiUrl, { headers: { Accept: 'application/json' } });
+  if (!response.ok) return { ok: false, status: response.status, body: null };
+  try {
+    return { ok: true, status: response.status, body: await response.json() };
+  } catch {
+    return { ok: false, status: response.status, body: null };
+  }
+}
+
+function externalMelbetOddsSourceUrl(env = {}) {
+  const raw = String(env.MELBET_ODDS_URL || '').trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeExternalMelbetOddsCacheUrl(apiUrl, cacheVersion = '') {
+  const normalized = new URL(apiUrl);
+  normalized.searchParams.set('__external_odds', EXTERNAL_MELBET_ODDS_CACHE_NAMESPACE);
+  if (cacheVersion) normalized.searchParams.set('__cache_version', cacheVersion);
+  normalized.searchParams.sort();
+  return normalized;
 }
 
 async function routeNewsRequest(request, env = {}, ctx = {}) {
@@ -2355,6 +2432,7 @@ export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [
   const events = normalizeSportmonksEvents(matchId, eventsFixture?.events, teamSideById);
   const lineups = normalizeSportmonksLineups(matchId, lineupsFixture?.lineups, teamSideById);
   const teamStats = normalizeSportmonksTeamStatistics(statisticsFixture?.statistics, teamSideById, { homeTeam, awayTeam });
+  const oddsPanel = normalizeSportmonksOdds(odds) || detailFixtures.externalOdds || null;
 
   return {
     match_id: matchId,
@@ -2367,7 +2445,7 @@ export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [
     away_form: [],
     team_stats: teamStats,
     facts: normalizeSportmonksFacts(facts),
-    odds: normalizeSportmonksOdds(odds),
+    odds: oddsPanel,
   };
 }
 
@@ -3402,6 +3480,69 @@ function normalizeSportmonksOdds(odds = []) {
     outcomes: markets[0].outcomes,
     markets,
   };
+}
+
+export function normalizeExternalMelbetOddsPayload(payload = {}, homeTeamName = '', awayTeamName = '') {
+  const byMatch = payload?.byMatch && typeof payload.byMatch === 'object' && !Array.isArray(payload.byMatch)
+    ? payload.byMatch
+    : {};
+  const homeKey = normalizeExternalOddsTeamKey(homeTeamName);
+  const awayKey = normalizeExternalOddsTeamKey(awayTeamName);
+  if (!homeKey || !awayKey) return null;
+
+  let row = byMatch[`${homeKey}|${awayKey}`];
+  let reversed = false;
+  if (!row) {
+    row = byMatch[`${awayKey}|${homeKey}`];
+    reversed = Boolean(row);
+  }
+  if (!row || typeof row !== 'object') return null;
+
+  const homeValue = normalizeExternalOddValue(row[reversed ? 'away' : 'home']);
+  const drawValue = normalizeExternalOddValue(row.draw);
+  const awayValue = normalizeExternalOddValue(row[reversed ? 'home' : 'away']);
+  if (!homeValue || !drawValue || !awayValue) return null;
+
+  const fulltime = {
+    home: { label: 'Home', value: homeValue, probability: '', total: '', handicap: '' },
+    draw: { label: 'Draw', value: drawValue, probability: '', total: '', handicap: '' },
+    away: { label: 'Away', value: awayValue, probability: '', total: '', handicap: '' },
+  };
+  return {
+    bookmaker: String(payload.bookmaker || 'MelBet').trim() || 'MelBet',
+    market: 'Fulltime Result',
+    updated_at: String(payload.updated || ''),
+    outcomes: fulltime,
+    markets: [{ key: 'fulltime', label: 'Fulltime Result', outcomes: fulltime }],
+  };
+}
+
+function normalizeExternalMelbetOddsForSportmonksFixture(payload = {}, fixture = {}) {
+  const participants = Array.isArray(fixture?.participants) ? fixture.participants : [];
+  const homeTeam = participants.find((team) => team?.meta?.location === 'home') || participants[0] || {};
+  const awayTeam = participants.find((team) => team?.meta?.location === 'away') || participants[1] || {};
+  return normalizeExternalMelbetOddsPayload(payload, homeTeam.name || homeTeam.name_en || '', awayTeam.name || awayTeam.name_en || '');
+}
+
+function normalizeExternalOddValue(value) {
+  const normalized = String(value ?? '').trim();
+  if (!normalized) return '';
+  const numeric = Number(normalized);
+  if (!Number.isFinite(numeric) || numeric <= 0) return '';
+  return normalized;
+}
+
+function normalizeExternalOddsTeamKey(value = '') {
+  const key = String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(w|women|u\d+)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return EXTERNAL_ODDS_TEAM_ALIASES[key] || key;
 }
 
 function normalizedOddValue(odd = {}) {

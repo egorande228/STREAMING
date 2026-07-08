@@ -6,6 +6,7 @@ import worker, {
   jsonResponse,
   isTopLeagueMatch,
   normalizeFixture,
+  normalizeExternalMelbetOddsPayload,
   normalizeSportmonksFixture,
   normalizeRssNews,
   normalizeSportmonksMatchDetails,
@@ -464,6 +465,142 @@ test('does not use non-MelBet fallback odds when Sportmonks returns no usable od
   const details = normalizeSportmonksMatchDetails(19609154, {}, [], []);
 
   assert.equal(details.odds, null);
+});
+
+test('normalizes external MelBet odds JSON by home and away team names', () => {
+  const odds = normalizeExternalMelbetOddsPayload(
+    {
+      bookmaker: 'MelBet',
+      byMatch: {
+        'switzerland|colombia': {
+          home: '3.81',
+          draw: '2.97',
+          away: '2.31',
+        },
+      },
+      updated: '2026-07-08T20:55:02.020Z',
+    },
+    'Switzerland',
+    'Colombia',
+  );
+
+  assert.equal(odds.bookmaker, 'MelBet');
+  assert.equal(odds.market, 'Fulltime Result');
+  assert.equal(odds.updated_at, '2026-07-08T20:55:02.020Z');
+  assert.equal(odds.outcomes.home.value, '3.81');
+  assert.equal(odds.outcomes.draw.value, '2.97');
+  assert.equal(odds.outcomes.away.value, '2.31');
+  assert.deepEqual(odds.markets.map((market) => market.key), ['fulltime']);
+});
+
+test('serves external MelBet odds JSON when Sportmonks has no usable odds', async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    calls.push(requestUrl);
+    if (requestUrl.includes('/fixtures/19609154')) {
+      return new Response(JSON.stringify({
+        data: {
+          id: 19609154,
+          participants: [
+            { id: 1, name: 'Switzerland', meta: { location: 'home' } },
+            { id: 2, name: 'Colombia', meta: { location: 'away' } },
+          ],
+        },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl.includes('/odds/pre-match/fixtures/19609154')) {
+      return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl === 'https://gaz-zp-tv.com/data/odds.json') {
+      return new Response(JSON.stringify({
+        bookmaker: 'MelBet',
+        byMatch: {
+          'switzerland|colombia': {
+            home: '3.81',
+            draw: '2.97',
+            away: '2.31',
+          },
+        },
+        updated: '2026-07-08T20:55:02.020Z',
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ data: [] }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches/19609154/odds'),
+      { SPORTMONKS_TOKEN: 'sportmonks-test-token', MELBET_ODDS_URL: 'https://gaz-zp-tv.com/data/odds.json' },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.odds.bookmaker, 'MelBet');
+    assert.equal(body.odds.outcomes.home.value, '3.81');
+    assert.equal(body.odds.outcomes.draw.value, '2.97');
+    assert.equal(body.odds.outcomes.away.value, '2.31');
+    assert.equal(calls.some((url) => url === 'https://gaz-zp-tv.com/data/odds.json'), true);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('includes external MelBet odds fallback in Sportmonks match stats payload', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl.includes('/fixtures/19609154')) {
+      return new Response(JSON.stringify({
+        data: {
+          id: 19609154,
+          participants: [
+            { id: 1, name: 'Switzerland', meta: { location: 'home' } },
+            { id: 2, name: 'Colombia', meta: { location: 'away' } },
+          ],
+          events: [],
+          statistics: [],
+          lineups: [],
+        },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl.includes('/match-facts/19609154') || requestUrl.includes('/odds/pre-match/fixtures/19609154')) {
+      return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl === 'https://gaz-zp-tv.com/data/odds.json') {
+      return new Response(JSON.stringify({
+        bookmaker: 'MelBet',
+        byMatch: {
+          'switzerland|colombia': {
+            home: '3.81',
+            draw: '2.97',
+            away: '2.31',
+          },
+        },
+        updated: '2026-07-08T20:55:02.020Z',
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ data: [] }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches/19609154/stats'),
+      { SPORTMONKS_TOKEN: 'sportmonks-test-token', MELBET_ODDS_URL: 'https://gaz-zp-tv.com/data/odds.json' },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.odds.bookmaker, 'MelBet');
+    assert.equal(body.odds.outcomes.home.value, '3.81');
+    assert.equal(body.odds.outcomes.draw.value, '2.97');
+    assert.equal(body.odds.outcomes.away.value, '2.31');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
 });
 
 test('identifies only top league matches as displayable', () => {

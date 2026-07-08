@@ -13,6 +13,7 @@ DAMI_EMBED_PROXY_ENABLED = "false"
 DAMI_LANGUAGE_CHANNELS = ""
 DAMI_EXTRA_LANGUAGE_CHANNELS = ""
 RESTREAM_PUBLIC_BASE_URL = "https://cdn-hls.livekinglive.win/live"
+MELBET_ODDS_URL = "https://gaz-zp-tv.com/data/odds.json"
 
 [[kv_namespaces]]
 binding = "STREAM_CONFIG_KV"

@@ -1,5 +1,7 @@
 const API_BASE = 'https://v3.football.api-sports.io';
 const SPORTMONKS_API_BASE = 'https://api.sportmonks.com/v3/football';
+const FOOTBALL_DATA_API_BASE = 'https://api.football-data.org/v4';
+const THERUNDOWN_API_BASE = 'https://therundown.io/api';
 const SPORTMONKS_MATCH_INCLUDES = 'participants;scores;events.type;statistics.type;periods;state;venue;stage;league';
 const SPORTMONKS_DETAIL_INCLUDES = 'participants;scores;events.type;statistics.type;lineups.player:display_name,image_path;periods;state;venue;stage;league';
 const SPORTMONKS_STATS_INCLUDES = 'participants;statistics.type';
@@ -22,10 +24,11 @@ const ADMIN_SETTINGS_KV_KEY = 'admin_settings_json';
 const OVERLAY_ASSETS_INDEX_KV_KEY = 'restream_overlay_assets_index_json';
 const OVERLAY_ASSET_KV_PREFIX = 'restream_overlay_asset:';
 const CACHE_VERSION_KV_KEY = 'api_cache_version';
-const MATCH_LIST_KV_CACHE_PREFIX = 'public_matches_cache:';
+const MATCH_LIST_KV_CACHE_PREFIX = 'public_matches_cache_v2:';
 const MATCH_LIST_KV_MAX_AGE_SECONDS = 60;
 const MATCH_LIST_KV_STALE_TTL_SECONDS = 15 * 60;
 const EXTERNAL_MELBET_ODDS_CACHE_NAMESPACE = 'external-melbet-odds-v1';
+const THERUNDOWN_ODDS_CACHE_NAMESPACE = 'therundown-odds-v1';
 const RESTREAM_ORIGIN_HOST = 'hls.livekinglive.win';
 const RESTREAM_CDN_HOST = 'cdn-hls.livekinglive.win';
 const DEFAULT_RESTREAM_PUBLIC_BASE_URL = `https://${RESTREAM_CDN_HOST}/live`;
@@ -211,14 +214,14 @@ export async function routeRequest(request, env = {}, ctx = {}) {
     return jsonResponse({ error: 'not_found' }, 404, 0);
   }
 
-  if (!env.SPORTMONKS_TOKEN && !env.API_FOOTBALL_KEY) {
+  if (!env.SPORTMONKS_TOKEN && !env.API_FOOTBALL_KEY && !env.FOOTBALL_DATA_TOKEN) {
     if (url.pathname === '/api/matches') {
       return jsonResponse({ matches: [], total: 0, source: 'not_configured' }, 200, 30);
     }
     return jsonResponse({ error: 'football API token is not configured' }, 503, 30);
   }
 
-  const provider = env.SPORTMONKS_TOKEN ? 'sportmonks' : 'api-football';
+  const provider = resolveFootballProvider(env);
   const ttl = resolveCacheTtl(url);
   const cacheVersion = await readCacheVersion(env);
   const cacheKey = new Request(normalizeCacheUrl(url, provider, cacheVersion).toString(), request);
@@ -241,6 +244,8 @@ export async function routeRequest(request, env = {}, ctx = {}) {
   let response;
   if (provider === 'sportmonks') {
     response = await routeSportmonksFootballRequest(url, env, ttl, ctx);
+  } else if (provider === 'football-data') {
+    response = await routeFootballDataRequest(url, env, ttl, ctx);
   } else {
     response = await routeApiFootballRequest(url, env, ttl);
   }
@@ -312,7 +317,23 @@ function cachedPublicMatchListResponse(entry, maxAge = 30, source = 'kv') {
 }
 
 function publicMatchListKvCacheKey(url, provider = '', cacheVersion = '') {
-  return `${MATCH_LIST_KV_CACHE_PREFIX}${safeKeyPart(normalizeCacheUrl(url, provider, cacheVersion).toString())}`;
+  const normalized = normalizeCacheUrl(url, provider, cacheVersion).toString();
+  return `${MATCH_LIST_KV_CACHE_PREFIX}${hashToPositiveInt(normalized)}:${safeKeyPart(normalized.slice(-80))}`;
+}
+
+function resolveFootballProvider(env = {}) {
+  const configured = String(env.FOOTBALL_PROVIDER || '').trim().toLowerCase();
+  if (configured === 'football-data' && env.FOOTBALL_DATA_TOKEN) return 'football-data';
+  if (configured === 'api-football' && env.API_FOOTBALL_KEY) return 'api-football';
+  if (configured === 'sportmonks' && env.SPORTMONKS_TOKEN) return 'sportmonks';
+  if (env.SPORTMONKS_TOKEN) return 'sportmonks';
+  if (env.FOOTBALL_DATA_TOKEN) return 'football-data';
+  return 'api-football';
+}
+
+function resolveFootballScheduleProvider(env = {}) {
+  const configured = String(env.FOOTBALL_SCHEDULE_PROVIDER || '').trim().toLowerCase();
+  return configured === 'therundown' ? 'therundown' : 'football-data';
 }
 
 async function routeApiFootballRequest(url, env, ttl) {
@@ -359,6 +380,138 @@ async function routeApiFootballRequest(url, env, ttl) {
   return url.pathname === '/api/matches'
     ? jsonResponse({ matches: visibleMatches, total: visibleMatches.length }, 200, responseTtl)
     : jsonResponse(visibleMatches[0] ?? { error: 'match_not_found' }, visibleMatches[0] ? 200 : 404, ttl);
+}
+
+async function routeFootballDataRequest(url, env, ttl, ctx = {}) {
+  const statsMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/stats$/);
+  const detailMatch = url.pathname.match(/^\/api\/matches\/(\d+)$/);
+  const splitDetailMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/(events|lineups|facts|odds)$/);
+  if (splitDetailMatch) {
+    return routeFootballDataSplitDetailRequest(url, env, ttl, ctx, Number(splitDetailMatch[1]), splitDetailMatch[2]);
+  }
+
+  if (detailMatch) {
+    const matchId = Number(detailMatch[1]);
+    const streamConfig = await readRuntimeStreamConfig(env);
+    const matchOverrides = await readRuntimeMatchOverrides(env);
+    const fixturePayload = await fetchFootballDataJson(buildFootballDataMatchUrl(matchId), env);
+    let match = fixturePayload.ok
+      ? normalizeFootballDataMatch(fixturePayload.body, env, streamConfig, matchOverrides)
+      : footballDataFallbackMatch(matchId, env);
+    if (!match) {
+      const resolved = await resolveTheRundownMatchById(matchId, env, ttl, ctx);
+      if (resolved?.match) {
+        const streams = streamsForFootballDataMatch({
+          id: matchId,
+          homeTeam: { name: resolved.match.home_team?.name_en || resolved.match.home_team?.name || '' },
+          awayTeam: { name: resolved.match.away_team?.name_en || resolved.match.away_team?.name || '' },
+        }, env, streamConfig);
+        match = applyMatchOverride({ ...resolved.match, streams }, env, streamConfig, matchOverrides);
+        if (!Array.isArray(match.streams)) match = { ...match, streams };
+      }
+    }
+    if (match && !Array.isArray(match.streams)) {
+      const streams = streamsForFootballDataMatch({
+        id: matchId,
+        homeTeam: { name: match.home_team?.name_en || match.home_team?.name || '' },
+        awayTeam: { name: match.away_team?.name_en || match.away_team?.name || '' },
+      }, env, streamConfig);
+      match = { ...match, streams };
+    }
+    return match
+      ? jsonResponse(match, 200, ttl)
+      : jsonResponse({ error: 'match_not_found' }, 404, Math.min(ttl, 30));
+  }
+
+  if (statsMatch) {
+    const matchId = Number(statsMatch[1]);
+    const fixturePayload = await fetchFootballDataJson(buildFootballDataApiUrl(url), env);
+    let match = fixturePayload.ok
+      ? normalizeFootballDataMatch(fixturePayload.body, env)
+      : footballDataFallbackMatch(matchId, env);
+    if (!match) {
+      const resolved = await resolveTheRundownMatchById(matchId, env, 300, ctx);
+      match = resolved?.match || null;
+    }
+    if (!match) return jsonResponse({ error: 'football_data_error', status: fixturePayload.status }, 502, 30);
+    const externalOdds = await fetchPreferredExternalOddsForMatch(match, env, 300, ctx);
+    return jsonResponse(normalizeFootballDataMatchDetails(matchId, match, externalOdds), 200, ttl);
+  }
+
+  const streamConfig = await readRuntimeStreamConfig(env);
+  const matchOverrides = await readRuntimeMatchOverrides(env);
+  const adminSettings = await readRuntimeAdminSettings(env);
+  const requestedDate = footballDataRequestedDate(url);
+  const scheduleProvider = resolveFootballScheduleProvider(env);
+  const primaryTheRundownPayload = scheduleProvider === 'therundown' && url.pathname === '/api/matches'
+    ? await fetchTheRundownScheduleJson(requestedDate, env)
+    : null;
+  const payload = primaryTheRundownPayload?.ok
+    ? { ok: false, status: 0, body: null }
+    : await fetchFootballDataJson(buildFootballDataApiUrl(url), env);
+  const footballDataMatches = payload.ok && !primaryTheRundownPayload?.ok
+    ? (Array.isArray(payload.body?.matches) ? payload.body.matches : payload.body ? [payload.body] : [])
+      .filter((match) => footballDataMatchDate(match) === requestedDate)
+    : [];
+  const shouldUseScheduleFallback = !primaryTheRundownPayload?.ok && (!payload.ok || (url.pathname === '/api/matches' && footballDataMatches.length === 0));
+  const fallbackPayload = shouldUseScheduleFallback ? await fetchTheRundownScheduleJson(requestedDate, env) : null;
+  const schedulePayload = primaryTheRundownPayload?.ok ? primaryTheRundownPayload : fallbackPayload;
+  if (!payload.ok && !schedulePayload?.ok) return jsonResponse({ error: 'football_data_error', status: payload.status }, 502, 30);
+  const sourceMatches = schedulePayload?.ok && (scheduleProvider === 'therundown' || footballDataMatches.length === 0 || !payload.ok)
+    ? (Array.isArray(schedulePayload.body?.events) ? schedulePayload.body.events : [])
+    : footballDataMatches;
+  const usingTheRundownSchedule = schedulePayload?.ok && sourceMatches !== footballDataMatches;
+  const matches = applyMatchOverrides(
+    sourceMatches.map((match) => usingTheRundownSchedule
+      ? normalizeTheRundownScheduleMatch(match, env, streamConfig)
+      : normalizeFootballDataMatch(match, env, streamConfig, matchOverrides)),
+    env,
+    streamConfig,
+    matchOverrides,
+  );
+  const visibleMatches = url.pathname === '/api/matches'
+    ? sortMatches(applyMatchVisibility(matches.filter(isTopLeagueMatch), adminSettings))
+    : matches;
+  const responseTtl = visibleMatches.length ? ttl : 30;
+  return url.pathname === '/api/matches'
+    ? jsonResponse({ matches: visibleMatches, total: visibleMatches.length, source: usingTheRundownSchedule ? 'therundown' : 'football-data' }, 200, responseTtl)
+    : jsonResponse(visibleMatches[0] ?? { error: 'match_not_found' }, visibleMatches[0] ? 200 : 404, ttl);
+}
+
+async function routeFootballDataSplitDetailRequest(url, env, ttl, ctx, matchId, section) {
+  if (section === 'events') return jsonResponse({ match_id: matchId, events: [] }, 200, ttl);
+  if (section === 'lineups') return jsonResponse({ match_id: matchId, lineups: [] }, 200, ttl);
+  if (section === 'facts') return jsonResponse({ match_id: matchId, facts: [] }, 200, ttl);
+  if (section === 'odds') {
+    const fixturePayload = await fetchFootballDataJson(buildFootballDataMatchUrl(matchId), env);
+    let match = fixturePayload.ok ? normalizeFootballDataMatch(fixturePayload.body, env) : footballDataFallbackMatch(matchId, env);
+    if (!match) {
+      const resolved = await resolveTheRundownMatchById(matchId, env, ttl, ctx);
+      match = resolved?.match || null;
+    }
+    const odds = match ? await fetchPreferredExternalOddsForMatch(match, env, ttl, ctx) : null;
+    if (!fixturePayload.ok && !odds) {
+      return jsonResponse({ error: 'football_data_error', status: fixturePayload.status }, 502, 30);
+    }
+    return jsonResponse({ match_id: matchId, odds }, 200, ttl);
+  }
+  return jsonResponse({ error: 'not_found' }, 404, 0);
+}
+
+async function fetchFootballDataJson(apiUrl, env = {}) {
+  await recordMetric(env, 'upstream_calls');
+  const response = await fetch(apiUrl, {
+    headers: {
+      'X-Auth-Token': env.FOOTBALL_DATA_TOKEN,
+      Accept: 'application/json',
+    },
+  });
+  if (!response.ok) return { ok: false, status: response.status, body: null };
+  try {
+    return { ok: true, status: response.status, body: await response.json() };
+  } catch {
+    return { ok: false, status: response.status, body: null };
+  }
 }
 
 async function routeSportmonksFootballRequest(url, env, ttl, ctx = {}) {
@@ -511,6 +664,115 @@ async function fetchCachedExternalMelbetOddsJson(env = {}, ttl = 0, ctx = {}) {
     else await cache.put(cacheKey, cacheable);
   }
   return payload;
+}
+
+async function fetchPreferredExternalOddsForMatch(match = {}, env = {}, ttl = 0, ctx = {}) {
+  const [therundownPayload, melbetPayload] = await Promise.all([
+    fetchCachedTheRundownOddsJson(match, env, ttl, ctx),
+    fetchCachedExternalMelbetOddsJson(env, ttl, ctx),
+  ]);
+  if (therundownPayload.ok) {
+    const therundownOdds = normalizeTheRundownOddsForMatch(therundownPayload.body, match, env);
+    if (therundownOdds) return therundownOdds;
+  }
+  return melbetPayload.ok ? normalizeExternalMelbetOddsForMatch(melbetPayload.body, match) : null;
+}
+
+async function fetchCachedTheRundownOddsJson(match = {}, env = {}, ttl = 0, ctx = {}) {
+  const apiUrl = buildTheRundownOddsUrl(match, env);
+  if (!apiUrl) return { ok: false, status: 0, body: null };
+  return fetchCachedTheRundownJsonByUrl(apiUrl, env, ttl, ctx);
+}
+
+async function fetchCachedTheRundownScheduleJson(date, env = {}, ttl = 0, ctx = {}) {
+  const apiUrl = buildTheRundownScheduleUrl(date, env);
+  if (!apiUrl) return { ok: false, status: 0, body: null };
+  return fetchCachedTheRundownJsonByUrl(apiUrl, env, ttl, ctx);
+}
+
+async function fetchCachedTheRundownJsonByUrl(apiUrl, env = {}, ttl = 0, ctx = {}) {
+  const cache = globalThis.caches?.default;
+  const cacheVersion = await readCacheVersion(env);
+  const cacheKey = cache && ttl > 0 ? new Request(normalizeTheRundownOddsCacheUrl(apiUrl, cacheVersion).toString()) : null;
+  if (cacheKey) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      await recordMetric(env, 'cache_hits');
+      try {
+        return await cached.json();
+      } catch {}
+    }
+  }
+
+  const payload = await fetchTheRundownJson(apiUrl, env);
+  if (cache && cacheKey && payload.ok) {
+    const cacheable = jsonResponse(payload, 200, ttl);
+    if (ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, cacheable));
+    else await cache.put(cacheKey, cacheable);
+  }
+  return payload;
+}
+
+async function resolveTheRundownMatchById(matchId, env = {}, ttl = 0, ctx = {}) {
+  const targetId = Number(matchId);
+  if (!Number.isFinite(targetId) || targetId <= 0 || !String(env.THERUNDOWN_KEY || '').trim()) return null;
+
+  for (const date of theRundownLookupDates(env)) {
+    const payload = await fetchCachedTheRundownScheduleJson(date, env, ttl, ctx);
+    if (!payload.ok) continue;
+    const events = Array.isArray(payload.body?.events) ? payload.body.events : [];
+    for (const event of events) {
+      const match = normalizeTheRundownScheduleMatch(event, env, null);
+      if (Number(match.id) === targetId) return { match, payload };
+    }
+  }
+  return null;
+}
+
+async function fetchTheRundownScheduleJson(date, env = {}) {
+  const apiUrl = buildTheRundownScheduleUrl(date, env);
+  if (!apiUrl) return { ok: false, status: 0, body: null };
+  return fetchTheRundownJson(apiUrl, env);
+}
+
+async function fetchTheRundownJson(apiUrl, env = {}) {
+  await recordMetric(env, 'upstream_calls');
+  const response = await fetch(apiUrl, { headers: { Accept: 'application/json' } });
+  if (!response.ok) return { ok: false, status: response.status, body: null };
+  try {
+    return { ok: true, status: response.status, body: await response.json() };
+  } catch {
+    return { ok: false, status: response.status, body: null };
+  }
+}
+
+function buildTheRundownScheduleUrl(date, env = {}) {
+  const key = String(env.THERUNDOWN_KEY || '').trim();
+  if (!key || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return null;
+  const sportId = String(env.THERUNDOWN_SPORT_ID || '18').trim() || '18';
+  const url = new URL(`/api/v1/sports/${encodeURIComponent(sportId)}/events/${encodeURIComponent(date)}`, THERUNDOWN_API_BASE);
+  url.searchParams.set('period_id', 'full_game');
+  url.searchParams.set('include', 'scores');
+  url.searchParams.set('key', key);
+  return url;
+}
+
+function buildTheRundownOddsUrl(match = {}, env = {}) {
+  const key = String(env.THERUNDOWN_KEY || '').trim();
+  if (!key) return null;
+  const date = theRundownMatchDate(match, env);
+  if (!date) return null;
+  return buildTheRundownScheduleUrl(date, env);
+}
+
+function normalizeTheRundownOddsCacheUrl(apiUrl, cacheVersion = '') {
+  const normalized = new URL(apiUrl);
+  normalized.searchParams.delete('key');
+  normalized.searchParams.set('__therundown_odds', THERUNDOWN_ODDS_CACHE_NAMESPACE);
+  normalized.searchParams.set('__cache_namespace', API_CACHE_NAMESPACE);
+  if (cacheVersion) normalized.searchParams.set('__cache_version', cacheVersion);
+  normalized.searchParams.sort();
+  return normalized;
 }
 
 async function fetchExternalMelbetOddsJson(apiUrl, env = {}) {
@@ -751,7 +1013,7 @@ function normalizeRefreshDate(value) {
 }
 
 async function refreshPreview(scope, options = {}, env = {}, ctx = {}) {
-  const provider = env.SPORTMONKS_TOKEN ? 'sportmonks' : env.API_FOOTBALL_KEY ? 'api-football' : '';
+  const provider = (env.SPORTMONKS_TOKEN || env.API_FOOTBALL_KEY || env.FOOTBALL_DATA_TOKEN) ? resolveFootballProvider(env) : '';
   if (scope === 'dami') {
     const streams = await fetchDamiStreams(env, { force: true });
     return { provider: 'dami', total_streams: streams.length };
@@ -769,7 +1031,9 @@ async function refreshPreview(scope, options = {}, env = {}, ctx = {}) {
   const ttl = resolveCacheTtl(url);
   const response = provider === 'sportmonks'
     ? await routeSportmonksFootballRequest(url, env, ttl, ctx)
-    : await routeApiFootballRequest(url, env, ttl);
+    : provider === 'football-data'
+      ? await routeFootballDataRequest(url, env, ttl, ctx)
+      : await routeApiFootballRequest(url, env, ttl);
   const payload = await response.clone().json().catch(() => null);
   return summarizeRefreshPayload(provider, response.status, payload);
 }
@@ -1035,13 +1299,16 @@ async function routeAdminMatchOverridesDelete(env, matchId) {
 }
 
 async function readAdminAutoStreams(env = {}, ctx = {}) {
-  if (!env.SPORTMONKS_TOKEN && !env.API_FOOTBALL_KEY) return [];
+  if (!env.SPORTMONKS_TOKEN && !env.API_FOOTBALL_KEY && !env.FOOTBALL_DATA_TOKEN) return [];
   const date = new Date().toISOString().slice(0, 10);
   const url = new URL(`/api/matches?date=${date}`, 'https://kinglive.admin');
   const ttl = resolveCacheTtl(url);
-  const response = env.SPORTMONKS_TOKEN
+  const provider = resolveFootballProvider(env);
+  const response = provider === 'sportmonks'
     ? await routeSportmonksFootballRequest(url, env, ttl, ctx)
-    : await routeApiFootballRequest(url, env, ttl);
+    : provider === 'football-data'
+      ? await routeFootballDataRequest(url, env, ttl, ctx)
+      : await routeApiFootballRequest(url, env, ttl);
   if (!response.ok) return [];
   const payload = await response.json().catch(() => null);
   const matches = Array.isArray(payload?.matches) ? payload.matches : [];
@@ -2272,6 +2539,29 @@ export function buildFootballApiUrl(siteUrl) {
   return apiUrl;
 }
 
+export function buildFootballDataApiUrl(siteUrl) {
+  const statsMatch = siteUrl.pathname.match(/^\/api\/matches\/(\d+)\/stats$/)?.[1];
+  const matchId = siteUrl.pathname.match(/^\/api\/matches\/(\d+)$/)?.[1];
+  if (statsMatch) return buildFootballDataMatchUrl(statsMatch);
+  if (matchId) return buildFootballDataMatchUrl(matchId);
+
+  const apiUrl = new URL('/v4/competitions/WC/matches', FOOTBALL_DATA_API_BASE);
+  const status = siteUrl.searchParams.get('status') || '';
+  const date = siteUrl.searchParams.get('date') || todayDate();
+  apiUrl.searchParams.set('dateFrom', date);
+  apiUrl.searchParams.set('dateTo', nextIsoDate(date));
+  if (status === 'live' || status === 'half_time') {
+    apiUrl.searchParams.set('status', 'IN_PLAY,PAUSED');
+  } else if (status === 'scheduled') {
+    apiUrl.searchParams.set('status', 'SCHEDULED,TIMED');
+  }
+  return apiUrl;
+}
+
+function buildFootballDataMatchUrl(matchId) {
+  return new URL(`/v4/matches/${encodeURIComponent(String(matchId))}`, FOOTBALL_DATA_API_BASE);
+}
+
 export function buildSportmonksApiUrl(siteUrl) {
   const statsMatch = siteUrl.pathname.match(/^\/api\/matches\/(\d+)\/stats$/)?.[1];
   const matchId = siteUrl.pathname.match(/^\/api\/matches\/(\d+)$/)?.[1];
@@ -2346,6 +2636,75 @@ function todayDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function footballDataRequestedDate(url) {
+  return url.searchParams.get('date') || todayDate();
+}
+
+function footballDataMatchDate(match = {}) {
+  return String(match?.utcDate || '').slice(0, 10);
+}
+
+function footballDataFallbackMatch(matchId, env = {}) {
+  const teamPair = footballDataFallbackTeamPair(matchId, env);
+  if (!teamPair) return null;
+  return {
+    id: matchId,
+    external_id: matchId,
+    scheduled_at: teamPair.date ? `${teamPair.date}T00:00:00Z` : '',
+    home_team: { name_en: teamPair.home, name_ru: teamPair.home },
+    away_team: { name_en: teamPair.away, name_ru: teamPair.away },
+  };
+}
+
+function footballDataFallbackTeamPair(matchId, env = {}) {
+  const raw = String(env.FOOTBALL_DATA_ODDS_ALIASES || '').trim();
+  if (!raw) return null;
+  for (const entry of raw.split(',')) {
+    const [id, ...rest] = entry.split(':').map((part) => String(part || '').trim());
+    if (String(matchId) !== id) continue;
+    const value = rest.join(':');
+    const [maybeDate, ...teamParts] = value.split('|').map((part) => String(part || '').trim());
+    const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(maybeDate);
+    const teams = hasDate ? teamParts.join('|') : value;
+    const pair = footballDataAliasPairKey(teams);
+    if (!pair) return null;
+    const [home, away] = teams.split(/\s+v(?:s)?\s+|\|/i).map((part) => String(part || '').trim());
+    return home && away ? { home, away, date: hasDate ? maybeDate : '' } : null;
+  }
+  return null;
+}
+
+function theRundownMatchDate(match = {}, env = {}) {
+  const directDate = String(match?.scheduled_at || '').slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(directDate)) return directDate;
+  const teamPair = footballDataFallbackTeamPair(match?.id || match?.external_id, env);
+  return teamPair?.date || '';
+}
+
+function nextIsoDate(date) {
+  const parsed = Date.parse(`${date}T00:00:00Z`);
+  if (!Number.isFinite(parsed)) return date;
+  return new Date(parsed + 86400000).toISOString().slice(0, 10);
+}
+
+function offsetIsoDate(date, offsetDays) {
+  const parsed = Date.parse(`${date}T00:00:00Z`);
+  if (!Number.isFinite(parsed)) return date;
+  return new Date(parsed + offsetDays * 86400000).toISOString().slice(0, 10);
+}
+
+function theRundownLookupDates(env = {}) {
+  const forwardDays = Math.min(Math.max(Number(env.THERUNDOWN_LOOKUP_DAYS) || 14, 0), 31);
+  const backDays = Math.min(Math.max(Number(env.THERUNDOWN_LOOKUP_BACK_DAYS) || 1, 0), 7);
+  const configuredBaseDate = String(env.THERUNDOWN_LOOKUP_BASE_DATE || '').trim();
+  const today = /^\d{4}-\d{2}-\d{2}$/.test(configuredBaseDate) ? configuredBaseDate : todayDate();
+  const dates = [];
+  for (let offset = -backDays; offset <= forwardDays; offset += 1) {
+    dates.push(offsetIsoDate(today, offset));
+  }
+  return dates;
+}
+
 function hasFootballApiErrors(errors) {
   if (!errors) return false;
   if (Array.isArray(errors)) return errors.length > 0;
@@ -2383,6 +2742,120 @@ export function normalizeFixture(item, env = {}, streamConfig = null, matchOverr
   }, env, streamConfig, matchOverrides);
 }
 
+export function normalizeFootballDataMatch(item, env = {}, streamConfig = null, matchOverrides = {}) {
+  const competition = item?.competition ?? {};
+  const score = item?.score ?? {};
+  const normalizedStatus = keepScheduledBeforeKickoff(normalizeFootballDataStatus(item?.status), item?.utcDate);
+  const homeScore = score.fullTime?.home ?? score.regularTime?.home ?? 0;
+  const awayScore = score.fullTime?.away ?? score.regularTime?.away ?? 0;
+
+  return applyMatchOverride({
+    id: item?.id,
+    external_id: item?.id,
+    league: {
+      id: footballDataLeagueId(competition),
+      external_id: competition.id,
+      name: competition.name || 'Football',
+      country: item?.area?.name || '',
+    },
+    stage: normalizeFootballDataStage(item?.stage, competition.name),
+    venue: item?.venue || '',
+    city: '',
+    scheduled_at: item?.utcDate || '',
+    status: normalizedStatus,
+    home_score: homeScore == null ? 0 : homeScore,
+    away_score: awayScore == null ? 0 : awayScore,
+    minute: undefined,
+    home_team: normalizeFootballDataTeam(item?.homeTeam),
+    away_team: normalizeFootballDataTeam(item?.awayTeam),
+    streams: streamsForFootballDataMatch(item, env, streamConfig),
+  }, env, streamConfig, matchOverrides);
+}
+
+function normalizeTheRundownScheduleMatch(item, env = {}, streamConfig = null) {
+  const teams = Array.isArray(item?.teams_normalized) && item.teams_normalized.length
+    ? item.teams_normalized
+    : Array.isArray(item?.teams) ? item.teams : [];
+  const homeTeam = teams.find((team) => team?.is_home) || {};
+  const awayTeam = teams.find((team) => team?.is_away) || {};
+  const scheduledAt = String(item?.event_date || '');
+  const score = item?.score || {};
+  const id = theRundownMappedMatchId(item, env) || theRundownStableMatchId(item);
+  const syntheticFootballDataItem = {
+    id,
+    homeTeam: { name: homeTeam.name },
+    awayTeam: { name: awayTeam.name },
+  };
+
+  return {
+    id,
+    external_id: item?.event_id || item?.event_uuid || id,
+    league: {
+      id: 1,
+      external_id: Number(item?.sport_id) || 18,
+      name: 'FIFA World Cup',
+      country: 'World',
+    },
+    stage: item?.schedule?.season_type || 'FIFA',
+    venue: score.venue_name || '',
+    city: score.venue_location || '',
+    scheduled_at: scheduledAt,
+    status: normalizeTheRundownStatus(score.event_status),
+    home_score: Number(score.score_home) || 0,
+    away_score: Number(score.score_away) || 0,
+    minute: Number(score.game_clock) || undefined,
+    home_team: normalizeTheRundownTeam(homeTeam),
+    away_team: normalizeTheRundownTeam(awayTeam),
+    streams: streamsForFootballDataMatch(syntheticFootballDataItem, env, streamConfig),
+  };
+}
+
+function theRundownStableMatchId(item = {}) {
+  const numericId = Number(item?.event_id || item?.event_uuid);
+  if (Number.isFinite(numericId) && numericId > 0) return numericId;
+  return hashToPositiveInt(`${item?.event_id || item?.event_uuid || ''}:${item?.event_date || ''}`) + 900000000;
+}
+
+function theRundownMappedMatchId(item = {}, env = {}) {
+  const teams = Array.isArray(item?.teams_normalized) && item.teams_normalized.length
+    ? item.teams_normalized
+    : Array.isArray(item?.teams) ? item.teams : [];
+  const homeTeam = teams.find((team) => team?.is_home) || {};
+  const awayTeam = teams.find((team) => team?.is_away) || {};
+  const teamKey = `${normalizeExternalOddsTeamKey(homeTeam.name || '')}|${normalizeExternalOddsTeamKey(awayTeam.name || '')}`;
+  if (!teamKey || teamKey === '|') return 0;
+  const raw = String(env.FOOTBALL_DATA_ODDS_ALIASES || '').trim();
+  for (const entry of raw.split(',')) {
+    const [id, ...rest] = entry.split(':').map((part) => String(part || '').trim());
+    const value = rest.join(':');
+    const [maybeDate, ...teamParts] = value.split('|').map((part) => String(part || '').trim());
+    const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(maybeDate);
+    const teamsValue = hasDate ? teamParts.join('|') : value;
+    if (footballDataAliasPairKey(teamsValue) === teamKey) return Number(id) || 0;
+  }
+  return 0;
+}
+
+function normalizeTheRundownTeam(team = {}) {
+  const name = team?.name || 'TBD';
+  return {
+    id: team?.team_normalized_id || team?.team_id || undefined,
+    external_id: team?.team_id || team?.team_normalized_id || undefined,
+    code: team?.abbreviation || shortCode(name),
+    name_en: name,
+    name_ru: name,
+    flag_url: '',
+  };
+}
+
+function normalizeTheRundownStatus(status = '') {
+  const raw = String(status || '').toUpperCase();
+  if (raw.includes('FINAL') || raw.includes('COMPLETE') || raw.includes('CLOSED')) return 'finished';
+  if (raw.includes('IN_PROGRESS') || raw.includes('LIVE') || raw.includes('HALF')) return 'live';
+  if (raw.includes('POSTPONED') || raw.includes('CANCEL')) return 'postponed';
+  return 'scheduled';
+}
+
 export function normalizeSportmonksFixture(item, env = {}, streamConfig = null, matchOverrides = {}) {
   const participants = Array.isArray(item?.participants) ? item.participants : [];
   const homeTeam = participants.find((team) => team?.meta?.location === 'home') || participants[0] || {};
@@ -2414,6 +2887,22 @@ export function normalizeSportmonksFixture(item, env = {}, streamConfig = null, 
     away_team: normalizeSportmonksTeam(awayTeam),
     streams: streamsForMatch(item?.id, env, streamConfig),
   }, env, streamConfig, matchOverrides);
+}
+
+function normalizeFootballDataMatchDetails(matchId, match = {}, externalOdds = null) {
+  return {
+    match_id: matchId,
+    home_score: match?.home_score ?? 0,
+    away_score: match?.away_score ?? 0,
+    events: [],
+    lineups: [],
+    h2h: emptyH2H(),
+    home_form: [],
+    away_form: [],
+    team_stats: [],
+    facts: [],
+    odds: externalOdds,
+  };
 }
 
 export function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [], odds = [], detailFixtures = {}) {
@@ -2591,6 +3080,54 @@ function streamsForMatch(matchId, env = {}, streamConfig = null) {
     .map((stream, index) => normalizeStream(stream, matchId, index))
     .filter((stream) => isStreamActiveNow(stream))
     .map(stripPrivateStreamFields);
+}
+
+function streamsForFootballDataMatch(item = {}, env = {}, streamConfig = null) {
+  const direct = streamsForMatch(item?.id, env, streamConfig);
+  if (direct.length) return direct;
+
+  const aliasId = footballDataStreamAliasForMatch(item, env);
+  if (!aliasId || String(aliasId) === String(item?.id)) return [];
+  return streamsForMatch(aliasId, env, streamConfig);
+}
+
+function footballDataStreamAliasForMatch(item = {}, env = {}) {
+  const aliases = readFootballDataMatchAliases(env);
+  const idAlias = aliases.byId.get(String(item?.id));
+  if (idAlias) return idAlias;
+  const teamKey = footballDataAliasTeamKey(item);
+  return aliases.byTeams.get(teamKey) || '';
+}
+
+function readFootballDataMatchAliases(env = {}) {
+  const byId = new Map();
+  const byTeams = new Map();
+  const raw = String(env.FOOTBALL_DATA_MATCH_ALIASES || '').trim();
+  if (!raw) return { byId, byTeams };
+  raw.split(',').forEach((entry) => {
+    const [left, right] = entry.split(':').map((part) => String(part || '').trim());
+    if (!left || !right) return;
+    if (/^\d+$/.test(left)) byId.set(left, right);
+    else {
+      const teamKey = footballDataAliasPairKey(left);
+      if (teamKey) byTeams.set(teamKey, right);
+    }
+  });
+  return { byId, byTeams };
+}
+
+function footballDataAliasPairKey(value = '') {
+  const parts = String(value || '').split(/\s+v(?:s)?\s+|\|/i);
+  if (parts.length < 2) return '';
+  const home = normalizeExternalOddsTeamKey(parts[0]);
+  const away = normalizeExternalOddsTeamKey(parts.slice(1).join(' '));
+  return home && away ? `${home}|${away}` : '';
+}
+
+function footballDataAliasTeamKey(item = {}) {
+  const home = normalizeExternalOddsTeamKey(item?.homeTeam?.name || item?.homeTeam?.shortName || '');
+  const away = normalizeExternalOddsTeamKey(item?.awayTeam?.name || item?.awayTeam?.shortName || '');
+  return home && away ? `${home}|${away}` : '';
 }
 
 function stripPrivateStreamFields(stream) {
@@ -3517,11 +4054,81 @@ export function normalizeExternalMelbetOddsPayload(payload = {}, homeTeamName = 
   };
 }
 
+function normalizeTheRundownOddsForMatch(payload = {}, match = {}, env = {}) {
+  const events = Array.isArray(payload?.events) ? payload.events : [];
+  const homeKey = normalizeExternalOddsTeamKey(match?.home_team?.name_en || '');
+  const awayKey = normalizeExternalOddsTeamKey(match?.away_team?.name_en || '');
+  if (!homeKey || !awayKey) return null;
+
+  const event = events.find((item) => {
+    const teams = Array.isArray(item?.teams_normalized) && item.teams_normalized.length
+      ? item.teams_normalized
+      : Array.isArray(item?.teams) ? item.teams : [];
+    const eventHome = teams.find((team) => team?.is_home);
+    const eventAway = teams.find((team) => team?.is_away);
+    return normalizeExternalOddsTeamKey(eventHome?.name || '') === homeKey
+      && normalizeExternalOddsTeamKey(eventAway?.name || '') === awayKey;
+  });
+  if (!event?.lines || typeof event.lines !== 'object') return null;
+
+  const preferredAffiliateIds = theRundownPreferredAffiliateIds(env);
+  const lineEntries = Object.entries(event.lines);
+  const sortedLineEntries = [
+    ...preferredAffiliateIds
+      .map((id) => lineEntries.find(([affiliateId]) => String(affiliateId) === String(id)))
+      .filter(Boolean),
+    ...lineEntries.filter(([affiliateId]) => !preferredAffiliateIds.includes(String(affiliateId))),
+  ];
+
+  for (const [, line] of sortedLineEntries) {
+    const moneyline = line?.moneyline;
+    if (!moneyline) continue;
+    const homeValue = normalizeAmericanOddValue(moneyline.moneyline_home);
+    const drawValue = normalizeAmericanOddValue(moneyline.moneyline_draw);
+    const awayValue = normalizeAmericanOddValue(moneyline.moneyline_away);
+    if (!homeValue || !drawValue || !awayValue) continue;
+    const fulltime = {
+      home: { label: 'Home', value: homeValue, probability: '', total: '', handicap: '' },
+      draw: { label: 'Draw', value: drawValue, probability: '', total: '', handicap: '' },
+      away: { label: 'Away', value: awayValue, probability: '', total: '', handicap: '' },
+    };
+    const bookmaker = String(line.affiliate?.affiliate_name || 'TheRundown').trim() || 'TheRundown';
+    return {
+      bookmaker,
+      market: 'Fulltime Result',
+      updated_at: String(moneyline.date_updated || ''),
+      outcomes: fulltime,
+      markets: [{ key: 'fulltime', label: 'Fulltime Result', outcomes: fulltime }],
+    };
+  }
+
+  return null;
+}
+
+function theRundownPreferredAffiliateIds(env = {}) {
+  const ids = String(env.THERUNDOWN_PREFERRED_AFFILIATES || '22,23,3,27')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+  return ids.length ? ids : ['22', '23', '3', '27'];
+}
+
+function normalizeAmericanOddValue(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric === 0 || Math.abs(numeric) < 1) return '';
+  const decimal = numeric > 0 ? 1 + numeric / 100 : 1 + 100 / Math.abs(numeric);
+  return decimal.toFixed(2);
+}
+
 function normalizeExternalMelbetOddsForSportmonksFixture(payload = {}, fixture = {}) {
   const participants = Array.isArray(fixture?.participants) ? fixture.participants : [];
   const homeTeam = participants.find((team) => team?.meta?.location === 'home') || participants[0] || {};
   const awayTeam = participants.find((team) => team?.meta?.location === 'away') || participants[1] || {};
   return normalizeExternalMelbetOddsPayload(payload, homeTeam.name || homeTeam.name_en || '', awayTeam.name || awayTeam.name_en || '');
+}
+
+function normalizeExternalMelbetOddsForMatch(payload = {}, match = {}) {
+  return normalizeExternalMelbetOddsPayload(payload, match?.home_team?.name_en || '', match?.away_team?.name_en || '');
 }
 
 function normalizeExternalOddValue(value) {
@@ -3724,6 +4331,15 @@ function normalizeSportmonksStatus(state = {}) {
   return 'scheduled';
 }
 
+function normalizeFootballDataStatus(status = '') {
+  const raw = String(status || '').toUpperCase();
+  if (raw === 'PAUSED' || raw === 'HALFTIME') return 'half_time';
+  if (raw === 'IN_PLAY') return 'live';
+  if (raw === 'FINISHED') return 'finished';
+  if (raw === 'POSTPONED' || raw === 'CANCELLED' || raw === 'SUSPENDED') return 'postponed';
+  return 'scheduled';
+}
+
 function keepScheduledBeforeKickoff(status, scheduledAt) {
   if (!isMatchInProgress(status)) return status;
   const kickoff = Date.parse(scheduledAt || '');
@@ -3762,6 +4378,48 @@ function normalizeTeam(team = {}) {
     name_ru: team.name || 'TBD',
     flag_url: team.logo || '',
   };
+}
+
+function normalizeFootballDataTeam(team = {}) {
+  const name = team?.name || team?.shortName || 'TBD';
+  return {
+    id: team?.id || undefined,
+    external_id: team?.id || undefined,
+    code: team?.tla || shortCode(name),
+    name_en: name,
+    name_ru: name,
+    flag_url: team?.crest || '',
+  };
+}
+
+function normalizeFootballDataStage(stage = '', fallback = 'Football') {
+  const raw = String(stage || '').trim();
+  if (!raw) return fallback || 'Football';
+  return raw
+    .toLowerCase()
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function footballDataLeagueId(competition = {}) {
+  const code = String(competition?.code || '').toUpperCase();
+  const byCode = {
+    BSA: 71,
+    BL1: 78,
+    CL: 2,
+    CLI: 13,
+    DED: 88,
+    EC: 4,
+    FL1: 61,
+    PD: 140,
+    PL: 39,
+    PPL: 94,
+    SA: 135,
+    WC: 1,
+  };
+  return byCode[code] || Number(competition?.id) || undefined;
 }
 
 function shortCode(name = '') {

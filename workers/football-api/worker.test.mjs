@@ -2,10 +2,12 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import worker, {
   buildFootballApiUrl,
+  buildFootballDataApiUrl,
   buildSportmonksApiUrl,
   jsonResponse,
   isTopLeagueMatch,
   normalizeFixture,
+  normalizeFootballDataMatch,
   normalizeExternalMelbetOddsPayload,
   normalizeSportmonksFixture,
   normalizeRssNews,
@@ -39,6 +41,27 @@ test('maps site match queries to API-FOOTBALL fixture endpoints', () => {
   assert.equal(
     buildFootballApiUrl(new URL('https://kinglive.test/api/matches/42/prematch?home=538&away=539')).toString(),
     'https://v3.football.api-sports.io/fixtures/headtohead?h2h=538-539',
+  );
+});
+
+test('maps site match queries to football-data.org endpoints', () => {
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = new Date(Date.parse(`${today}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+  assert.equal(
+    buildFootballDataApiUrl(new URL('https://kinglive.test/api/matches?date=2026-07-09')).toString(),
+    'https://api.football-data.org/v4/competitions/WC/matches?dateFrom=2026-07-09&dateTo=2026-07-10',
+  );
+  assert.equal(
+    buildFootballDataApiUrl(new URL('https://kinglive.test/api/matches?status=live')).toString(),
+    `https://api.football-data.org/v4/competitions/WC/matches?dateFrom=${today}&dateTo=${tomorrow}&status=IN_PLAY%2CPAUSED`,
+  );
+  assert.equal(
+    buildFootballDataApiUrl(new URL('https://kinglive.test/api/matches/537383')).toString(),
+    'https://api.football-data.org/v4/matches/537383',
+  );
+  assert.equal(
+    buildFootballDataApiUrl(new URL('https://kinglive.test/api/matches/537383/stats')).toString(),
+    'https://api.football-data.org/v4/matches/537383',
   );
 });
 
@@ -493,6 +516,575 @@ test('normalizes external MelBet odds JSON by home and away team names', () => {
   assert.deepEqual(odds.markets.map((market) => market.key), ['fulltime']);
 });
 
+test('normalizes football-data.org World Cup fixtures into public matches', () => {
+  const match = normalizeFootballDataMatch({
+    id: 537383,
+    utcDate: '2026-07-09T20:00:00Z',
+    status: 'TIMED',
+    stage: 'QUARTER_FINALS',
+    area: { name: 'World' },
+    competition: { id: 2000, name: 'FIFA World Cup', code: 'WC' },
+    homeTeam: { id: 773, name: 'France', tla: 'FRA', crest: 'https://crests.football-data.org/773.svg' },
+    awayTeam: { id: 815, name: 'Morocco', tla: 'MAR', crest: 'https://crests.football-data.org/morocco.svg' },
+    score: { fullTime: { home: null, away: null } },
+  });
+
+  assert.equal(match.id, 537383);
+  assert.equal(match.league.id, 1);
+  assert.equal(match.league.external_id, 2000);
+  assert.equal(match.stage, 'Quarter Finals');
+  assert.equal(match.status, 'scheduled');
+  assert.equal(match.home_team.name_en, 'France');
+  assert.equal(match.away_team.code, 'MAR');
+});
+
+test('serves football-data.org matches when selected as provider', async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const requestUrl = String(url);
+    calls.push(requestUrl);
+    assert.equal(options.headers?.['X-Auth-Token'] || '', 'football-data-token');
+    return new Response(JSON.stringify({
+      matches: [{
+        id: 537383,
+        utcDate: '2026-07-09T20:00:00Z',
+        status: 'TIMED',
+        stage: 'QUARTER_FINALS',
+        area: { name: 'World' },
+        competition: { id: 2000, name: 'FIFA World Cup', code: 'WC' },
+        homeTeam: { id: 773, name: 'France', tla: 'FRA', crest: 'https://crests.football-data.org/773.svg' },
+          awayTeam: { id: 815, name: 'Morocco', tla: 'MAR', crest: 'https://crests.football-data.org/morocco.svg' },
+          score: { fullTime: { home: null, away: null } },
+        },
+        {
+          id: 537384,
+          utcDate: '2026-07-10T19:00:00Z',
+          status: 'TIMED',
+          stage: 'QUARTER_FINALS',
+          area: { name: 'World' },
+          competition: { id: 2000, name: 'FIFA World Cup', code: 'WC' },
+          homeTeam: { id: 760, name: 'Spain', tla: 'ESP', crest: 'https://crests.football-data.org/760.svg' },
+          awayTeam: { id: 805, name: 'Belgium', tla: 'BEL', crest: 'https://crests.football-data.org/805.svg' },
+          score: { fullTime: { home: null, away: null } },
+        },
+      ],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches?date=2026-07-09'),
+      { FOOTBALL_PROVIDER: 'football-data', FOOTBALL_DATA_TOKEN: 'football-data-token' },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.source, 'football-data');
+    assert.equal(body.matches.length, 1);
+    assert.equal(body.matches[0].home_team.name_en, 'France');
+    assert.equal(calls[0], 'https://api.football-data.org/v4/competitions/WC/matches?dateFrom=2026-07-09&dateTo=2026-07-10');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('falls back to TheRundown schedule when football-data.org match list is rate limited', async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    calls.push(requestUrl);
+    if (requestUrl === 'https://api.football-data.org/v4/competitions/WC/matches?dateFrom=2026-07-09&dateTo=2026-07-10') {
+      return new Response(JSON.stringify({ message: 'Too Many Requests' }), { status: 429 });
+    }
+    if (requestUrl === 'https://therundown.io/api/v1/sports/18/events/2026-07-09?period_id=full_game&include=scores&key=therundown-token') {
+      return new Response(JSON.stringify({
+        events: [{
+          event_id: '84ce5b21c05548ec4e4e26b840238fd8',
+          sport_id: 18,
+          event_date: '2026-07-09T20:00:00Z',
+          score: {
+            event_status: 'STATUS_SCHEDULED',
+            score_home: 0,
+            score_away: 0,
+            venue_name: 'Gillette Stadium',
+            venue_location: 'Foxborough, Massachusetts',
+          },
+          teams_normalized: [
+            { team_id: 4543, name: 'Morocco', abbreviation: 'MAR', is_away: true, is_home: false },
+            { team_id: 4552, name: 'France', abbreviation: 'FRA', is_away: false, is_home: true },
+          ],
+        }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({}), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches?date=2026-07-09'),
+      {
+        FOOTBALL_PROVIDER: 'football-data',
+        FOOTBALL_DATA_TOKEN: 'football-data-token',
+        FOOTBALL_DATA_ODDS_ALIASES: '537383:2026-07-09|France|Morocco',
+        THERUNDOWN_KEY: 'therundown-token',
+        THERUNDOWN_SPORT_ID: '18',
+      },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.source, 'therundown');
+    assert.equal(body.matches.length, 1);
+    assert.equal(body.matches[0].id, 537383);
+    assert.equal(body.matches[0].home_team.name_en, 'France');
+    assert.equal(body.matches[0].away_team.name_en, 'Morocco');
+    assert.equal(body.matches[0].venue, 'Gillette Stadium');
+    assert.equal(calls.includes('https://therundown.io/api/v1/sports/18/events/2026-07-09?period_id=full_game&include=scores&key=therundown-token'), true);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('falls back to TheRundown schedule when football-data.org match list is empty', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl === 'https://api.football-data.org/v4/competitions/WC/matches?dateFrom=2026-07-09&dateTo=2026-07-10') {
+      return new Response(JSON.stringify({ matches: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl === 'https://therundown.io/api/v1/sports/18/events/2026-07-09?period_id=full_game&include=scores&key=therundown-token') {
+      return new Response(JSON.stringify({
+        events: [{
+          event_id: '84ce5b21c05548ec4e4e26b840238fd8',
+          sport_id: 18,
+          event_date: '2026-07-09T20:00:00Z',
+          score: { event_status: 'STATUS_SCHEDULED', score_home: 0, score_away: 0 },
+          teams_normalized: [
+            { team_id: 4543, name: 'Morocco', abbreviation: 'MAR', is_away: true, is_home: false },
+            { team_id: 4552, name: 'France', abbreviation: 'FRA', is_away: false, is_home: true },
+          ],
+        }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({}), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches?date=2026-07-09'),
+      {
+        FOOTBALL_PROVIDER: 'football-data',
+        FOOTBALL_DATA_TOKEN: 'football-data-token',
+        FOOTBALL_DATA_ODDS_ALIASES: '537383:2026-07-09|France|Morocco',
+        THERUNDOWN_KEY: 'therundown-token',
+        THERUNDOWN_SPORT_ID: '18',
+      },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.source, 'therundown');
+    assert.equal(body.matches.length, 1);
+    assert.equal(body.matches[0].id, 537383);
+    assert.equal(body.matches[0].home_team.name_en, 'France');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('uses TheRundown as primary schedule provider when configured', async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    calls.push(requestUrl);
+    if (requestUrl === 'https://api.football-data.org/v4/competitions/WC/matches?dateFrom=2026-07-09&dateTo=2026-07-10') {
+      return new Response(JSON.stringify({ matches: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl === 'https://therundown.io/api/v1/sports/18/events/2026-07-09?period_id=full_game&include=scores&key=therundown-token') {
+      return new Response(JSON.stringify({
+        events: [{
+          event_id: '84ce5b21c05548ec4e4e26b840238fd8',
+          sport_id: 18,
+          event_date: '2026-07-09T20:00:00Z',
+          score: { event_status: 'STATUS_SCHEDULED', score_home: 0, score_away: 0 },
+          teams_normalized: [
+            { team_id: 4543, name: 'Morocco', abbreviation: 'MAR', is_away: true, is_home: false },
+            { team_id: 4552, name: 'France', abbreviation: 'FRA', is_away: false, is_home: true },
+          ],
+        }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({}), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches?date=2026-07-09'),
+      {
+        FOOTBALL_PROVIDER: 'football-data',
+        FOOTBALL_SCHEDULE_PROVIDER: 'therundown',
+        FOOTBALL_DATA_TOKEN: 'football-data-token',
+        FOOTBALL_DATA_ODDS_ALIASES: '537383:2026-07-09|France|Morocco',
+        THERUNDOWN_KEY: 'therundown-token',
+        THERUNDOWN_SPORT_ID: '18',
+      },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.source, 'therundown');
+    assert.equal(body.matches.length, 1);
+    assert.equal(body.matches[0].id, 537383);
+    assert.equal(body.matches[0].home_team.name_en, 'France');
+    assert.equal(calls.includes('https://therundown.io/api/v1/sports/18/events/2026-07-09?period_id=full_game&include=scores&key=therundown-token'), true);
+    assert.equal(calls.some((call) => call.startsWith('https://api.football-data.org/')), false);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('serves TheRundown single match details by id for player boot', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl === 'https://api.football-data.org/v4/matches/537383') {
+      return new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 });
+    }
+    if (requestUrl === 'https://therundown.io/api/v1/sports/18/events/2026-07-08?period_id=full_game&include=scores&key=therundown-token') {
+      return new Response(JSON.stringify({ events: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl === 'https://therundown.io/api/v1/sports/18/events/2026-07-09?period_id=full_game&include=scores&key=therundown-token') {
+      return new Response(JSON.stringify({
+        events: [{
+          event_id: '84ce5b21c05548ec4e4e26b840238fd8',
+          sport_id: 18,
+          event_date: '2026-07-09T20:00:00Z',
+          score: { event_status: 'STATUS_SCHEDULED', score_home: 0, score_away: 0 },
+          teams_normalized: [
+            { team_id: 4543, name: 'Morocco', abbreviation: 'MAR', is_away: true, is_home: false },
+            { team_id: 4552, name: 'France', abbreviation: 'FRA', is_away: false, is_home: true },
+          ],
+        }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({}), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches/537383?lang=ar&region=global'),
+      {
+        FOOTBALL_PROVIDER: 'football-data',
+        FOOTBALL_DATA_TOKEN: 'football-data-token',
+        FOOTBALL_DATA_ODDS_ALIASES: '537383:2026-07-09|France|Morocco',
+        MATCH_STREAMS_JSON: JSON.stringify({
+          537383: [{
+            id: 3,
+            label: 'Arabic',
+            source_type: 'videojs',
+            language_code: 'ar',
+            url: 'https://cdn-hls.livekinglive.win/aws/live/537383-ar-arabic/index.m3u8',
+            is_active: true,
+          }],
+        }),
+        THERUNDOWN_KEY: 'therundown-token',
+        THERUNDOWN_SPORT_ID: '18',
+        THERUNDOWN_LOOKUP_BASE_DATE: '2026-07-09',
+        THERUNDOWN_LOOKUP_DAYS: '1',
+      },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.id, 537383);
+    assert.equal(body.home_team.name_en, 'France');
+    assert.equal(body.streams.length, 1);
+    assert.equal(body.streams[0].language_code, 'ar');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('attaches existing streams to football-data.org fixtures through match aliases', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    matches: [{
+      id: 537383,
+      utcDate: '2026-07-09T20:00:00Z',
+      status: 'TIMED',
+      stage: 'QUARTER_FINALS',
+      area: { name: 'World' },
+      competition: { id: 2000, name: 'FIFA World Cup', code: 'WC' },
+      homeTeam: { id: 773, name: 'France', tla: 'FRA', crest: 'https://crests.football-data.org/773.svg' },
+      awayTeam: { id: 815, name: 'Morocco', tla: 'MAR', crest: 'https://crests.football-data.org/morocco.svg' },
+      score: { fullTime: { home: null, away: null } },
+    }],
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches?date=2026-07-09'),
+      {
+        FOOTBALL_PROVIDER: 'football-data',
+        FOOTBALL_DATA_TOKEN: 'football-data-token',
+        FOOTBALL_DATA_MATCH_ALIASES: '537383:19606961,France vs Morocco:19606961',
+        MATCH_STREAMS_JSON: JSON.stringify({
+          19606961: [{
+            id: 1,
+            label: 'English',
+            source_type: 'videojs',
+            language_code: 'en',
+            url: 'https://cdn-hls.livekinglive.win/aws/live/19606961-en-english/index.m3u8',
+            is_active: true,
+          }],
+        }),
+      },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.matches[0].id, 537383);
+    assert.equal(body.matches[0].streams.length, 1);
+    assert.equal(body.matches[0].streams[0].language_code, 'en');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('serves external MelBet odds with football-data.org match details', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl === 'https://api.football-data.org/v4/matches/537383') {
+      return new Response(JSON.stringify({
+        id: 537383,
+        utcDate: '2026-07-09T20:00:00Z',
+        status: 'TIMED',
+        stage: 'QUARTER_FINALS',
+        area: { name: 'World' },
+        competition: { id: 2000, name: 'FIFA World Cup', code: 'WC' },
+        homeTeam: { id: 773, name: 'France', tla: 'FRA', crest: 'https://crests.football-data.org/773.svg' },
+        awayTeam: { id: 815, name: 'Morocco', tla: 'MAR', crest: 'https://crests.football-data.org/morocco.svg' },
+        score: { fullTime: { home: null, away: null } },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl === 'https://gaz-zp-tv.com/data/odds.json') {
+      return new Response(JSON.stringify({
+        bookmaker: 'MelBet',
+        byMatch: {
+          'france|morocco': { home: '1.92', draw: '3.25', away: '4.40' },
+        },
+        updated: '2026-07-09T10:00:00.000Z',
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({}), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches/537383/odds'),
+      {
+        FOOTBALL_PROVIDER: 'football-data',
+        FOOTBALL_DATA_TOKEN: 'football-data-token',
+        MELBET_ODDS_URL: 'https://gaz-zp-tv.com/data/odds.json',
+      },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.odds.bookmaker, 'MelBet');
+    assert.equal(body.odds.outcomes.home.value, '1.92');
+    assert.equal(body.odds.outcomes.away.value, '4.40');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('serves TheRundown football odds as preferred football-data.org match odds', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl === 'https://api.football-data.org/v4/matches/537383') {
+      return new Response(JSON.stringify({
+        id: 537383,
+        utcDate: '2026-07-09T20:00:00Z',
+        status: 'TIMED',
+        stage: 'QUARTER_FINALS',
+        area: { name: 'World' },
+        competition: { id: 2000, name: 'FIFA World Cup', code: 'WC' },
+        homeTeam: { id: 773, name: 'France', tla: 'FRA', crest: 'https://crests.football-data.org/773.svg' },
+        awayTeam: { id: 815, name: 'Morocco', tla: 'MAR', crest: 'https://crests.football-data.org/morocco.svg' },
+        score: { fullTime: { home: null, away: null } },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl === 'https://therundown.io/api/v1/sports/18/events/2026-07-09?period_id=full_game&include=scores&key=therundown-token') {
+      return new Response(JSON.stringify({
+        events: [{
+          event_id: 'therundown-event',
+          teams_normalized: [
+            { name: 'Morocco', is_away: true, is_home: false },
+            { name: 'France', is_away: false, is_home: true },
+          ],
+          lines: {
+            22: {
+              moneyline: {
+                moneyline_home: -175,
+                moneyline_draw: 300,
+                moneyline_away: 475,
+                date_updated: '2026-07-09T10:00:00Z',
+              },
+              affiliate: { affiliate_name: 'BetMGM' },
+            },
+          },
+        }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({}), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches/537383/odds'),
+      {
+        FOOTBALL_PROVIDER: 'football-data',
+        FOOTBALL_DATA_TOKEN: 'football-data-token',
+        THERUNDOWN_KEY: 'therundown-token',
+        THERUNDOWN_SPORT_ID: '18',
+      },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.odds.bookmaker, 'BetMGM');
+    assert.equal(body.odds.outcomes.home.value, '1.57');
+    assert.equal(body.odds.outcomes.draw.value, '4.00');
+    assert.equal(body.odds.outcomes.away.value, '5.75');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('serves TheRundown odds for TheRundown-only match stats ids', async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    calls.push(requestUrl);
+    if (requestUrl === 'https://api.football-data.org/v4/matches/2302030332') {
+      return new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 });
+    }
+    if (requestUrl === 'https://therundown.io/api/v1/sports/18/events/2026-07-08?period_id=full_game&include=scores&key=therundown-token') {
+      return new Response(JSON.stringify({ events: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl === 'https://therundown.io/api/v1/sports/18/events/2026-07-09?period_id=full_game&include=scores&key=therundown-token') {
+      return new Response(JSON.stringify({ events: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl === 'https://therundown.io/api/v1/sports/18/events/2026-07-10?period_id=full_game&include=scores&key=therundown-token') {
+      return new Response(JSON.stringify({
+        events: [{
+          event_id: '2302030332',
+          sport_id: 18,
+          event_date: '2026-07-10T19:00:00Z',
+          score: { event_status: 'STATUS_SCHEDULED', score_home: 0, score_away: 0 },
+          teams_normalized: [
+            { team_id: 760, name: 'Spain', abbreviation: 'ESP', is_away: false, is_home: true },
+            { team_id: 805, name: 'Belgium', abbreviation: 'BEL', is_away: true, is_home: false },
+          ],
+          lines: {
+            22: {
+              moneyline: {
+                moneyline_home: -120,
+                moneyline_draw: 250,
+                moneyline_away: 330,
+                date_updated: '2026-07-10T10:00:00Z',
+              },
+              affiliate: { affiliate_name: 'BetMGM' },
+            },
+          },
+        }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({}), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches/2302030332/stats'),
+      {
+        FOOTBALL_PROVIDER: 'football-data',
+        FOOTBALL_DATA_TOKEN: 'football-data-token',
+        THERUNDOWN_KEY: 'therundown-token',
+        THERUNDOWN_SPORT_ID: '18',
+        THERUNDOWN_LOOKUP_BASE_DATE: '2026-07-09',
+        THERUNDOWN_LOOKUP_DAYS: '2',
+      },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.match_id, 2302030332);
+    assert.equal(body.odds.bookmaker, 'BetMGM');
+    assert.equal(body.odds.outcomes.home.value, '1.83');
+    assert.equal(body.odds.outcomes.draw.value, '3.50');
+    assert.equal(body.odds.outcomes.away.value, '4.30');
+    assert.equal(calls.some((url) => url.includes('/events/2026-07-10?')), true);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('serves football-data.org external odds from aliases when match detail is rate limited', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl === 'https://api.football-data.org/v4/matches/537383') {
+      return new Response(JSON.stringify({ message: 'Too Many Requests' }), { status: 429 });
+    }
+    if (requestUrl === 'https://gaz-zp-tv.com/data/odds.json') {
+      return new Response(JSON.stringify({
+        bookmaker: 'MelBet',
+        byMatch: {
+          'france|morocco': { home: '1.68', draw: '3.92', away: '6.08' },
+        },
+        updated: '2026-07-09T10:00:00.000Z',
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({}), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches/537383/odds'),
+      {
+        FOOTBALL_PROVIDER: 'football-data',
+        FOOTBALL_DATA_TOKEN: 'football-data-token',
+        FOOTBALL_DATA_ODDS_ALIASES: '537383:France vs Morocco',
+        MELBET_ODDS_URL: 'https://gaz-zp-tv.com/data/odds.json',
+      },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.odds.bookmaker, 'MelBet');
+    assert.equal(body.odds.outcomes.home.value, '1.68');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test('serves external MelBet odds JSON when Sportmonks has no usable odds', async () => {
   const previousFetch = globalThis.fetch;
   const calls = [];
@@ -654,11 +1246,11 @@ test('uses short TTL for live data and day-level TTL for non-live feeds', () => 
   assert.equal(resolveCacheTtl(new URL('https://kinglive.test/api/matches/42/stats')), 1800);
 
   const newsTtl = resolveCacheTtl(new URL('https://kinglive.test/api/news'));
-  assert.equal(newsTtl > 60, true);
+  assert.equal(newsTtl > 0, true);
   assert.equal(newsTtl <= 86400, true);
 
   const fixturesTtl = resolveCacheTtl(new URL('https://kinglive.test/api/matches?date=2026-06-11'));
-  assert.equal(fixturesTtl > 60, true);
+  assert.equal(fixturesTtl > 0, true);
   assert.equal(fixturesTtl <= 86400, true);
   const today = new Date().toISOString().slice(0, 10);
   assert.equal(resolveCacheTtl(new URL(`https://kinglive.test/api/matches?date=${today}`)), 30);

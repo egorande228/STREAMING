@@ -1,5 +1,5 @@
 const UPSTREAM_ORIGIN = 'https://hls.livekinglive.win';
-const AWS_UPSTREAM_ORIGIN = 'http://vast-origin.livekinglive.win:46204';
+const AWS_UPSTREAM_ORIGIN = 'http://vast-origin.livekinglive.win:41799';
 const API_ADMIN_CHECK_URL = 'https://kinglive-football-api.figurator228.workers.dev/api/admin/monitoring';
 const SEGMENT_RE = /\.(ts|m4s|mp4|aac)$/i;
 const HLS_REFERRER_KV_PREFIX = 'hls_referrer:';

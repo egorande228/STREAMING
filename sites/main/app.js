@@ -682,13 +682,14 @@
   function setupLocaleButton() {
     if (!localeButton) return;
     const locales = [
-      { code: 'en', label: 'English' },
-      { code: 'es', label: 'Español' },
-      { code: 'fr', label: 'Français' },
-      { code: 'ar', label: 'العربية' },
-      { code: 'mn', label: 'Монгол' },
+      { code: 'en', label: 'ENGLISH', lang: 'en' },
+      { code: 'es', label: 'ESPAÑOL', lang: 'es' },
+      { code: 'fr', label: 'FRANÇAIS', lang: 'fr' },
+      { code: 'ar', label: 'العربية', lang: 'ar', dir: 'rtl' },
+      { code: 'mn', label: 'Монгол', lang: 'mn' },
     ];
     const localeFlag = (code) => `<span class="locale-flag locale-flag-${escapeHtml(code)}" aria-hidden="true"></span>`;
+    const localeLabel = (item) => `<span class="locale-label" lang="${escapeHtml(item.lang || item.code)}" dir="${escapeHtml(item.dir || 'auto')}">${escapeHtml(item.label)}</span>`;
     const container = localeButton.parentElement;
     const picker = document.createElement('div');
     picker.className = 'locale-picker';
@@ -710,7 +711,7 @@
             ${item.code === uiLocale ? 'aria-current="true"' : ''}
           >
             ${localeFlag(item.code)}
-            <span>${item.label}</span>
+            ${localeLabel(item)}
           </button>
         `,
       )

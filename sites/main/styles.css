@@ -198,6 +198,7 @@ p {
   background: rgba(244, 239, 226, 0.055);
   color: var(--text);
   cursor: pointer;
+  direction: ltr;
   font-size: 12px;
   font-weight: 900;
   padding: 0 13px;
@@ -222,6 +223,7 @@ p {
   right: 0;
   z-index: 40;
   display: grid;
+  direction: ltr;
   min-width: 158px;
   gap: 4px;
   border: 1px solid var(--line-strong);
@@ -244,12 +246,14 @@ html[dir="rtl"] .locale-menu {
   display: inline-flex;
   width: 100%;
   align-items: center;
+  justify-content: flex-start;
   gap: 9px;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
+  direction: ltr;
   font: inherit;
   font-size: 12px;
   font-weight: 900;
@@ -258,8 +262,20 @@ html[dir="rtl"] .locale-menu {
 }
 
 .locale-label {
+  color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
   line-height: 1.15;
+  opacity: 0.78;
+  white-space: nowrap;
+}
+
+.locale-option:hover .locale-label {
+  opacity: 1;
+}
+
+.locale-option.active .locale-label {
+  color: var(--gold);
+  opacity: 1;
 }
 
 .locale-option:hover {

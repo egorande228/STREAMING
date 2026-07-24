@@ -28,7 +28,7 @@
     "groups": "小组",
     "inProgress": "{count, plural, one {# 场比赛进行中} other {# 场比赛进行中}}",
     "noMatchesToday": "今天没有比赛",
-    "noMatchesApi": "无法加载比赛，请检查后端 API 是否正在运行。",
+    "noMatchesApi": "即将推出",
     "viewFullSchedule": "查看完整赛程",
     "roadToGlory": "通往荣耀之路",
     "heroTitleLine1": "关注每一个",

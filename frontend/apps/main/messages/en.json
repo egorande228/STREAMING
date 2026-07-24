@@ -28,7 +28,7 @@
     "groups": "Groups",
     "inProgress": "{count, plural, one {# match in progress} other {# matches in progress}}",
     "noMatchesToday": "No matches today",
-    "noMatchesApi": "Could not load matches. Check that the backend API is running.",
+    "noMatchesApi": "Coming Soon",
     "viewFullSchedule": "View full schedule",
     "roadToGlory": "Road to glory",
     "heroTitleLine1": "Follow every",

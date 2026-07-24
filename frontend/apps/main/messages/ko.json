@@ -28,7 +28,7 @@
     "groups": "조별",
     "inProgress": "{count, plural, one {#경기 진행 중} other {#경기 진행 중}}",
     "noMatchesToday": "오늘은 경기가 없습니다",
-    "noMatchesApi": "경기를 불러올 수 없습니다. 백엔드 API가 실행 중인지 확인하세요.",
+    "noMatchesApi": "곧 공개됩니다",
     "viewFullSchedule": "전체 일정 보기",
     "roadToGlory": "영광으로 가는 길",
     "heroTitleLine1": "모든",

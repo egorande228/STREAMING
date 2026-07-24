@@ -28,7 +28,7 @@
     "groups": "المجموعات",
     "inProgress": "{count, plural, one {مباراة واحدة جارية} other {# مباريات جارية}}",
     "noMatchesToday": "لا توجد مباريات اليوم",
-    "noMatchesApi": "تعذر تحميل المباريات. تحقق من أن واجهة backend API تعمل.",
+    "noMatchesApi": "قريبًا",
     "viewFullSchedule": "عرض الجدول الكامل",
     "roadToGlory": "الطريق إلى المجد",
     "heroTitleLine1": "تابع كل",

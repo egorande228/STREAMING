@@ -28,7 +28,7 @@
     "groups": "グループ",
     "inProgress": "{count, plural, one {# 試合進行中} other {# 試合進行中}}",
     "noMatchesToday": "今日は試合がありません",
-    "noMatchesApi": "試合を読み込めませんでした。バックエンド API が起動しているか確認してください。",
+    "noMatchesApi": "近日公開",
     "viewFullSchedule": "全日程を見る",
     "roadToGlory": "栄光への道",
     "heroTitleLine1": "すべての",

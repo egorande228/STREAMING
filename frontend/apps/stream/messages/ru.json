@@ -28,7 +28,7 @@
     "groups": "Группы",
     "inProgress": "В игре: {count}",
     "noMatchesToday": "Сегодня матчей нет",
-    "noMatchesApi": "Не удалось загрузить матчи. Проверьте, что backend API запущен.",
+    "noMatchesApi": "Скоро",
     "viewFullSchedule": "Полное расписание",
     "roadToGlory": "Путь к славе",
     "heroTitleLine1": "Следите за каждым",

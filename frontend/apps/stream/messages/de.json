@@ -28,7 +28,7 @@
     "groups": "Gruppen",
     "inProgress": "{count, plural, one {# Spiel läuft} other {# Spiele laufen}}",
     "noMatchesToday": "Heute keine Spiele",
-    "noMatchesApi": "Spiele konnten nicht geladen werden. Prüfe, ob die Backend-API läuft.",
+    "noMatchesApi": "Demnächst",
     "viewFullSchedule": "Vollen Spielplan ansehen",
     "roadToGlory": "Der Weg zum Ruhm",
     "heroTitleLine1": "Verfolge jeden",

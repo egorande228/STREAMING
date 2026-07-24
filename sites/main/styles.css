@@ -272,45 +272,39 @@ html[dir="rtl"] .locale-menu {
 .locale-flag {
   display: inline-block;
   width: 18px;
-  height: 12px;
+  height: 13.5px;
   flex: 0 0 auto;
   overflow: hidden;
   border-radius: 2px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
 }
 
 .locale .locale-flag {
   width: 17px;
-  height: 11px;
+  height: 12.75px;
 }
 
 .locale-flag-en {
-  background:
-    linear-gradient(146deg, transparent 0 42%, #fff 42% 58%, transparent 58%),
-    linear-gradient(34deg, transparent 0 42%, #fff 42% 58%, transparent 58%),
-    linear-gradient(146deg, transparent 0 47%, #c8102e 47% 53%, transparent 53%),
-    linear-gradient(34deg, transparent 0 47%, #c8102e 47% 53%, transparent 53%),
-    linear-gradient(90deg, transparent 0 42%, #fff 42% 58%, transparent 58%),
-    linear-gradient(0deg, transparent 0 35%, #fff 35% 65%, transparent 65%),
-    linear-gradient(90deg, transparent 0 45%, #c8102e 45% 55%, transparent 55%),
-    linear-gradient(0deg, transparent 0 41%, #c8102e 41% 59%, transparent 59%),
-    #012169;
+  background-image: url("./assets/flags/gb.svg");
 }
 
 .locale-flag-es {
-  background: linear-gradient(#aa151b 0 25%, #f1bf00 25% 75%, #aa151b 75%);
+  background-image: url("./assets/flags/es.svg");
 }
 
 .locale-flag-fr {
-  background: linear-gradient(90deg, #0055a4 0 33.33%, #fff 33.33% 66.66%, #ef4135 66.66%);
+  background-image: url("./assets/flags/fr.svg");
 }
 
 .locale-flag-ar {
-  background: linear-gradient(#006c35 0 100%);
+  background-image: url("./assets/flags/sa.svg");
 }
 
 .locale-flag-mn {
-  background: linear-gradient(90deg, #c4272f 0 33.33%, #015197 33.33% 66.66%, #c4272f 66.66%);
+  background-image: url("./assets/flags/mn.svg");
 }
 
 .page-stack {
@@ -510,8 +504,7 @@ html[dir="rtl"] .locale-menu {
 }
 
 .hero-highlight,
-.section-heading h2 span,
-.follow-band h2 span {
+.section-heading h2 span {
   color: var(--gold);
 }
 
@@ -804,8 +797,7 @@ html[dir="rtl"] .locale-menu {
   margin-bottom: var(--space-3);
 }
 
-.section-heading h2,
-.follow-band h2 {
+.section-heading h2 {
   color: var(--text);
   font-family: var(--font-display);
   font-size: clamp(28px, 4vw, 44px);
@@ -1386,57 +1378,6 @@ html[dir="rtl"] .locale-menu {
   max-width: 970px;
   min-height: 0;
   justify-self: center;
-}
-
-.follow-band {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-5);
-  overflow: hidden;
-  border: 1px solid rgba(245, 196, 0, 0.28);
-  border-radius: var(--radius);
-  background:
-    linear-gradient(105deg, rgba(14, 16, 13, 0.98), rgba(14, 16, 13, 0.92) 58%, rgba(245, 196, 0, 0.16)),
-    repeating-linear-gradient(90deg, rgba(245, 196, 0, 0.045) 0 1px, transparent 1px 34px);
-  padding: 28px 34px;
-}
-
-.follow-partner-cta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: 22px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid rgba(245, 196, 0, 0.2);
-}
-
-.follow-partner-cta[hidden] {
-  display: none;
-}
-
-.follow-partner-cta p {
-  max-width: 680px;
-  color: var(--text);
-  font-family: var(--font-display);
-  font-size: clamp(22px, 3vw, 34px);
-  font-weight: 950;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.follow-partner-button {
-  flex: 0 0 auto;
-}
-
-.follow-note {
-  max-width: 760px;
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 760;
-  line-height: 1.45;
 }
 
 .quiz-floating-button {
@@ -2993,20 +2934,13 @@ html[dir="rtl"] .social-dock {
   }
 
   .section-heading,
-  .follow-band,
   .detail-footer {
     display: grid;
     gap: var(--space-3);
   }
 
-  .follow-partner-cta {
-    display: grid;
-    gap: var(--space-3);
-  }
-
   .refresh-button,
-  .follow-band .button,
-  .follow-partner-button {
+  .detail-footer .button {
     width: 100%;
   }
 

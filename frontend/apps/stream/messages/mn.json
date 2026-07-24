@@ -28,7 +28,7 @@
     "groups": "Хэсгүүд",
     "inProgress": "{count, plural, other {# тоглолт явагдаж байна}}",
     "noMatchesToday": "Өнөөдөр тоглолт алга",
-    "noMatchesApi": "Тоглолтуудыг ачаалж чадсангүй. Backend API ажиллаж байгаа эсэхийг шалгана уу.",
+    "noMatchesApi": "Тун удахгүй",
     "viewFullSchedule": "Бүтэн хуваарь харах",
     "roadToGlory": "Алдрын зам",
     "heroTitleLine1": "Бүх",

@@ -28,7 +28,7 @@
     "groups": "Groupes",
     "inProgress": "{count, plural, one {# match en cours} other {# matchs en cours}}",
     "noMatchesToday": "Aucun match aujourd'hui",
-    "noMatchesApi": "Impossible de charger les matchs. Vérifiez que l'API backend est bien lancée.",
+    "noMatchesApi": "Bientôt disponible",
     "viewFullSchedule": "Voir le calendrier complet",
     "roadToGlory": "Route vers la gloire",
     "heroTitleLine1": "Suivez chaque",

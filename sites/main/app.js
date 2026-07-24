@@ -39,15 +39,12 @@
       newsKicker: 'Football pulse',
       newsTitlePrefix: 'Latest',
       newsTitleAccent: 'news',
-      followBandKicker: 'Legal notice',
-      followBandTitle: 'Independent informational website',
-      followBandDisclaimer: 'KingLive is operated independently and is not affiliated with, endorsed by, or operated by Melbet. Any trademarks, brand names, logos, advertisements or third-party materials displayed on this website remain the property of their respective owners.',
       carouselPrev: 'Previous news',
       carouselNext: 'Next news',
       carouselControls: 'News carousel controls',
       loadingMatches: 'Loading matches',
       loadingNews: 'Loading football news',
-      matchesUnavailable: 'Could not load matches. Check that the backend API is running.',
+      matchesUnavailable: 'Coming Soon',
       newsUnavailable: 'Football news is not available right now.',
       statsAfterKickoff: 'Statistics will appear after kickoff.',
       statsUnavailable: 'Statistics are not available from the API yet.',
@@ -109,15 +106,12 @@
       newsKicker: 'Pulso del fútbol',
       newsTitlePrefix: 'Últimas',
       newsTitleAccent: 'noticias',
-      followBandKicker: 'Aviso legal',
-      followBandTitle: 'Sitio informativo independiente',
-      followBandDisclaimer: 'KingLive opera de forma independiente y no está afiliado, respaldado ni operado por Melbet. Cualquier marca comercial, nombre de marca, logotipo, anuncio o material de terceros mostrado en este sitio pertenece a sus respectivos propietarios.',
       carouselPrev: 'Noticias anteriores',
       carouselNext: 'Noticias siguientes',
       carouselControls: 'Controles del carrusel de noticias',
       loadingMatches: 'Cargando partidos',
       loadingNews: 'Cargando noticias de fútbol',
-      matchesUnavailable: 'No se pudieron cargar los partidos. Verifica que el backend API esté activo.',
+      matchesUnavailable: 'Próximamente',
       newsUnavailable: 'Las noticias de fútbol no están disponibles ahora.',
       statsAfterKickoff: 'Las estadísticas aparecerán tras el inicio del partido.',
       statsUnavailable: 'Las estadísticas aún no están disponibles en la API.',
@@ -178,15 +172,12 @@
       newsKicker: 'Pouls du football',
       newsTitlePrefix: 'Dernières',
       newsTitleAccent: 'actualités',
-      followBandKicker: 'Mention légale',
-      followBandTitle: 'Site d’information indépendant',
-      followBandDisclaimer: 'KingLive fonctionne de manière indépendante et n’est ni affilié, ni approuvé, ni exploité par Melbet. Les marques, noms, logos, publicités et contenus tiers affichés sur ce site restent la propriété de leurs détenteurs respectifs.',
       carouselPrev: 'Actualités précédentes',
       carouselNext: 'Actualités suivantes',
       carouselControls: 'Contrôles du carrousel d’actualités',
       loadingMatches: 'Chargement des matchs',
       loadingNews: 'Chargement des actualités football',
-      matchesUnavailable: 'Impossible de charger les matchs. Vérifiez que l’API backend fonctionne.',
+      matchesUnavailable: 'Bientôt disponible',
       newsUnavailable: 'Les actualités football ne sont pas disponibles pour le moment.',
       statsAfterKickoff: 'Les statistiques apparaîtront après le coup d’envoi.',
       statsUnavailable: 'Les statistiques ne sont pas encore disponibles depuis l’API.',
@@ -255,15 +246,12 @@
       newsKicker: 'نبض الكرة',
       newsTitlePrefix: 'آخر',
       newsTitleAccent: 'الأخبار',
-      followBandKicker: 'إشعار قانوني',
-      followBandTitle: 'موقع معلومات مستقل',
-      followBandDisclaimer: 'يعمل KingLive بشكل مستقل ولا يرتبط بـ Melbet ولا يتم اعتماده أو تشغيله من قبلها. جميع العلامات التجارية وأسماء العلامات والشعارات والإعلانات ومواد الأطراف الثالثة المعروضة على هذا الموقع مملوكة لأصحابها المعنيين.',
       carouselPrev: 'الأخبار السابقة',
       carouselNext: 'الأخبار التالية',
       carouselControls: 'التحكم في شريط الأخبار',
       loadingMatches: 'جارٍ تحميل المباريات',
       loadingNews: 'جارٍ تحميل أخبار كرة القدم',
-      matchesUnavailable: 'تعذر تحميل المباريات. تأكد من تشغيل backend API.',
+      matchesUnavailable: 'قريبًا',
       newsUnavailable: 'أخبار كرة القدم غير متاحة الآن.',
       statsAfterKickoff: 'ستظهر الإحصاءات بعد بداية المباراة.',
       statsUnavailable: 'الإحصاءات غير متاحة حالياً من الـ API.',
@@ -332,18 +320,12 @@
       newsKicker: 'Хөлбөмбөгийн хэмнэл',
       newsTitlePrefix: 'Сүүлийн',
       newsTitleAccent: 'мэдээ',
-      followPartnerText: 'MELBET-н партнерийн сүлжээтэй хамтран ажиллаад орлого олоорой',
-      followPartnerButton: 'Нэгдэх',
-      followPartnerUrl: 'https://t.me/mongolia_partner_bot',
-      followBandKicker: 'Хууль эрх зүйн мэдэгдэл',
-      followBandTitle: 'Бие даасан мэдээллийн сайт',
-      followBandDisclaimer: 'KingLive нь бие даан ажилладаг бөгөөд Melbet-тэй холбоогүй, дэмжигдээгүй, тэдгээрийн ажиллуулдаг сайт биш. Энэ сайтад харагдах аливаа барааны тэмдэг, брэндийн нэр, лого, сурталчилгаа болон гуравдагч талын материал нь тухайн эзэмшигчдийн өмч хэвээр байна.',
       carouselPrev: 'Өмнөх мэдээ',
       carouselNext: 'Дараагийн мэдээ',
       carouselControls: 'Мэдээний каруселийн удирдлага',
       loadingMatches: 'Тоглолтуудыг ачаалж байна',
       loadingNews: 'Хөлбөмбөгийн мэдээ ачаалж байна',
-      matchesUnavailable: 'Тоглолтуудыг ачаалж чадсангүй. Backend API ажиллаж байгаа эсэхийг шалгана уу.',
+      matchesUnavailable: 'Тун удахгүй',
       newsUnavailable: 'Хөлбөмбөгийн мэдээ одоогоор боломжгүй байна.',
       statsAfterKickoff: 'Статистик тоглолт эхэлсний дараа гарна.',
       statsUnavailable: 'Статистик API-аас одоогоор боломжгүй байна.',
@@ -855,17 +837,6 @@
     setText('news-kicker', t('newsKicker'));
     setText('news-title-prefix', t('newsTitlePrefix'));
     setText('news-title-accent', t('newsTitleAccent'));
-    const partnerCta = document.getElementById('follow-partner-cta');
-    const partnerLink = document.getElementById('follow-partner-link');
-    if (partnerCta) partnerCta.hidden = uiLocale !== 'mn';
-    if (uiLocale === 'mn') {
-      setText('follow-partner-text', t('followPartnerText'));
-      setText('follow-partner-link', t('followPartnerButton'));
-      if (partnerLink) partnerLink.href = t('followPartnerUrl');
-    }
-    setText('follow-band-kicker', t('followBandKicker'));
-    setText('follow-band-title', t('followBandTitle'));
-    setText('follow-band-disclaimer', t('followBandDisclaimer'));
     const topBannerSrcKey = uiLocale === 'ar' ? 'arSrc' : 'enSrc';
     Array.from(document.querySelectorAll?.('[data-locale-top-banner]') || []).forEach((image) => {
       const nextSrc = image.dataset?.[topBannerSrcKey] || image.dataset?.enSrc;

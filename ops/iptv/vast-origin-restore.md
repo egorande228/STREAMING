@@ -62,6 +62,30 @@ supervisorctl status
 - If Vast changed the mapped container port, update the Worker upstream port too.
 - Keep the route `https://cdn-hls.livekinglive.win/aws/live/<slug>/index.m3u8`.
 
+## Vast Template On-start
+
+For new Ubuntu 22.04 instances, the private Vast template can run the bootstrap
+script on first start. The bootstrap installs the same origin software as the
+manual steps above and starts `supervisord`. It does not contain the restream
+sync token or IPTV source URLs.
+
+After the bootstrap is committed to the configured repository branch, set the
+template On-start Script to:
+
+```bash
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y --no-install-recommends ca-certificates git
+if [ ! -d /opt/kinglive/source/.git ]; then
+  git clone --depth 1 --branch codex/dami-stream-fixes https://github.com/egorande228/STREAMING.git /opt/kinglive/source
+fi
+bash /opt/kinglive/source/ops/iptv/scripts/install-vast-origin.sh
+```
+
+Keep `RESTREAM_SYNC_TOKEN` outside the template and add it only to
+`/etc/kinglive/restream-sync.env` on the newly created instance.
+
 ## Admin Usage
 
 In the KingLive admin, continue choosing `AWS US` for streams that should run on this extra origin. The label is historical; it can point to Vast through Cloudflare.

@@ -1,5 +1,7 @@
 const UPSTREAM_ORIGIN = 'https://hls.livekinglive.win';
 const AWS_UPSTREAM_ORIGIN = 'http://vast-origin.livekinglive.win:41799';
+const AWS_ORIGIN_KV_KEY = 'hls_origin:aws';
+const AWS_ORIGIN_HOSTNAME = 'vast-origin.livekinglive.win';
 const API_ADMIN_CHECK_URL = 'https://kinglive-football-api.figurator228.workers.dev/api/admin/monitoring';
 const SEGMENT_RE = /\.(ts|m4s|mp4|aac)$/i;
 const HLS_REFERRER_KV_PREFIX = 'hls_referrer:';
@@ -31,11 +33,15 @@ async function handleRequest(event, env = {}) {
     return routeAdminHlsReferrers(request, env);
   }
 
+  if (url.pathname === '/__admin/hls-origin') {
+    return routeAdminHlsOrigin(request, env);
+  }
+
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return withCors(new Response('Method Not Allowed', { status: 405 }), 'BYPASS');
   }
 
-  const upstream = resolveUpstream(url);
+  const upstream = await resolveUpstream(url, env);
   const upstreamUrl = new URL(upstream.pathname + url.search, upstream.origin);
   const isSegment = SEGMENT_RE.test(url.pathname);
   const isManifest = url.pathname.toLowerCase().endsWith('.m3u8');
@@ -46,7 +52,7 @@ async function handleRequest(event, env = {}) {
 
   if (request.method === 'GET' && isSegment) {
     const cache = caches.default;
-    const cacheKey = new Request(url.toString(), { method: 'GET' });
+    const cacheKey = new Request(buildSegmentCacheKey(url, upstream), { method: 'GET' });
     const cached = await cache.match(cacheKey);
 
     if (cached) {
@@ -113,6 +119,42 @@ async function routeAdminHlsReferrers(request, env = {}) {
     jsonResponse({ generated_at: new Date().toISOString(), total: referrers.length, referrers }, 200),
     'BYPASS',
   );
+}
+
+async function routeAdminHlsOrigin(request, env = {}) {
+  if (request.method !== 'GET' && request.method !== 'PUT') {
+    return withCors(jsonResponse({ error: 'method_not_allowed' }, 405), 'BYPASS');
+  }
+
+  const authorized = await isAuthorizedAdminRequest(request);
+  if (!authorized) {
+    return withCors(jsonResponse({ error: 'unauthorized' }, 401), 'BYPASS');
+  }
+
+  const kv = getHlsLogKv(env);
+  if (!kv?.get || !kv?.put) {
+    return withCors(jsonResponse({ error: 'hls_origin_kv_not_configured' }, 503), 'BYPASS');
+  }
+
+  if (request.method === 'GET') {
+    const origin = await getAwsUpstreamOrigin(env);
+    return withCors(jsonResponse({ origin, source: 'kv_or_fallback' }), 'BYPASS');
+  }
+
+  let payload;
+  try {
+    payload = await request.json();
+  } catch (_) {
+    return withCors(jsonResponse({ error: 'invalid_json' }, 400), 'BYPASS');
+  }
+
+  const origin = normalizeAwsOrigin(payload?.origin);
+  if (!origin) {
+    return withCors(jsonResponse({ error: 'invalid_aws_origin' }, 400), 'BYPASS');
+  }
+
+  await kv.put(AWS_ORIGIN_KV_KEY, origin);
+  return withCors(jsonResponse({ origin, updated: true }), 'BYPASS');
 }
 
 async function isAuthorizedAdminRequest(request) {
@@ -285,10 +327,10 @@ function safeLogKeyPart(value) {
   return encodeURIComponent(String(value || '').slice(0, 180));
 }
 
-function resolveUpstream(url) {
+async function resolveUpstream(url, env = {}) {
   if (url.pathname === '/aws' || url.pathname.startsWith('/aws/')) {
     return {
-      origin: AWS_UPSTREAM_ORIGIN,
+      origin: await getAwsUpstreamOrigin(env),
       pathname: url.pathname.replace(/^\/aws(?=\/|$)/, '') || '/',
     };
   }
@@ -296,6 +338,41 @@ function resolveUpstream(url) {
     origin: UPSTREAM_ORIGIN,
     pathname: url.pathname,
   };
+}
+
+async function getAwsUpstreamOrigin(env = {}) {
+  const kv = getHlsLogKv(env);
+  if (kv?.get) {
+    try {
+      const configured = normalizeAwsOrigin(await kv.get(AWS_ORIGIN_KV_KEY));
+      if (configured) return configured;
+    } catch (_) {
+      // A KV read failure must not interrupt the existing HLS origin.
+    }
+  }
+  return AWS_UPSTREAM_ORIGIN;
+}
+
+function normalizeAwsOrigin(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol !== 'http:' || url.hostname.toLowerCase() !== AWS_ORIGIN_HOSTNAME) return null;
+    if (url.username || url.password || (url.pathname !== '/' && url.pathname !== '')) return null;
+    if (url.search || url.hash) return null;
+    return url.origin;
+  } catch (_) {
+    return null;
+  }
+}
+
+function buildSegmentCacheKey(url, upstream) {
+  const cacheUrl = new URL(url);
+  // Vast changes port after a new rental. Namespace the cache to avoid serving
+  // a stale segment with the same filename from the previous origin.
+  cacheUrl.searchParams.set('__hls_origin', upstream.origin);
+  return cacheUrl.toString();
 }
 
 async function fetchUpstream(request, upstreamUrl, cacheable) {
@@ -332,7 +409,7 @@ async function fetchUpstream(request, upstreamUrl, cacheable) {
 function withCors(response, workerCacheStatus) {
   const next = new Response(response.body, response);
   next.headers.set('Access-Control-Allow-Origin', '*');
-  next.headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  next.headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS, PUT');
   next.headers.set(
     'Access-Control-Allow-Headers',
     'Range, Origin, Accept, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type, Authorization',
@@ -344,3 +421,5 @@ function withCors(response, workerCacheStatus) {
   next.headers.set('X-Worker-Cache', workerCacheStatus);
   return next;
 }
+
+export { buildSegmentCacheKey, getAwsUpstreamOrigin, normalizeAwsOrigin, resolveUpstream };

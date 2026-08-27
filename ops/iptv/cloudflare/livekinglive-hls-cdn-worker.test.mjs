@@ -15,10 +15,14 @@ test('uses the current origin when no dynamic KV value exists', async () => {
   assert.equal(origin, CURRENT_ORIGIN);
 });
 
-test('accepts only the Vast DNS hostname over HTTP', () => {
+test('accepts the Vast DNS hostname or a public IPv4 origin over HTTP', () => {
   assert.equal(normalizeAwsOrigin('http://vast-origin.livekinglive.win:45636'), 'http://vast-origin.livekinglive.win:45636');
+  assert.equal(normalizeAwsOrigin('http://38.247.78.6:41799'), 'http://38.247.78.6:41799');
   assert.equal(normalizeAwsOrigin('https://vast-origin.livekinglive.win:45636'), null);
   assert.equal(normalizeAwsOrigin('http://example.com:45636'), null);
+  assert.equal(normalizeAwsOrigin('http://127.0.0.1:45636'), null);
+  assert.equal(normalizeAwsOrigin('http://10.0.0.1:45636'), null);
+  assert.equal(normalizeAwsOrigin('http://38.247.78.6'), null);
   assert.equal(normalizeAwsOrigin('http://vast-origin.livekinglive.win:45636/live'), null);
 });
 

@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kinglive-vast-orchestrator",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 }
+  },
+  "vars": {
+    "VAST_TEMPLATE_NAME": "kinglive-hls-origin",
+    "KINGLIVE_REPO_REF": "codex/dami-stream-fixes",
+    "PUBLIC_BASE_URL": "https://kinglive-vast-orchestrator.figurator228.workers.dev",
+    "MAX_PRICE_PER_HOUR": "0.35",
+    "PRIMARY_CPU_CORES": "24",
+    "BACKUP_CPU_CORES": "16",
+    "MIN_CPU_RAM_MB": "64000",
+    "MIN_NETWORK_MBPS": "1000",
+    "DISK_GB": "50"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "CONTROL_KV",
+      "id": "b5b5ee98975b4210bfb9a62182fc47e1"
+    }
+  ]
+}

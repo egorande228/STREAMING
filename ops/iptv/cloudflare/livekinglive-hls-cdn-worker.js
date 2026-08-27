@@ -358,13 +358,31 @@ function normalizeAwsOrigin(value) {
 
   try {
     const url = new URL(value.trim());
-    if (url.protocol !== 'http:' || url.hostname.toLowerCase() !== AWS_ORIGIN_HOSTNAME) return null;
+    const hostname = url.hostname.toLowerCase();
+    if (url.protocol !== 'http:' || (!isPublicIpv4(hostname) && hostname !== AWS_ORIGIN_HOSTNAME)) return null;
     if (url.username || url.password || (url.pathname !== '/' && url.pathname !== '')) return null;
     if (url.search || url.hash) return null;
+    if (!url.port) return null;
     return url.origin;
   } catch (_) {
     return null;
   }
+}
+
+function isPublicIpv4(value) {
+  const parts = String(value || '').split('.');
+  if (parts.length !== 4 || parts.some((part) => !/^\d{1,3}$/.test(part))) return false;
+
+  const octets = parts.map(Number);
+  if (octets.some((part) => part < 0 || part > 255)) return false;
+
+  const [a, b] = octets;
+  if (a === 0 || a === 10 || a === 127 || a >= 224) return false;
+  if (a === 100 && b >= 64 && b <= 127) return false;
+  if (a === 169 && b === 254) return false;
+  if (a === 172 && b >= 16 && b <= 31) return false;
+  if (a === 192 && b === 168) return false;
+  return true;
 }
 
 function buildSegmentCacheKey(url, upstream) {

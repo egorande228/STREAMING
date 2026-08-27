@@ -6,13 +6,12 @@
     <meta name="description" content="KingLive football news story." />
     <title>KingLive Football News</title>
     <link rel="icon" type="image/svg+xml" href="./assets/kinglive-mark-flat.svg?v=20260515-flat" />
+    <script src="./theme.js?v=20260826-public-themes"></script>
     <link rel="stylesheet" href="./styles.css" />
-    <script src="./meta-pixel.js?v=20260615-meta-pixel"></script>
     <script src="./config.js"></script>
     <script defer src="./news.js"></script>
   </head>
   <body>
-    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1563885125322058&ev=PageView&noscript=1" alt="" /></noscript>
     <header class="topbar">
       <div class="frame topbar-inner">
         <a class="brand" href="./" aria-label="KingLive home">
@@ -22,16 +21,26 @@
         </a>
 
         <nav class="nav" aria-label="Primary">
-          <a href="./" id="nav-home-news">Home</a>
           <a href="./#schedule" id="nav-schedule-news">Schedule</a>
           <a class="active" href="./#news-title" id="nav-news-news">News</a>
         </nav>
 
-        <button class="locale" type="button" aria-label="Language">
-          <span class="locale-flag locale-flag-en" aria-hidden="true"></span>
-          <span>EN</span>
-          <span aria-hidden="true">⌄</span>
-        </button>
+        <div class="header-actions">
+          <div class="theme-switch" data-theme-switch role="group" aria-label="Color theme">
+            <button class="theme-option" type="button" data-theme-option="light" aria-label="Light" title="Light" aria-pressed="false">
+              <img class="theme-icon" src="./assets/icons/sun.svg" alt="" width="18" height="18" aria-hidden="true" />
+            </button>
+            <button class="theme-option" type="button" data-theme-option="dark" aria-label="Dark" title="Dark" aria-pressed="false">
+              <img class="theme-icon" src="./assets/icons/moon.svg" alt="" width="18" height="18" aria-hidden="true" />
+            </button>
+          </div>
+
+          <button class="locale" type="button" aria-label="Language">
+            <span class="locale-flag locale-flag-en" aria-hidden="true"></span>
+            <span>EN</span>
+            <span aria-hidden="true">⌄</span>
+          </button>
+        </div>
       </div>
     </header>
 

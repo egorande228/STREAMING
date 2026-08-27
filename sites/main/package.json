@@ -3,6 +3,6 @@
   "private": true,
   "scripts": {
     "build": "node build.mjs",
-    "test": "node --test app.test.mjs news.test.mjs build.test.mjs"
+    "test": "node --test app.test.mjs news.test.mjs build.test.mjs layout.test.mjs"
   }
 }

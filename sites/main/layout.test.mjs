@@ -633,22 +633,29 @@ test('stored light theme applies before interaction and a manual dark choice per
   assert.equal(themeBehavior.storedTheme, 'dark');
 });
 
-test('desktop match feed stays centered and no wider than 980px', { skip: !chromePath }, () => {
-  assert.ok(layout.frameWidth > layout.feedWidth, 'hero shell should remain wider than the match feed');
+test('desktop match feed uses the shared centered 980px container', { skip: !chromePath }, () => {
   assert.ok(layout.feedWidth <= 980.5, `match feed was ${layout.feedWidth}px wide`);
+  assert.ok(
+    Math.abs(layout.frameWidth - layout.feedWidth) <= 1,
+    `shared frame width ${layout.frameWidth}px did not match the ${layout.feedWidth}px match feed`,
+  );
   assert.ok(Math.abs(layout.frameCenter - layout.feedCenter) <= 1, 'match feed should stay centered in the shell');
 });
 
-test('desktop header, news, and footer stay inside the centered 1180px shell', { skip: !chromePath }, () => {
+test('desktop header, news, and footer align with the 980px match container', { skip: !chromePath }, () => {
   for (const [label, width, center] of [
     ['header', layout.headerFrameWidth, layout.headerFrameCenter],
     ['news', layout.newsPanelWidth, layout.newsPanelCenter],
     ['footer', layout.footerWidth, layout.footerCenter],
   ]) {
-    assert.ok(width <= 1180.5, `${label} block was ${width}px wide`);
+    assert.ok(width <= 980.5, `${label} block was ${width}px wide`);
     assert.ok(
-      Math.abs(center - (layout.viewportWidth / 2)) <= 1,
-      `${label} block was not centered: ${center}px in a ${layout.viewportWidth}px viewport`,
+      Math.abs(width - layout.feedWidth) <= 1,
+      `${label} block width ${width}px did not match the ${layout.feedWidth}px match container`,
+    );
+    assert.ok(
+      Math.abs(center - layout.feedCenter) <= 1,
+      `${label} block center ${center}px did not match the match container center ${layout.feedCenter}px`,
     );
   }
 });

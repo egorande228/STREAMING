@@ -238,6 +238,9 @@ stderr_logfile=/var/log/kinglive/restream-sync.err.log
 SUPERVISOR
 
 nginx -t
+if ! pgrep -x supervisord >/dev/null 2>&1; then
+  supervisord -c /etc/supervisor/supervisord.conf
+fi
 supervisorctl reread || true
 supervisorctl update || true
 supervisorctl restart mediamtx nginx kinglive_restream_sync >/dev/null 2>&1 || true

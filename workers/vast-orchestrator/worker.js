@@ -93,7 +93,7 @@ async function routePlan(request, env) {
 }
 
 async function routeCreate(request, env) {
-  requireBindings(env, ['CONTROL_KV', 'VAST_API_KEY', 'PUBLIC_BASE_URL']);
+  requireBindings(env, ['CONTROL_KV', 'VAST_API_KEY', 'RESTREAM_SYNC_TOKEN', 'PUBLIC_BASE_URL']);
   const existing = await readState(env);
   if (existing?.instance_id) return jsonResponse({ error: 'managed_instance_already_exists', state: sanitizeState(existing) }, 409);
 

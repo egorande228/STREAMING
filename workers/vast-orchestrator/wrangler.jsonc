@@ -11,7 +11,7 @@
   "vars": {
     "VAST_TEMPLATE_NAME": "kinglive-hls-origin",
     "KINGLIVE_REPO_REF": "codex/dami-stream-fixes",
-    "PUBLIC_BASE_URL": "https://kinglive-vast-orchestrator.figurator228.workers.dev",
+    "PUBLIC_BASE_URL": "https://kinglive-vast-orchestrator.lolikusikus228.workers.dev",
     "MAX_PRICE_PER_HOUR": "0.35",
     "PRIMARY_CPU_CORES": "24",
     "BACKUP_CPU_CORES": "16",

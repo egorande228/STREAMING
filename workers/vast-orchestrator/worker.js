@@ -5,6 +5,7 @@ const PLAN_TTL_SECONDS = 5 * 60;
 const BOOTSTRAP_TTL_SECONDS = 20 * 60;
 const RESTREAM_API_BASE = 'https://kinglive-football-api.figurator228.workers.dev';
 const RESTREAM_PUBLIC_BASE_URL = 'https://cdn-hls.livekinglive.win/aws/live';
+const BOOTSTRAP_SCRIPT_URL = 'https://raw.githubusercontent.com/egorande228/STREAMING/codex/dami-stream-fixes/ops/iptv/scripts/bootstrap-vast-origin.sh';
 
 export default {
   async fetch(request, env, ctx) {
@@ -144,6 +145,7 @@ async function routeCreate(request, env) {
         disk: numberEnv(env.DISK_GB, 50),
         target_state: 'running',
         label: 'kinglive-managed-origin',
+        onstart: `set -euo pipefail; script=\$(mktemp); curl -fsSL ${BOOTSTRAP_SCRIPT_URL} -o "\$script"; bash "\$script"`,
         env: {
           KINGLIVE_BOOTSTRAP_URL: `${String(env.PUBLIC_BASE_URL).replace(/\/$/, '')}/api/bootstrap/vast`,
           KINGLIVE_BOOTSTRAP_TOKEN: bootstrapToken,

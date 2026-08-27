@@ -25,6 +25,36 @@ function addUtcDays(date, days) {
   return next.toISOString().slice(0, 10);
 }
 
+function createMatchDayButton(offset, active = false) {
+  const handlers = new Map();
+  const classes = new Set(active ? ['active'] : []);
+  const attributes = new Map([['aria-pressed', String(active)]]);
+  return {
+    dataset: { matchDay: String(offset) },
+    classList: {
+      contains(name) {
+        return classes.has(name);
+      },
+      toggle(name, force) {
+        if (force) classes.add(name);
+        else classes.delete(name);
+      },
+    },
+    addEventListener(type, handler) {
+      handlers.set(type, handler);
+    },
+    setAttribute(name, value) {
+      attributes.set(name, String(value));
+    },
+    getAttribute(name) {
+      return attributes.get(name) ?? null;
+    },
+    click() {
+      handlers.get('click')?.({ currentTarget: this, target: this });
+    },
+  };
+}
+
 test('does not render a public refresh matches button', () => {
   assert.doesNotMatch(indexHtml, /id="refresh-matches"/);
   assert.doesNotMatch(indexHtml, /Refresh now/);
@@ -51,11 +81,263 @@ test('social links use only the shared Telegram contact', () => {
   assert.doesNotMatch(appSource, /facebook\.com/);
 });
 
+test('social dock renders Facebook and WhatsApp as disabled placeholders', () => {
+  let panelHtml = '';
+  const panel = {
+    get innerHTML() {
+      return panelHtml;
+    },
+    set innerHTML(value) {
+      panelHtml = value;
+    },
+  };
+  const dock = {
+    classList: {
+      toggle() {
+        return false;
+      },
+    },
+  };
+  const toggle = {
+    addEventListener() {},
+    setAttribute() {},
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/', search: '' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: '',
+        defaultLocale: 'en',
+        adSlots: {},
+        manualMatchesOnly: true,
+        manualMatches: [],
+      },
+    },
+    document: {
+      documentElement: { lang: '', dir: '' },
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById() {
+        return null;
+      },
+      querySelector(selector) {
+        if (selector === '[data-social-dock]') return dock;
+        if (selector === '[data-social-panel]') return panel;
+        if (selector === '[data-social-toggle]') return toggle;
+        return null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch() {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ matches: [] }) });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+
+  assert.equal((panelHtml.match(/class="social-link/g) || []).length, 3);
+  assert.equal((panelHtml.match(/href=/g) || []).length, 1, 'only Telegram should navigate');
+  assert.doesNotMatch(panelHtml, /<span>Telegram<\/span>/, 'Telegram should be icon-only');
+  assert.match(panelHtml, /class="social-link disabled facebook social-link-placeholder"[^>]*aria-disabled="true"/);
+  assert.match(panelHtml, /class="social-link disabled whatsapp social-link-placeholder"[^>]*aria-disabled="true"/);
+});
+
 test('top sponsor banner switches to Arabic asset only for Arabic locale', () => {
   assert.match(indexHtml, /data-locale-top-banner/);
   assert.match(indexHtml, /melbet_top_en_1870x245\.jpg/);
   assert.match(indexHtml, /melbet_top_ar_1870x245\.jpg/);
   assert.match(appSource, /uiLocale === 'ar' \? 'arSrc' : 'enSrc'/);
+});
+
+test('Arabic match cards isolate team names, dates, and scores by bidi direction', () => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+    querySelector() {
+      return null;
+    },
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const documentElement = { lang: '', dir: '' };
+  const match = {
+    id: 26,
+    scheduled_at: `${localDateKey()}T18:00:00Z`,
+    status: 'finished',
+    stage: 'دور المجموعات 26',
+    home_score: 2,
+    away_score: 1,
+    home_team: { name_en: 'الهلال FC' },
+    away_team: { name_en: 'Al Nassr النصر' },
+  };
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/?lang=ar', search: '?lang=ar' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: '',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'ar',
+        adSlots: {},
+        manualMatchesOnly: true,
+        manualMatches: [match],
+      },
+    },
+    document: {
+      documentElement,
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelector() {
+        return null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch() {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ matches: [] }) });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+
+  assert.equal(documentElement.dir, 'rtl');
+  assert.match(gridHtml, /<bdi class="bidi-auto" dir="auto">الهلال FC<\/bdi>/);
+  assert.match(gridHtml, /<bdi class="bidi-auto" dir="auto">Al Nassr النصر<\/bdi>/);
+  assert.match(gridHtml, /<bdi class="bidi-ltr" dir="ltr">2 : 1<\/bdi>/);
+  assert.match(
+    gridHtml,
+    /<span class="bidi-datetime"><bdi class="bidi-auto" dir="auto">[^<]+<\/bdi><bdi class="bidi-auto bidi-timezone" dir="auto">غرينتش\+٣<\/bdi><\/span>/,
+  );
+  assert.doesNotMatch(gridHtml, /GMT\+3/);
+});
+
+test('match cards suppress a duplicate stage without hiding distinct stages', () => {
+  let gridHtml = '';
+  const matchGrid = {
+    get innerHTML() {
+      return gridHtml;
+    },
+    set innerHTML(value) {
+      gridHtml = value;
+    },
+    addEventListener() {},
+    querySelector() {
+      return null;
+    },
+  };
+  const modalRoot = {
+    className: '',
+    hidden: true,
+    innerHTML: '',
+    addEventListener() {},
+  };
+  const today = localDateKey();
+  const matches = [
+    {
+      id: 1,
+      scheduled_at: `${today}T13:00:00Z`,
+      status: 'scheduled',
+      stage: '2026-27 English Premier League',
+      league: { name: 'Premier League' },
+      home_team: { name_en: 'Sunderland' },
+      away_team: { name_en: 'Fulham' },
+    },
+    {
+      id: 2,
+      scheduled_at: `${today}T16:00:00Z`,
+      status: 'scheduled',
+      stage: 'Group Stage',
+      league: { name: 'World Cup' },
+      home_team: { name_en: 'France' },
+      away_team: { name_en: 'Brazil' },
+    },
+  ];
+  const context = {
+    URL,
+    URLSearchParams,
+    Intl,
+    Date,
+    Set,
+    window: {
+      location: { href: 'https://kinglive.test/', search: '' },
+      KINGLIVE_MAIN_CONFIG: {
+        apiBase: '',
+        playerBase: 'https://player.kinglive.test',
+        defaultLocale: 'en',
+        adSlots: {},
+        manualMatchesOnly: true,
+        manualMatches: matches,
+      },
+    },
+    document: {
+      documentElement: { lang: '', dir: '' },
+      body: {
+        appendChild() {},
+      },
+      createElement() {
+        return modalRoot;
+      },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? matchGrid : null;
+      },
+      querySelector() {
+        return null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    fetch() {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ matches: [] }) });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+
+  assert.equal((gridHtml.match(/Premier League/g) || []).length, 1);
+  assert.match(gridHtml, /Group Stage/);
 });
 
 test('renders same-day matches beyond the first six API results', async () => {
@@ -534,7 +816,7 @@ test('keeps scheduled status visible when a future match already has streams', a
   assert.doesNotMatch(gridHtml, /match-status live/);
 });
 
-test('falls back to upcoming schedule when today has no matches', async () => {
+test('today view stays empty when only tomorrow has matches', async () => {
   let gridHtml = '';
   const matchGrid = {
     get innerHTML() {
@@ -621,12 +903,12 @@ test('falls back to upcoming schedule when today has no matches', async () => {
   vm.runInNewContext(appSource, context);
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.match(gridHtml, /Mexico vs South Africa/);
+  assert.doesNotMatch(gridHtml, /Mexico vs South Africa/);
   assert.equal(requests.some((url) => url.includes(`/api/matches?date=${today}`)), true);
   assert.equal(requests.some((url) => url.includes(`/api/matches?date=${tomorrowText}`)), true);
 });
 
-test('includes upcoming schedule even when today has matches', async () => {
+test('tomorrow tab swaps visible matches and active state', async () => {
   let gridHtml = '';
   const matchGrid = {
     get innerHTML() {
@@ -648,6 +930,11 @@ test('includes upcoming schedule even when today has matches', async () => {
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   const tomorrowText = tomorrow.toISOString().slice(0, 10);
   const requests = [];
+  const dayButtons = [
+    createMatchDayButton(-1),
+    createMatchDayButton(0, true),
+    createMatchDayButton(1),
+  ];
 
   const context = {
     URL,
@@ -677,6 +964,7 @@ test('includes upcoming schedule even when today has matches', async () => {
         return id === 'match-grid' ? matchGrid : null;
       },
       querySelectorAll(selector) {
+        if (selector === '[data-match-day]') return dayButtons;
         return selector === '[data-ad-slot]' ? [] : [];
       },
     },
@@ -705,7 +993,7 @@ test('includes upcoming schedule even when today has matches', async () => {
           ? [
               {
                 id: 19609128,
-                scheduled_at: `${tomorrowText}T22:00:00+00:00`,
+                scheduled_at: `${tomorrowText}T12:00:00+00:00`,
                 status: 'scheduled',
                 stage: 'Group Stage',
                 league: { name: 'World Cup' },
@@ -726,7 +1014,19 @@ test('includes upcoming schedule even when today has matches', async () => {
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.match(gridHtml, /Mexico vs South Africa/);
+  assert.doesNotMatch(gridHtml, /Canada vs Brazil/);
+  assert.equal(dayButtons[1].classList.contains('active'), true);
+  assert.equal(dayButtons[1].getAttribute('aria-pressed'), 'true');
+
+  dayButtons[2].click();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.doesNotMatch(gridHtml, /Mexico vs South Africa/);
   assert.match(gridHtml, /Canada vs Brazil/);
+  assert.equal(dayButtons[1].classList.contains('active'), false);
+  assert.equal(dayButtons[1].getAttribute('aria-pressed'), 'false');
+  assert.equal(dayButtons[2].classList.contains('active'), true);
+  assert.equal(dayButtons[2].getAttribute('aria-pressed'), 'true');
   assert.equal(requests.some((url) => url.includes(`/api/matches?date=${today}`)), true);
   assert.equal(requests.some((url) => url.includes(`/api/matches?date=${tomorrowText}`)), true);
 });
@@ -1220,7 +1520,7 @@ test('renders live match score in the match list', async () => {
               },
               {
                 id: 19609173,
-                scheduled_at: `${today}T21:00:00+00:00`,
+                scheduled_at: `${today}T18:00:00+00:00`,
                 status: 'scheduled',
                 home_score: 0,
                 away_score: 0,
@@ -1241,7 +1541,7 @@ test('renders live match score in the match list', async () => {
   assert.match(gridHtml, /3 : 0/);
   assert.match(gridHtml, /match-score/);
   assert.match(gridHtml, /Türkiye vs Paraguay/);
-  assert.match(gridHtml, /<span class="match-vs">vs<\/span>/);
+  assert.match(gridHtml, /<span class="match-vs"><bdi class="bidi-ltr" dir="ltr">vs<\/bdi><\/span>/);
 });
 
 test('renders football news from the backend news endpoint', async () => {
@@ -1722,7 +2022,7 @@ test('opens match details with stats and only shows player button when stream ex
             },
             {
               id: 1540844,
-              scheduled_at: `${today}T21:00:00+00:00`,
+              scheduled_at: `${today}T18:00:00+00:00`,
               status: 'scheduled',
               stage: 'Semi-finals',
               home_team: { id: 1, name_en: 'Brazil' },
@@ -1765,7 +2065,7 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /detail-score-team away/);
   assert.match(modalHtml, /detail-score-status/);
   assert.match(modalHtml, /detail-score-venue/);
-  assert.match(modalHtml, /<div class="detail-score">1 : 0<\/div>/);
+  assert.match(modalHtml, /<div class="detail-score"><bdi class="bidi-ltr" dir="ltr">1 : 0<\/bdi><\/div>/);
   assert.match(modalHtml, /Possession 61% - 39%/);
   assert.ok(modalHtml.indexOf('Live stream') > -1);
   assert.ok(modalHtml.indexOf('Live stream') < modalHtml.indexOf('MelBet odds'));

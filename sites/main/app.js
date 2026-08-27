@@ -17,25 +17,12 @@
       navHome: 'Home',
       navSchedule: 'Schedule',
       navGroups: 'News',
-      heroKicker: 'Road to glory',
-      heroLine1: 'All World Cup',
-      heroHighlight: 'matches',
-      heroLine2: 'live broadcast',
-      heroText: 'KingLive keeps fixtures, live entry points, scores and match details in one sharp matchday hub.',
-      heroActionMain: 'Match center',
-      heroActionGroups: 'News',
-      nextMatchLabel: 'Next match',
-      nextMatchLiveLabel: 'Live in',
-      nextMatchSoon: 'Starting soon',
-      nextMatchLiveNow: 'LIVE NOW',
-      nextMatchHalfTime: 'HALF TIME',
-      nextMatchesLabel: 'Next matches',
-      liveMatchesLabel: 'Live matches',
-      nextMatchFallback: 'Schedule loading',
-      tournamentTitle: 'KingLive World Cup 26',
-      tournamentDates: 'June 11 - July 19, 2026',
       scheduleTitlePrefix: 'Upcoming',
       scheduleTitleAccent: 'matches',
+      matchDayLabel: 'Match day',
+      matchDayYesterday: 'Yesterday',
+      matchDayToday: 'Today',
+      matchDayTomorrow: 'Tomorrow',
       newsKicker: 'Football pulse',
       newsTitlePrefix: 'Latest',
       newsTitleAccent: 'news',
@@ -92,17 +79,12 @@
       navHome: 'Inicio',
       navSchedule: 'Partidos',
       navGroups: 'Noticias',
-      heroKicker: 'Camino a la gloria',
-      heroLine1: 'Sigue cada',
-      heroHighlight: 'Mundial 26',
-      heroLine2: 'jornada',
-      heroText: 'KingLive reúne calendario, accesos en vivo, marcadores y detalles en un solo hub claro.',
-      heroActionMain: 'Centro de partidos',
-      heroActionGroups: 'Noticias',
-      tournamentTitle: 'KingLive Mundial 26',
-      tournamentDates: '11 de junio - 19 de julio, 2026',
       scheduleTitlePrefix: 'Próximos',
       scheduleTitleAccent: 'partidos',
+      matchDayLabel: 'Día del partido',
+      matchDayYesterday: 'Ayer',
+      matchDayToday: 'Hoy',
+      matchDayTomorrow: 'Mañana',
       newsKicker: 'Pulso del fútbol',
       newsTitlePrefix: 'Últimas',
       newsTitleAccent: 'noticias',
@@ -158,17 +140,12 @@
       navHome: 'Accueil',
       navSchedule: 'Calendrier',
       navGroups: 'Actualités',
-      heroKicker: 'Route vers la gloire',
-      heroLine1: 'Suivez chaque',
-      heroHighlight: 'Coupe du monde 26',
-      heroLine2: 'journée',
-      heroText: 'KingLive rassemble les calendriers, accès en direct, scores et détails des matchs dans un hub clair.',
-      heroActionMain: 'Centre des matchs',
-      heroActionGroups: 'Actualités',
-      tournamentTitle: 'KingLive Coupe du monde 26',
-      tournamentDates: '11 juin - 19 juillet 2026',
       scheduleTitlePrefix: 'Matchs',
       scheduleTitleAccent: 'à venir',
+      matchDayLabel: 'Jour du match',
+      matchDayYesterday: 'Hier',
+      matchDayToday: 'Aujourd’hui',
+      matchDayTomorrow: 'Demain',
       newsKicker: 'Pouls du football',
       newsTitlePrefix: 'Dernières',
       newsTitleAccent: 'actualités',
@@ -224,25 +201,12 @@
       navHome: 'الرئيسية',
       navSchedule: 'المباريات',
       navGroups: 'الأخبار',
-      heroKicker: 'طريق المجد',
-      heroLine1: 'شاهد جميع مباريات',
-      heroHighlight: 'كأس العالم',
-      heroLine2: 'بثًا مباشرًا',
-      heroText: 'KingLive يجمع المواعيد، روابط البث، النتائج وتفاصيل المباريات في صفحة واحدة واضحة.',
-      heroActionMain: 'مركز المباريات',
-      heroActionGroups: 'الأخبار',
-      nextMatchLabel: 'المباراة القادمة',
-      nextMatchLiveLabel: 'البث المباشر قريبًا',
-      nextMatchSoon: 'سيبدأ قريبًا',
-      nextMatchLiveNow: 'مباشر الآن',
-      nextMatchHalfTime: 'استراحة',
-      nextMatchesLabel: 'المباريات القادمة',
-      liveMatchesLabel: 'مباريات مباشرة',
-      nextMatchFallback: 'جارٍ تحميل الجدول',
-      tournamentTitle: 'KingLive كأس العالم 26',
-      tournamentDates: '11 يونيو - 19 يوليو 2026',
       scheduleTitlePrefix: 'المباريات',
       scheduleTitleAccent: 'القادمة',
+      matchDayLabel: 'يوم المباراة',
+      matchDayYesterday: 'الأمس',
+      matchDayToday: 'اليوم',
+      matchDayTomorrow: 'الغد',
       newsKicker: 'نبض الكرة',
       newsTitlePrefix: 'آخر',
       newsTitleAccent: 'الأخبار',
@@ -298,25 +262,12 @@
       navHome: 'Нүүр',
       navSchedule: 'Хуваарь',
       navGroups: 'Мэдээ',
-      heroKicker: 'Алдрын зам',
-      heroLine1: 'Дэлхийн аваргын',
-      heroHighlight: 'бүх тоглолтыг',
-      heroLine2: 'ШУУД ҮЗЭЭРЭЙ',
-      heroText: 'KingLive нь хуваарь, шууд үзэх холбоос, оноо болон тоглолтын дэлгэрэнгүйг нэг тодорхой төвд нэгтгэнэ.',
-      heroActionMain: 'Тоглолтын төв',
-      heroActionGroups: 'Мэдээ',
-      nextMatchLabel: 'Дараагийн тоглолтын',
-      nextMatchLiveLabel: 'ШУУД ДАМЖУУЛАЛТ удахгүй',
-      nextMatchSoon: 'Удахгүй эхэлнэ',
-      nextMatchLiveNow: 'ШУУД ОДОО',
-      nextMatchHalfTime: 'ЗАВСАРЛАГА',
-      nextMatchesLabel: 'Дараагийн тоглолтууд',
-      liveMatchesLabel: 'Шууд тоглолтууд',
-      nextMatchFallback: 'Хуваарь ачаалж байна',
-      tournamentTitle: 'KingLive World Cup 26',
-      tournamentDates: '2026 оны 6 сарын 11 - 7 сарын 19',
       scheduleTitlePrefix: 'Удахгүй болох',
       scheduleTitleAccent: 'тоглолтууд',
+      matchDayLabel: 'Тоглолтын өдөр',
+      matchDayYesterday: 'Өчигдөр',
+      matchDayToday: 'Өнөөдөр',
+      matchDayTomorrow: 'Маргааш',
       newsKicker: 'Хөлбөмбөгийн хэмнэл',
       newsTitlePrefix: 'Сүүлийн',
       newsTitleAccent: 'мэдээ',
@@ -371,29 +322,22 @@
   };
   const uiLocale = resolveLocale();
   const grid = document.getElementById('match-grid');
+  const matchDayTabs = Array.from(document.querySelectorAll?.('[data-match-day]') || []);
   const newsGrid = document.getElementById('news-grid');
-  const nextMatchLabel = document.getElementById('next-match-label');
-  const nextMatchTeams = document.getElementById('next-match-teams');
-  const nextMatchOpen = document.getElementById('next-match-open');
-  const nextMatchLiveLabel = document.getElementById('next-match-live-label');
-  const nextMatchCountdown = document.getElementById('next-match-countdown');
-  const nextMatchList = document.getElementById('next-match-list');
-  const nextMatchMeta = document.getElementById('next-match-meta');
-  const nextMatchDay = document.getElementById('next-match-day');
   const adSlots = config.adSlots || {};
   const sponsorUrl = config.sponsorUrl || 'https://qweqr.sbs/jJQN6M';
   const manualMatches = Array.isArray(config.manualMatches) ? config.manualMatches : [];
   const manualMatchesOnly = config.manualMatchesOnly === true;
   const adSlotKeys = {
     'main-top': 'mainTop',
-    'main-hero': 'mainHero',
-    'main-hero-mobile': 'mainHeroMobile',
     'main-rail-top': 'mainRailTop',
     'main-rail-tall': 'mainRailTall',
     'main-bottom': 'mainBottom',
   };
   const sharedSocialLinks = [
     { brand: 'telegram', label: 'Telegram', url: 'https://t.me/Teamcash_x_Melbet_Asia' },
+    { brand: 'facebook', label: 'Facebook', url: '' },
+    { brand: 'whatsapp', label: 'WhatsApp', url: '' },
   ];
   const socialLinksByLocale = {
     ar: sharedSocialLinks,
@@ -402,11 +346,13 @@
     mn: sharedSocialLinks,
   };
   let currentMatches = [];
+  let currentScheduleMatches = [];
+  let activeMatchDayOffset = 0;
+  let matchDayLoadId = 0;
   let activeStreamMatchIds = new Set();
   let activeStreamDetails = new Map();
   let openMatchId = '';
   let liveDetailTimer = null;
-  let heroCountdownTimer = null;
   const modal = document.createElement('div');
   modal.className = 'match-modal';
   modal.hidden = true;
@@ -414,11 +360,6 @@
 
   function t(key) {
     return i18n[uiLocale]?.[key] ?? i18n.en[key] ?? key;
-  }
-
-  function setNodeText(id, value) {
-    const node = document.getElementById(id);
-    if (node) node.textContent = value == null ? '' : String(value);
   }
 
   function todayLocalKey() {
@@ -609,6 +550,16 @@
     };
   }
 
+  async function fetchMatchDayMatches(date, options = {}) {
+    const dates = [addUtcDays(date, -1), date, addUtcDays(date, 1)];
+    const results = await Promise.all(dates.map((item) => fetchMatchesForDate(item, options)));
+    return {
+      matches: uniqueMatchesById(results.flatMap((result) => result.matches))
+        .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || ''))),
+      cachedMatches: uniqueMatchesById(results.flatMap((result) => result.cachedMatches)),
+    };
+  }
+
   function isLiveCarryoverMatch(match) {
     const status = String(match?.status || '');
     if (status !== 'live' && status !== 'half_time') return false;
@@ -783,11 +734,11 @@
       .map((item) => {
         const icon = socialIcon(item.brand);
         if (!item.url) {
-          return `<span class="social-link disabled" title="${escapeHtml(item.label)}">${icon}<span>${escapeHtml(item.label)}</span></span>`;
+          return `<button class="social-link disabled ${escapeHtml(item.brand)} social-link-placeholder" type="button" disabled aria-disabled="true" title="${escapeHtml(item.label)}" aria-label="${escapeHtml(item.label)}">${icon}</button>`;
         }
         return `
           <a class="social-link ${escapeHtml(item.brand)}" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.label)}" aria-label="${escapeHtml(item.label)}">
-            ${icon}<span>${escapeHtml(item.label)}</span>
+            ${icon}
           </a>
         `;
       })
@@ -805,6 +756,7 @@
       youtube: '<svg viewBox="0 0 24 24" focusable="false"><path d="M22.3 7.1a3 3 0 0 0-2.1-2.1C18.4 4.5 12 4.5 12 4.5s-6.4 0-8.2.5a3 3 0 0 0-2.1 2.1A31 31 0 0 0 1.2 12a31 31 0 0 0 .5 4.9 3 3 0 0 0 2.1 2.1c1.8.5 8.2.5 8.2.5s6.4 0 8.2-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.9 31 31 0 0 0-.5-4.9ZM9.8 15.3V8.7l5.8 3.3-5.8 3.3Z"/></svg>',
       tiktok: '<svg viewBox="0 0 24 24" focusable="false"><path d="M16.2 3c.4 3 2.1 4.8 4.8 5v3.3a8.3 8.3 0 0 1-4.7-1.5v6.5c0 3.3-2.3 5.7-5.7 5.7a5.5 5.5 0 0 1-5.8-5.4c0-3.5 2.8-5.9 6.5-5.4v3.5c-1.7-.5-3.1.4-3.1 1.9 0 1.2 1 2.1 2.3 2.1 1.4 0 2.3-.9 2.3-2.6V3h3.4Z"/></svg>',
       facebook: '<svg viewBox="0 0 24 24" focusable="false"><path d="M15.7 8.2h-2.3V6.7c0-.6.4-.8.8-.8h1.4V3.1L13.4 3c-2.4 0-3.8 1.5-3.8 4v1.2H7.1v3h2.5V21h3.8v-9.8h2.1l.2-3Z"/></svg>',
+      whatsapp: '<svg viewBox="0 0 16 16" focusable="false"><path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93a7.9 7.9 0 0 0-2.327-5.607ZM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.25a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.591-6.592 6.591Zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.066-.315-.099-.445.099-.133.197-.514.646-.629.775-.115.133-.23.148-.428.05-.197-.1-.836-.308-1.592-.984-.59-.525-.986-1.17-1.102-1.368-.115-.198-.013-.306.087-.405.09-.088.197-.23.296-.346.1-.116.133-.198.198-.33.066-.134.033-.25-.017-.35-.05-.099-.445-1.084-.61-1.47-.16-.389-.323-.335-.445-.34-.115-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.132 1.394 2.132 3.383 2.992.472.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.115-.943-.05-.082-.182-.132-.38-.23Z"/></svg>',
       instagram: '<svg viewBox="0 0 24 24" focusable="false"><path d="M7.3 2.8h9.4c2.5 0 4.5 2 4.5 4.5v9.4c0 2.5-2 4.5-4.5 4.5H7.3c-2.5 0-4.5-2-4.5-4.5V7.3c0-2.5 2-4.5 4.5-4.5Zm0 3A1.5 1.5 0 0 0 5.8 7.3v9.4a1.5 1.5 0 0 0 1.5 1.5h9.4a1.5 1.5 0 0 0 1.5-1.5V7.3a1.5 1.5 0 0 0-1.5-1.5H7.3Zm4.7 2.6a3.6 3.6 0 1 1 0 7.2 3.6 3.6 0 0 1 0-7.2Zm0 2.2a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8Zm4-2.4a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Z"/></svg>',
     };
     return `<span class="social-mark ${escapeHtml(brand)}" aria-hidden="true">${icons[brand] || icons.telegram}</span>`;
@@ -823,18 +775,11 @@
     setText('nav-home', t('navHome'));
     setText('nav-schedule', t('navSchedule'));
     setText('nav-groups', t('navGroups'));
-    setText('hero-kicker', t('heroKicker'));
-    setText('hero-line-1', t('heroLine1'));
-    setText('hero-highlight', t('heroHighlight'));
-    setText('hero-line-2', t('heroLine2'));
-    setText('hero-text', t('heroText'));
-    setText('hero-action-main', t('heroActionMain'));
-    setText('hero-action-groups', t('heroActionGroups'));
-    setText('tournament-title', t('tournamentTitle'));
-    setText('tournament-dates', t('tournamentDates'));
-    renderNextMatchBoard();
     setText('schedule-title-prefix', t('scheduleTitlePrefix'));
     setText('schedule-title-accent', t('scheduleTitleAccent'));
+    setText('match-day-yesterday', t('matchDayYesterday'));
+    setText('match-day-today', t('matchDayToday'));
+    setText('match-day-tomorrow', t('matchDayTomorrow'));
     setText('news-kicker', t('newsKicker'));
     setText('news-title-prefix', t('newsTitlePrefix'));
     setText('news-title-accent', t('newsTitleAccent'));
@@ -851,6 +796,8 @@
     if (prevButton) prevButton.setAttribute('aria-label', t('carouselPrev'));
     const nextButton = typeof document.querySelector === 'function' ? document.querySelector('[data-news-scroll="1"]') : null;
     if (nextButton) nextButton.setAttribute('aria-label', t('carouselNext'));
+    const matchDayGroup = typeof document.querySelector === 'function' ? document.querySelector('[data-match-day-tabs]') : null;
+    if (matchDayGroup) matchDayGroup.setAttribute('aria-label', t('matchDayLabel'));
 
     const matchLoadingCard = typeof grid?.querySelector === 'function' ? grid.querySelector('.empty-card') : null;
     if (matchLoadingCard) matchLoadingCard.textContent = t('loadingMatches');
@@ -930,6 +877,16 @@
   function matchLocalDateKey(match = {}) {
     const parsed = new Date(match.scheduled_at || match.scheduledAt || '');
     return localDateKey(parsed);
+  }
+
+  function matchDateForOffset(offset = activeMatchDayOffset) {
+    return addUtcDays(todayLocalKey(), offset);
+  }
+
+  function matchesForDate(matches, date) {
+    return mergeManualMatches(matches)
+      .filter((match) => matchLocalDateKey(match) === date || (date === todayLocalKey() && isLiveCarryoverMatch(match)))
+      .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || '')));
   }
 
   function shouldShowPlayerButtons(match = {}) {
@@ -1040,6 +997,31 @@
       .replace(/'/g, '&#039;');
   }
 
+  function bidiAutoHtml(value) {
+    return `<bdi class="bidi-auto" dir="auto">${escapeHtml(value)}</bdi>`;
+  }
+
+  function bidiLtrHtml(value) {
+    return `<bdi class="bidi-ltr" dir="ltr">${escapeHtml(value)}</bdi>`;
+  }
+
+  function bidiDateTimeHtml(value) {
+    const { dateTime, timeZone } = formatDateParts(value);
+    const timeZoneHtml = timeZone
+      ? (uiLocale === 'ar'
+        ? `<bdi class="bidi-auto bidi-timezone" dir="auto">${escapeHtml(timeZone)}</bdi>`
+        : `<bdi class="bidi-ltr bidi-timezone" dir="ltr">${escapeHtml(timeZone)}</bdi>`)
+      : '';
+    return `<span class="bidi-datetime">${bidiAutoHtml(dateTime)}${timeZoneHtml}</span>`;
+  }
+
+  function labeledBidiHtml(label, value, direction = 'auto') {
+    const renderedValue = direction === 'datetime'
+      ? bidiDateTimeHtml(value)
+      : (direction === 'ltr' ? bidiLtrHtml(value) : bidiAutoHtml(value));
+    return `<span class="bidi-pair"><span class="bidi-label">${escapeHtml(label)}</span><span class="bidi-separator" aria-hidden="true">:</span>${renderedValue}</span>`;
+  }
+
   function sponsorLink(content, className = '') {
     const classAttr = className ? ` class="${escapeHtml(className)}"` : '';
     return `<a${classAttr} href="${escapeHtml(sponsorUrl)}" target="_blank" rel="nofollow sponsored noopener">${content}</a>`;
@@ -1133,6 +1115,15 @@
     return cleanText(match?.stage, t('worldCup'));
   }
 
+  function matchCardStageName(match) {
+    const league = leagueName(match);
+    const stage = stageName(match);
+    const normalizedLeague = league.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    const normalizedStage = stage.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    if (normalizedLeague && ` ${normalizedStage} `.includes(` ${normalizedLeague} `)) return '';
+    return stage;
+  }
+
   function placeName(value) {
     return cleanText(value, 'TBD');
   }
@@ -1147,7 +1138,7 @@
     return `<img class="team-logo" src="${escapeHtml(logo)}" alt="${escapeHtml(alt)}" loading="lazy" />`;
   }
 
-  function formatDate(value) {
+  function formatDateParts(value) {
     try {
       const dateLocales = {
         en: 'en-GB',
@@ -1167,7 +1158,7 @@
         en: 'CEST',
         es: 'CEST',
         fr: 'GMT+3',
-        ar: 'GMT+3',
+        ar: 'غرينتش+٣',
         mn: 'GMT+8',
       };
       const formatted = new Intl.DateTimeFormat(dateLocales[uiLocale] || 'en-GB', {
@@ -1177,151 +1168,12 @@
         minute: '2-digit',
         timeZone: dateTimeZones[uiLocale] || dateTimeZones.en,
       }).format(new Date(value));
-      return `${formatted} ${timeZoneLabels[uiLocale] || timeZoneLabels.en}`;
+      return {
+        dateTime: formatted,
+        timeZone: timeZoneLabels[uiLocale] || timeZoneLabels.en,
+      };
     } catch {
-      return value || 'TBD';
-    }
-  }
-
-  function formatCountdown(value) {
-    const kickoff = Date.parse(value || '');
-    if (Number.isNaN(kickoff)) return '--';
-    const delta = kickoff - Date.now();
-    if (delta <= 0) return '00:00:00';
-    const totalSeconds = Math.ceil(delta / 1000);
-    const days = Math.floor(totalSeconds / 86_400);
-    const hours = Math.floor((totalSeconds % 86_400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    const time = [hours, minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
-    return days > 0 ? `${days}d ${time}` : time;
-  }
-
-  function selectHeroMatch(matches = []) {
-    const now = Date.now();
-    const playableStatuses = new Set(['scheduled', 'live', 'half_time']);
-    const playableMatches = heroPlayableMatches(matches, playableStatuses, now);
-    return playableMatches.find((match) => {
-      const status = String(match?.status || '').toLowerCase();
-      return status === 'live' || status === 'half_time';
-    }) || playableMatches.find((match) => {
-      const kickoff = Date.parse(match?.scheduled_at || match?.scheduledAt || '');
-      return !Number.isNaN(kickoff) && kickoff > now;
-    }) || playableMatches[0] || null;
-  }
-
-  function heroPlayableMatches(matches = [], playableStatuses = new Set(['scheduled', 'live', 'half_time']), now = Date.now()) {
-    return matches
-      .filter((match) => playableStatuses.has(String(match?.status || 'scheduled')))
-      .filter((match) => {
-        const kickoff = Date.parse(match?.scheduled_at || match?.scheduledAt || '');
-        return Number.isNaN(kickoff) || kickoff > now - 2 * 60 * 60 * 1000;
-      })
-      .sort((left, right) => {
-        const leftTime = Date.parse(left?.scheduled_at || left?.scheduledAt || '');
-        const rightTime = Date.parse(right?.scheduled_at || right?.scheduledAt || '');
-        return (Number.isNaN(leftTime) ? Number.MAX_SAFE_INTEGER : leftTime)
-          - (Number.isNaN(rightTime) ? Number.MAX_SAFE_INTEGER : rightTime);
-      });
-  }
-
-  function selectHeroMatchGroup(matches = []) {
-    const now = Date.now();
-    const playableMatches = heroPlayableMatches(matches, new Set(['scheduled', 'live', 'half_time']), now);
-    const liveMatches = playableMatches.filter((match) => {
-      const status = String(match?.status || '').toLowerCase();
-      return status === 'live' || status === 'half_time';
-    });
-    if (liveMatches.length) return liveMatches;
-    const nextMatch = playableMatches.find((match) => {
-      const kickoff = Date.parse(match?.scheduled_at || match?.scheduledAt || '');
-      return !Number.isNaN(kickoff) && kickoff > now;
-    }) || playableMatches[0] || null;
-    if (!nextMatch) return [];
-    const nextKickoff = Date.parse(nextMatch.scheduled_at || nextMatch.scheduledAt || '');
-    if (Number.isNaN(nextKickoff)) return [nextMatch];
-    return playableMatches.filter((match) => {
-      const kickoff = Date.parse(match?.scheduled_at || match?.scheduledAt || '');
-      return !Number.isNaN(kickoff) && Math.abs(kickoff - nextKickoff) < 60_000;
-    });
-  }
-
-  function renderNextMatchBoard(matches = currentMatches) {
-    if (!nextMatchTeams) return;
-    if (heroCountdownTimer) {
-      clearInterval(heroCountdownTimer);
-      heroCountdownTimer = null;
-    }
-
-    const group = selectHeroMatchGroup(matches);
-    const match = group[0] || null;
-    setNodeText('next-match-label', t('nextMatchLabel'));
-    setNodeText('next-match-live-label', t('nextMatchLiveLabel'));
-
-    if (!match) {
-      if (nextMatchOpen) {
-        nextMatchOpen.disabled = true;
-        nextMatchOpen.removeAttribute('data-match-id');
-      }
-      setNodeText('next-match-teams', t('nextMatchFallback'));
-      setNodeText('next-match-countdown', '--');
-      setNodeText('next-match-meta', t('tournamentTitle'));
-      setNodeText('next-match-day', '26');
-      if (nextMatchList) {
-        nextMatchList.hidden = true;
-        nextMatchList.innerHTML = '';
-      }
-      return;
-    }
-
-    const home = teamName(match.home_team);
-    const away = teamName(match.away_team);
-    const kickoff = match.scheduled_at || match.scheduledAt || '';
-    const status = String(match.status || 'scheduled').toLowerCase();
-    const hasMultipleMatches = group.length > 1;
-    if (nextMatchOpen) {
-      nextMatchOpen.disabled = false;
-      nextMatchOpen.dataset.matchId = String(match.id || '');
-    }
-    const updateCountdown = () => {
-      if (status === 'live') {
-        setNodeText('next-match-countdown', t('nextMatchLiveNow'));
-        return;
-      }
-      if (status === 'half_time') {
-        setNodeText('next-match-countdown', t('nextMatchHalfTime'));
-        return;
-      }
-      setNodeText('next-match-countdown', formatCountdown(kickoff));
-    };
-    if (hasMultipleMatches) {
-      const hasLiveGroup = group.some((item) => {
-        const itemStatus = String(item?.status || '').toLowerCase();
-        return itemStatus === 'live' || itemStatus === 'half_time';
-      });
-      setNodeText('next-match-label', hasLiveGroup ? t('liveMatchesLabel') : t('nextMatchesLabel'));
-    }
-    setNodeText('next-match-teams', `${home} vs ${away}`);
-    setNodeText('next-match-meta', `${stageName(match)} · ${formatDate(kickoff)}`);
-    setNodeText('next-match-day', new Date(kickoff).getDate() || '26');
-    if (nextMatchList) {
-      const extraMatches = group.slice(1, 4);
-      nextMatchList.hidden = extraMatches.length === 0;
-      nextMatchList.innerHTML = extraMatches.map((item) => {
-        const itemHome = teamName(item.home_team);
-        const itemAway = teamName(item.away_team);
-        const itemKickoff = item.scheduled_at || item.scheduledAt || '';
-        return `
-          <button class="next-match-row" type="button" data-match-id="${escapeHtml(item.id)}">
-            <strong>${escapeHtml(`${itemHome} vs ${itemAway}`)}</strong>
-            <span>${escapeHtml(stageName(item))} · ${escapeHtml(formatDate(itemKickoff))}</span>
-          </button>
-        `;
-      }).join('');
-    }
-    updateCountdown();
-    if (typeof setInterval === 'function') {
-      heroCountdownTimer = setInterval(updateCountdown, 1000);
+      return { dateTime: value || 'TBD', timeZone: '' };
     }
   }
 
@@ -1738,23 +1590,23 @@
     if (String(match?.status || '') !== 'scheduled') return '';
     const countdown = kickoffCountdown(match.scheduled_at);
     const items = [
-      [t('kickoff'), formatDate(match.scheduled_at)],
-      ['Countdown', countdown],
-      [t('stage'), stageName(match)],
-      [t('venue'), placeName(match.venue)],
-      [t('city'), placeName(match.city)],
+      [t('kickoff'), match.scheduled_at, 'datetime'],
+      ['Countdown', countdown, 'ltr'],
+      [t('stage'), stageName(match), 'auto'],
+      [t('venue'), placeName(match.venue), 'auto'],
+      [t('city'), placeName(match.city), 'auto'],
     ].filter(([, value]) => value);
     return `
       <section class="prematch-panel" aria-label="${escapeHtml(t('matchDetails'))}">
         <div class="prematch-countdown">
           <span>${escapeHtml(t('kickoff'))}</span>
-          <strong>${escapeHtml(countdown || formatDate(match.scheduled_at))}</strong>
+          <strong>${countdown ? bidiLtrHtml(countdown) : bidiDateTimeHtml(match.scheduled_at)}</strong>
         </div>
         <div class="prematch-grid">
-          ${items.map(([label, value]) => `
+          ${items.map(([label, value, direction]) => `
             <div>
               <span>${escapeHtml(label)}</span>
-              <strong>${escapeHtml(value)}</strong>
+              <strong>${direction === 'datetime' ? bidiDateTimeHtml(value) : (direction === 'ltr' ? bidiLtrHtml(value) : bidiAutoHtml(value))}</strong>
             </div>
           `).join('')}
         </div>
@@ -1871,8 +1723,8 @@
             <div class="news-image">${image}</div>
             <div>
               <div class="news-meta">
-                <time>${escapeHtml(formatDate(item.published_at))}</time>
-                ${badges.map((badge) => `<span>${escapeHtml(badge)}</span>`).join('')}
+                <time>${bidiDateTimeHtml(item.published_at)}</time>
+                ${badges.map((badge) => `<span>${bidiAutoHtml(badge)}</span>`).join('')}
               </div>
               <h3>${escapeHtml(cleanText(item.title, t('footballNews')))}</h3>
               <p>${escapeHtml(cleanText(item.summary, ''))}</p>
@@ -1940,7 +1792,6 @@
     const displayMatches = mergeActiveStreamDetails(matches);
     currentMatches = displayMatches;
     matches = displayMatches;
-    renderNextMatchBoard(matches);
     if (!matches.length) {
       grid.innerHTML = `<article class="empty-card">${escapeHtml(t('matchesUnavailable'))}</article>`;
       return;
@@ -1958,20 +1809,21 @@
         const badgeClass = statusBadgeClass(displayStatus);
         const centerLabel = hasScore ? `${match.home_score ?? 0} : ${match.away_score ?? 0}` : 'vs';
         const hasStreams = displayStreamsForMatch(match).length > 0;
+        const cardStage = matchCardStageName(match);
         return `
           <article class="match-card${hasStreams ? ' has-streams' : ''}" data-match-id="${escapeHtml(match.id)}" role="button" tabindex="0">
             <div class="match-time">
-              <span>${escapeHtml(formatDate(match.scheduled_at))}</span>
-              <small>${escapeHtml(leagueName(match))}</small>
+              <span>${bidiDateTimeHtml(match.scheduled_at)}</span>
+              <small>${bidiAutoHtml(leagueName(match))}</small>
             </div>
             <div class="match-main">
               <div class="match-teams" aria-label="${escapeHtml(title)}">
-                <span class="team-side">${renderTeamLogo(match.home_team, home)}<span>${escapeHtml(home)}</span></span>
-                <span class="match-vs${hasScore ? ' match-score' : ''}">${escapeHtml(centerLabel)}</span>
-                <span class="team-side">${renderTeamLogo(match.away_team, away)}<span>${escapeHtml(away)}</span></span>
+                <span class="team-side">${renderTeamLogo(match.home_team, home)}${bidiAutoHtml(home)}</span>
+                <span class="match-vs${hasScore ? ' match-score' : ''}">${bidiLtrHtml(centerLabel)}</span>
+                <span class="team-side">${renderTeamLogo(match.away_team, away)}${bidiAutoHtml(away)}</span>
               </div>
               <div class="match-title">${escapeHtml(title)}</div>
-              <div class="match-meta">${escapeHtml(stageName(match))}</div>
+              ${cardStage ? `<div class="match-meta">${bidiAutoHtml(cardStage)}</div>` : ''}
             </div>
             <div class="match-actions">
               <div class="match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</div>
@@ -2152,23 +2004,23 @@
           <div class="detail-scorebar">
             <div class="detail-score-team home">
               ${renderTeamLogo(match.home_team, home)}
-              <strong>${escapeHtml(home)}</strong>
+              <strong>${bidiAutoHtml(home)}</strong>
             </div>
             <div class="detail-score-center">
               <span class="detail-score-status match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</span>
-              <div class="detail-score">${escapeHtml(match.home_score ?? 0)} : ${escapeHtml(match.away_score ?? 0)}</div>
-              <span class="detail-score-time">${escapeHtml(formatDate(match.scheduled_at))}</span>
+              <div class="detail-score">${bidiLtrHtml(`${match.home_score ?? 0} : ${match.away_score ?? 0}`)}</div>
+              <span class="detail-score-time">${bidiDateTimeHtml(match.scheduled_at)}</span>
             </div>
             <div class="detail-score-team away">
               ${renderTeamLogo(match.away_team, away)}
-              <strong>${escapeHtml(away)}</strong>
+              <strong>${bidiAutoHtml(away)}</strong>
             </div>
           </div>
           <div class="detail-score-venue">
-            <span>${escapeHtml(cleanText(match.league?.name, cleanText(match.stage, t('football'))))}</span>
-            <span>${escapeHtml(t('stage'))}: ${escapeHtml(stageName(match))}</span>
-            <span>${escapeHtml(t('venue'))}: ${escapeHtml(placeName(match.venue))}</span>
-            <span>${escapeHtml(t('city'))}: ${escapeHtml(placeName(match.city))}</span>
+            <span>${bidiAutoHtml(cleanText(match.league?.name, cleanText(match.stage, t('football'))))}</span>
+            ${labeledBidiHtml(t('stage'), stageName(match))}
+            ${labeledBidiHtml(t('venue'), placeName(match.venue))}
+            ${labeledBidiHtml(t('city'), placeName(match.city))}
           </div>
         </div>
         ${liveStatusBar}
@@ -2178,15 +2030,15 @@
         ${renderMelbetOdds(matchStats, home, away)}
         ${prematchPanel}
         <div class="match-stats detail-meta-lines">
-          <div>${escapeHtml(t('kickoff'))}: ${escapeHtml(formatDate(match.scheduled_at))}</div>
-          <div>${escapeHtml(t('stage'))}: ${escapeHtml(stageName(match))}</div>
-          <div>${escapeHtml(t('venue'))}: ${escapeHtml(placeName(match.venue))}</div>
-          <div>${escapeHtml(t('city'))}: ${escapeHtml(placeName(match.city))}</div>
+          <div>${labeledBidiHtml(t('kickoff'), match.scheduled_at, 'datetime')}</div>
+          <div>${labeledBidiHtml(t('stage'), stageName(match))}</div>
+          <div>${labeledBidiHtml(t('venue'), placeName(match.venue))}</div>
+          <div>${labeledBidiHtml(t('city'), placeName(match.city))}</div>
         </div>
         <div class="detail-statline">${escapeHtml(statsText || emptyStatsMessage(match))}</div>
         ${renderMatchDetailPanels(matchStats)}
         <div class="detail-footer">
-          <div class="match-meta">${escapeHtml(t('updatedAt'))}: ${escapeHtml(formatDate(new Date().toISOString()))}</div>
+          <div class="match-meta">${labeledBidiHtml(t('updatedAt'), new Date().toISOString(), 'datetime')}</div>
         </div>
         ${sponsorLink(`
         <aside class="detail-sponsor sponsor-slot" aria-label="${escapeHtml(t('sponsored'))}">
@@ -2213,12 +2065,57 @@
     clearMatchUrlParam();
   }
 
+  function updateMatchDayTabs() {
+    matchDayTabs.forEach((button) => {
+      const active = Number(button.dataset.matchDay) === activeMatchDayOffset;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+  }
+
+  async function loadMatchDay(offset) {
+    const normalizedOffset = Number(offset);
+    if (!Number.isInteger(normalizedOffset) || normalizedOffset < -1 || normalizedOffset > 1) return;
+    activeMatchDayOffset = normalizedOffset;
+    updateMatchDayTabs();
+    const date = matchDateForOffset();
+    const loadId = ++matchDayLoadId;
+    const knownMatches = matchesForDate(currentScheduleMatches, date);
+    if (knownMatches.length) renderMatches(knownMatches);
+    else renderMatchSkeleton(3);
+
+    try {
+      const result = await fetchMatchDayMatches(date);
+      if (loadId !== matchDayLoadId) return;
+      const fetchedMatches = mergeManualMatches(result.matches);
+      currentScheduleMatches = uniqueMatchesById([...currentScheduleMatches, ...fetchedMatches])
+        .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || '')));
+      renderMatches(matchesForDate(fetchedMatches, date));
+    } catch {
+      if (loadId !== matchDayLoadId) return;
+      renderMatches(knownMatches);
+    }
+  }
+
+  function setupMatchDayTabs() {
+    updateMatchDayTabs();
+    matchDayTabs.forEach((button) => {
+      button.addEventListener('click', () => {
+        const offset = Number(button.dataset.matchDay);
+        if (offset === activeMatchDayOffset) return;
+        void loadMatchDay(offset);
+      });
+    });
+  }
+
   async function loadMatches(options = {}) {
     if (!grid) return;
     const today = todayLocalKey();
     const cachedScheduleMatches = mergeManualMatches(readCachedScheduleMatches(today));
+    const selectedDate = matchDateForOffset();
+    currentScheduleMatches = cachedScheduleMatches;
     if (cachedScheduleMatches.length) {
-      renderMatches(cachedScheduleMatches);
+      renderMatches(matchesForDate(cachedScheduleMatches, selectedDate));
     } else {
       renderMatchSkeleton();
     }
@@ -2230,6 +2127,7 @@
         renderMatches(currentMatches);
       });
       const matches = mergeManualMatches(schedule.matches);
+      currentScheduleMatches = matches;
       if (schedule.cachedMatches.length) {
         const previousStatus = new Map(schedule.cachedMatches.map((item) => [String(item.id), String(item.status || '')]));
         matches.forEach((item) => {
@@ -2240,13 +2138,15 @@
           clearDailyCacheStartsWith(`match-prematch:${uiLocale}:${id}:`);
         });
       }
-      renderMatches(matches);
+      const visibleDate = matchDateForOffset();
+      const visibleMatches = matchesForDate(matches, visibleDate);
+      renderMatches(visibleMatches);
       const linkedMatch = deeplinkMatchId();
-      if (linkedMatch && matches.some((match) => String(match.id) === String(linkedMatch))) {
+      if (linkedMatch && visibleMatches.some((match) => String(match.id) === String(linkedMatch))) {
         void openMatchDetails(linkedMatch, { updateUrl: false });
       }
       // Warm daily cache for details to avoid extra API calls on modal open.
-      matches.forEach((match) => {
+      visibleMatches.forEach((match) => {
         if (match.status === 'scheduled') {
           void fetchPrematchStats(match, { maxAgeMs: 24 * 60 * 60 * 1000 });
           return;
@@ -2254,7 +2154,7 @@
         void fetchMatchStats(match.id, { live: true, maxAgeMs: 30_000 });
       });
     } catch {
-      renderMatches(cachedScheduleMatches.length ? cachedScheduleMatches : []);
+      renderMatches(matchesForDate(cachedScheduleMatches, matchDateForOffset()));
     }
   }
 
@@ -2277,20 +2177,6 @@
       if (!card) return;
       event.preventDefault();
       openMatchDetails(card.dataset.matchId);
-    });
-  }
-
-  if (nextMatchOpen) {
-    nextMatchOpen.addEventListener('click', () => {
-      const matchId = nextMatchOpen.dataset.matchId;
-      if (matchId) void openMatchDetails(matchId);
-    });
-  }
-
-  if (nextMatchList) {
-    nextMatchList.addEventListener('click', (event) => {
-      const row = event.target.closest('[data-match-id]');
-      if (row) void openMatchDetails(row.dataset.matchId);
     });
   }
 
@@ -2322,6 +2208,7 @@
 
   setupLocaleButton();
   setupSocialDock();
+  setupMatchDayTabs();
   localizeInitialCards();
   installCyrillicGuard();
   setupActiveNav();

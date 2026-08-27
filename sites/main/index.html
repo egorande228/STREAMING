@@ -11,18 +11,16 @@
     <link rel="dns-prefetch" href="//kinglive-football-api.figurator228.workers.dev" />
     <link rel="dns-prefetch" href="//livekinglive.win" />
     <link rel="dns-prefetch" href="//cdn-hls.livekinglive.win" />
-    <link rel="preload" href="./assets/world-cup-hero-optimized.jpg" as="image" />
     <link rel="icon" type="image/svg+xml" href="./assets/kinglive-mark-flat.svg?v=20260515-flat" />
-    <link rel="stylesheet" href="./styles.css?v=20260618-vs-aligned-stream-buttons" />
+    <script src="./theme.js?v=20260826-public-themes"></script>
+    <link rel="stylesheet" href="./styles.css?v=20260827-social-icons-equal" />
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-Z0RP8BW0F5"></script>
     <script src="./analytics-init.js?v=20260619-csp"></script>
-    <script src="./meta-pixel.js?v=20260615-meta-pixel"></script>
     <script src="./config.js"></script>
     <script defer src="./url-propagation.js"></script>
-    <script defer src="./app.js?v=20260623-locale-timezones"></script>
+    <script defer src="./app.js?v=20260827-social-icons"></script>
   </head>
   <body>
-    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1563885125322058&ev=PageView&noscript=1" alt="" /></noscript>
     <header class="topbar">
       <div class="frame topbar-inner">
         <a class="brand" href="./" aria-label="KingLive home">
@@ -32,74 +30,30 @@
         </a>
 
         <nav class="nav" aria-label="Primary">
-          <a class="active" href="./" id="nav-home">Home</a>
-          <a href="#schedule" id="nav-schedule">Schedule</a>
+          <a class="active" href="#schedule" id="nav-schedule">Schedule</a>
           <a href="#news" id="nav-groups">News</a>
         </nav>
 
-        <button class="locale" type="button" aria-label="Language">
-          <span class="locale-flag locale-flag-en" aria-hidden="true"></span>
-          <span>EN</span>
-          <span aria-hidden="true">⌄</span>
-        </button>
+        <div class="header-actions">
+          <div class="theme-switch" data-theme-switch role="group" aria-label="Color theme">
+            <button class="theme-option" type="button" data-theme-option="light" aria-label="Light" title="Light" aria-pressed="false">
+              <img class="theme-icon" src="./assets/icons/sun.svg" alt="" width="18" height="18" aria-hidden="true" />
+            </button>
+            <button class="theme-option" type="button" data-theme-option="dark" aria-label="Dark" title="Dark" aria-pressed="false">
+              <img class="theme-icon" src="./assets/icons/moon.svg" alt="" width="18" height="18" aria-hidden="true" />
+            </button>
+          </div>
+
+          <button class="locale" type="button" aria-label="Language">
+            <span class="locale-flag locale-flag-en" aria-hidden="true"></span>
+            <span>EN</span>
+            <span aria-hidden="true">⌄</span>
+          </button>
+        </div>
       </div>
     </header>
 
     <main class="frame page-stack">
-      <section class="hero-card" aria-labelledby="hero-highlight">
-        <div class="broadcast-panel">
-          <div class="broadcast-copy">
-            <p class="section-kicker" id="hero-kicker">Road to glory</p>
-            <h1>
-              <span class="hero-line" id="hero-line-1">Follow every</span>
-              <span class="hero-highlight" id="hero-highlight">World Cup 26</span>
-              <span class="hero-line" id="hero-line-2">matchday</span>
-            </h1>
-            <p class="hero-text" id="hero-text">
-              KingLive keeps fixtures, live entry points, scores and match details in one sharp matchday hub.
-            </p>
-            <div class="hero-actions">
-              <a class="button primary" href="#schedule" id="hero-action-main">Match center</a>
-              <a class="button secondary" href="#news" id="hero-action-groups">News</a>
-            </div>
-            <a class="sponsor-link hero-mobile-sponsor-link" href="https://qweqr.sbs/jJQN6M" target="_blank" rel="nofollow sponsored noopener">
-              <aside class="hero-mobile-sponsor sponsor-slot" aria-label="Sponsored">
-                <img
-                  id="top-banner-mobile"
-                  data-locale-top-banner
-                  data-en-src="../banners/melbet_top_en_1870x245.jpg"
-                  data-ar-src="../banners/melbet_top_ar_1870x245.jpg"
-                  src="../banners/melbet_top_en_1870x245.jpg"
-                  width="1870"
-                  height="245"
-                  alt="Sponsored"
-                  loading="eager"
-                  fetchpriority="high"
-                />
-              </aside>
-            </a>
-          </div>
-
-          <div class="broadcast-board" aria-label="KingLive tournament board">
-            <div class="board-label" id="next-match-label">Next match</div>
-            <div class="board-brand" id="next-match-teams">Team 1 vs Team 2</div>
-            <button class="next-match-live" type="button" id="next-match-open">
-              <span id="next-match-live-label">Live in</span>
-              <strong id="next-match-countdown">--</strong>
-            </button>
-            <div class="next-match-list" id="next-match-list" hidden></div>
-            <div class="next-match-meta" id="next-match-meta">KingLive World Cup 26</div>
-            <div class="tournament-pill next-match-time">
-              <span class="pill-mark" id="next-match-day">26</span>
-              <span>
-                <strong id="tournament-title">KingLive World Cup 26</strong>
-                <em id="tournament-dates">June 11 - July 19, 2026</em>
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section class="schedule-layout" id="schedule" aria-labelledby="schedule-title">
         <div class="match-column">
           <a class="sponsor-link match-sponsor-link" href="https://qweqr.sbs/jJQN6M" target="_blank" rel="nofollow sponsored noopener">
@@ -122,6 +76,20 @@
             <div>
               <h2 id="schedule-title"><span id="schedule-title-prefix">Upcoming</span> <span id="schedule-title-accent">matches</span></h2>
               <div class="heading-line"></div>
+            </div>
+          </div>
+
+          <div class="schedule-controls">
+            <div class="match-day-tabs" data-match-day-tabs role="group" aria-label="Match day">
+              <button class="match-day-tab" type="button" data-match-day="-1" aria-pressed="false">
+                <span id="match-day-yesterday">Yesterday</span>
+              </button>
+              <button class="match-day-tab active" type="button" data-match-day="0" aria-pressed="true">
+                <span id="match-day-today">Today</span>
+              </button>
+              <button class="match-day-tab" type="button" data-match-day="1" aria-pressed="false">
+                <span id="match-day-tomorrow">Tomorrow</span>
+              </button>
             </div>
           </div>
 
@@ -167,12 +135,5 @@
       </button>
       <div class="social-dock-panel" data-social-panel></div>
     </aside>
-    <script
-      src="https://365melbet.bet/js/quiz-widget.js"
-      data-base="https://365melbet.bet"
-      data-btn-text="Take quiz receive bonus promocode"
-      data-btn-lang="en"
-      defer
-    ></script>
   </body>
 </html>

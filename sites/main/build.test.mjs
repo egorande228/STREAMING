@@ -22,8 +22,8 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
     'news.js',
     'admin.js',
     'analytics-init.js',
+    'theme.js',
     'url-propagation.js',
-    'meta-pixel.js',
     'styles.css',
     'config.js',
     '_headers',
@@ -42,6 +42,7 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
 
   assert.equal(existsSync(new URL('./dist/README.md', import.meta.url)), false);
   assert.equal(existsSync(new URL('./dist/app.test.mjs', import.meta.url)), false);
+  assert.equal(existsSync(new URL('./dist/meta-pixel.js', import.meta.url)), false);
 
   const wrangler = readFileSync(new URL('./wrangler.toml', import.meta.url), 'utf8');
   assert.match(wrangler, /pages_build_output_dir = "\.\/dist"/);
@@ -59,44 +60,28 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
   const styleSrcAttr = csp.match(/style-src-attr ([^;]+)/)?.[1] || '';
   const fontSrc = csp.match(/font-src ([^;]+)/)?.[1] || '';
   const frameAncestors = csp.match(/frame-ancestors ([^;]+)/)?.[1] || '';
-  assert.match(scriptSrc, /https:\/\/www\.facebook\.com/);
-  assert.match(scriptSrc, /https:\/\/\*\.facebook\.com/);
-  assert.match(scriptSrc, /https:\/\/365melbet\.bet/);
+  assert.doesNotMatch(csp, /facebook|fbcdn/i);
+  assert.doesNotMatch(scriptSrc, /https:\/\/365melbet\.bet/);
   assert.doesNotMatch(scriptSrc, /'unsafe-inline'/);
   assert.match(styleSrc, /'self'/);
   assert.match(styleSrc, /'unsafe-inline'/);
-  assert.match(styleSrc, /https:\/\/\*\.facebook\.com/);
   assert.match(styleSrcElem, /'unsafe-inline'/);
   assert.match(styleSrcAttr, /'unsafe-inline'/);
   assert.match(fontSrc, /'self'/);
   assert.match(fontSrc, /data:/);
-  assert.match(fontSrc, /https:\/\/\*\.facebook\.com/);
-  assert.match(fontSrc, /https:\/\/\*\.fbcdn\.net/);
-  assert.match(frameAncestors, /https:\/\/www\.facebook\.com/);
-  assert.match(frameAncestors, /https:\/\/business\.facebook\.com/);
-  assert.match(frameAncestors, /https:\/\/\*\.facebook\.com/);
-  assert.doesNotMatch(frameAncestors, /'none'/);
+  assert.equal(frameAncestors.trim(), "'self'");
 
   const index = readFileSync(new URL('./dist/index.html', import.meta.url), 'utf8');
   assert.match(index, /src="\.\/analytics-init\.js/);
   assert.doesNotMatch(index, /<script>\s*window\.dataLayer/);
-  assert.equal((index.match(/meta-pixel\.js/g) || []).length, 1);
-  assert.doesNotMatch(index, /connect\.facebook\.net\/en_US\/fbevents\.js/);
-  assert.doesNotMatch(index, /data-quiz-fallback/);
-  assert.doesNotMatch(index, /class="quiz-floating-button" href="https:\/\/365melbet\.bet"/);
-  assert.match(index, /src="https:\/\/365melbet\.bet\/js\/quiz-widget\.js"/);
+  assert.doesNotMatch(index, /meta-pixel|fbq|fbevents|facebook\.com\/tr/i);
+  assert.doesNotMatch(index, /quiz/i);
+  assert.doesNotMatch(index, /365melbet\.bet/);
 
   const news = readFileSync(new URL('./dist/news.html', import.meta.url), 'utf8');
-  assert.equal((news.match(/meta-pixel\.js/g) || []).length, 1);
-  assert.doesNotMatch(news, /connect\.facebook\.net\/en_US\/fbevents\.js/);
+  assert.doesNotMatch(news, /meta-pixel|fbq|fbevents|facebook\.com\/tr/i);
 
   const styles = readFileSync(new URL('./dist/styles.css', import.meta.url), 'utf8');
-  assert.match(styles, /\.__fq-trigger/);
-  assert.match(styles, /position:\s*fixed\s*!important/);
-  assert.match(styles, /\.__fq-overlay/);
-  assert.match(styles, /pointer-events:\s*none\s*!important/);
-  assert.match(styles, /\.__fq-modal/);
-  assert.match(styles, /pointer-events:\s*auto\s*!important/);
-  assert.match(styles, /body:has\(\.__fq-overlay\.--open\)/);
-  assert.match(styles, /overflow:\s*auto\s*!important/);
+  assert.doesNotMatch(styles, /quiz-floating-button/);
+  assert.doesNotMatch(styles, /\.__fq-/);
 });

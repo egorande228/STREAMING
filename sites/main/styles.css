@@ -164,7 +164,7 @@ p {
 
 .frame {
   width: calc(100% - 48px);
-  max-width: 1180px;
+  max-width: 980px;
   margin-inline: auto;
 }
 

@@ -11,6 +11,11 @@ const sharedTelegramUrl = 'https://t.me/Teamcash_x_Melbet_Asia';
 const staleArabicSocialHandlePattern = new RegExp(`worldcup(?:${['2026', 'arabworld'].join('')}|${['_', 'arabia'].join('')})`);
 const staleMongolianInstagramHandle = ['worldcuplive', 'mongolia', 'melbet'].join('_');
 
+test('initial schedule load requests only yesterday, today, and tomorrow', () => {
+  assert.match(appSource, /const schedule = await fetchMatchDayMatches\(today, options\);/);
+  assert.doesNotMatch(appSource, /const schedule = await fetchScheduleMatches\(today, options\);/);
+});
+
 function localDateKey(date = new Date()) {
   return [
     String(date.getFullYear()),

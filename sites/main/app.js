@@ -2121,7 +2121,7 @@
     }
 
     try {
-      const schedule = await fetchScheduleMatches(today, options);
+      const schedule = await fetchMatchDayMatches(today, options);
       fetchActiveStreamMatchIds({ force: options.force }).then((activeIds) => {
         activeStreamMatchIds = activeIds;
         renderMatches(currentMatches);

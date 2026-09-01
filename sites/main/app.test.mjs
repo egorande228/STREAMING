@@ -11,8 +11,13 @@ const sharedTelegramUrl = 'https://t.me/Teamcash_x_Melbet_Asia';
 const staleArabicSocialHandlePattern = new RegExp(`worldcup(?:${['2026', 'arabworld'].join('')}|${['_', 'arabia'].join('')})`);
 const staleMongolianInstagramHandle = ['worldcuplive', 'mongolia', 'melbet'].join('_');
 
-test('initial schedule load requests only yesterday, today, and tomorrow', () => {
-  assert.match(appSource, /const schedule = await fetchMatchDayMatches\(today, options\);/);
+test('initial schedule load uses three nearby days before a batched future fallback', () => {
+  assert.match(appSource, /const schedule = await fetchInitialScheduleMatches\(today, options\);/);
+  assert.match(appSource, /const initial = await fetchMatchDayMatches\(today, options\);/);
+  assert.match(appSource, /const scheduleFallbackBatchDays = 3;/);
+  assert.match(appSource, /if \(hasImmediateMatches\) return initial;/);
+  assert.match(appSource, /matches\.slice\(0, scheduleFallbackMaxMatches\)/);
+  assert.match(appSource, /if \(!Array\.isArray\(matches\) \|\| !matches\.length\) return 45_000;/);
   assert.doesNotMatch(appSource, /const schedule = await fetchScheduleMatches\(today, options\);/);
 });
 

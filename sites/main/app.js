@@ -3,6 +3,8 @@
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
   const apiVersion = 'ts-restream-aac-cache-refresh-20260619';
   const scheduleLookaheadDays = 14;
+  const scheduleFallbackBatchDays = 3;
+  const scheduleFallbackMaxMatches = 5;
   const playerBase = String(config.playerBase || '../player').replace(/\/$/, '');
   const streamConfigUrl = config.streamConfigUrl || './stream.json';
   const activeStreamsApiUrl = config.activeStreamsApiUrl || `${apiBase}/api/streams/active`;
@@ -468,6 +470,7 @@
 
   function matchCacheMaxAge(matches, date) {
     if (date === todayLocalKey() || date === new Date().toISOString().slice(0, 10)) return 45_000;
+    if (!Array.isArray(matches) || !matches.length) return 45_000;
     const live = Array.isArray(matches) && matches.some((item) => item?.status === 'live' || item?.status === 'half_time');
     return live ? 45_000 : 24 * 60 * 60 * 1000;
   }
@@ -558,6 +561,36 @@
         .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || ''))),
       cachedMatches: uniqueMatchesById(results.flatMap((result) => result.cachedMatches)),
     };
+  }
+
+  async function fetchInitialScheduleMatches(today, options = {}) {
+    const initial = await fetchMatchDayMatches(today, options);
+    const tomorrow = addUtcDays(today, 1);
+    const hasImmediateMatches = initial.matches.some((match) => {
+      const date = matchLocalDateKey(match);
+      return (date >= today && date <= tomorrow) || isLiveCarryoverMatch(match);
+    });
+    if (hasImmediateMatches) return initial;
+
+    const cachedMatches = [...initial.cachedMatches];
+    for (let start = 2; start <= scheduleLookaheadDays; start += scheduleFallbackBatchDays) {
+      const dates = Array.from(
+        { length: Math.min(scheduleFallbackBatchDays, scheduleLookaheadDays - start + 1) },
+        (_, index) => addUtcDays(today, start + index),
+      );
+      const results = await Promise.all(dates.map((date) => fetchMatchesForDate(date, options)));
+      cachedMatches.push(...results.flatMap((result) => result.cachedMatches));
+      const matches = uniqueMatchesById(results.flatMap((result) => result.matches))
+        .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || '')));
+      if (matches.length) {
+        return {
+          matches: matches.slice(0, scheduleFallbackMaxMatches),
+          cachedMatches: uniqueMatchesById(cachedMatches),
+        };
+      }
+    }
+
+    return { matches: [], cachedMatches: uniqueMatchesById(cachedMatches) };
   }
 
   function isLiveCarryoverMatch(match) {
@@ -887,6 +920,17 @@
     return mergeManualMatches(matches)
       .filter((match) => matchLocalDateKey(match) === date || (date === todayLocalKey() && isLiveCarryoverMatch(match)))
       .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || '')));
+  }
+
+  function matchesForMatchDayView(matches, date, offset = activeMatchDayOffset) {
+    const exactMatches = matchesForDate(matches, date);
+    if (exactMatches.length || Number(offset) !== 0) return exactMatches;
+    const today = todayLocalKey();
+    const tomorrow = addUtcDays(today, 1);
+    return mergeManualMatches(matches)
+      .filter((match) => matchLocalDateKey(match) > tomorrow && String(match?.status || '') !== 'finished')
+      .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || '')))
+      .slice(0, scheduleFallbackMaxMatches);
   }
 
   function shouldShowPlayerButtons(match = {}) {
@@ -2080,7 +2124,7 @@
     updateMatchDayTabs();
     const date = matchDateForOffset();
     const loadId = ++matchDayLoadId;
-    const knownMatches = matchesForDate(currentScheduleMatches, date);
+    const knownMatches = matchesForMatchDayView(currentScheduleMatches, date, normalizedOffset);
     if (knownMatches.length) renderMatches(knownMatches);
     else renderMatchSkeleton(3);
 
@@ -2090,7 +2134,7 @@
       const fetchedMatches = mergeManualMatches(result.matches);
       currentScheduleMatches = uniqueMatchesById([...currentScheduleMatches, ...fetchedMatches])
         .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || '')));
-      renderMatches(matchesForDate(fetchedMatches, date));
+      renderMatches(matchesForMatchDayView(currentScheduleMatches, date, normalizedOffset));
     } catch {
       if (loadId !== matchDayLoadId) return;
       renderMatches(knownMatches);
@@ -2115,13 +2159,13 @@
     const selectedDate = matchDateForOffset();
     currentScheduleMatches = cachedScheduleMatches;
     if (cachedScheduleMatches.length) {
-      renderMatches(matchesForDate(cachedScheduleMatches, selectedDate));
+      renderMatches(matchesForMatchDayView(cachedScheduleMatches, selectedDate));
     } else {
       renderMatchSkeleton();
     }
 
     try {
-      const schedule = await fetchMatchDayMatches(today, options);
+      const schedule = await fetchInitialScheduleMatches(today, options);
       fetchActiveStreamMatchIds({ force: options.force }).then((activeIds) => {
         activeStreamMatchIds = activeIds;
         renderMatches(currentMatches);
@@ -2139,14 +2183,14 @@
         });
       }
       const visibleDate = matchDateForOffset();
-      const visibleMatches = matchesForDate(matches, visibleDate);
+      const visibleMatches = matchesForMatchDayView(matches, visibleDate);
       renderMatches(visibleMatches);
       const linkedMatch = deeplinkMatchId();
       if (linkedMatch && visibleMatches.some((match) => String(match.id) === String(linkedMatch))) {
         void openMatchDetails(linkedMatch, { updateUrl: false });
       }
       // Warm daily cache for details to avoid extra API calls on modal open.
-      visibleMatches.forEach((match) => {
+      visibleMatches.filter((match) => matchLocalDateKey(match) === visibleDate).forEach((match) => {
         if (match.status === 'scheduled') {
           void fetchPrematchStats(match, { maxAgeMs: 24 * 60 * 60 * 1000 });
           return;
@@ -2154,7 +2198,7 @@
         void fetchMatchStats(match.id, { live: true, maxAgeMs: 30_000 });
       });
     } catch {
-      renderMatches(matchesForDate(cachedScheduleMatches, matchDateForOffset()));
+      renderMatches(matchesForMatchDayView(cachedScheduleMatches, matchDateForOffset()));
     }
   }
 

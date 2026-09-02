@@ -766,10 +766,17 @@ html[dir="rtl"] .locale-menu {
 .empty-card {
   display: grid;
   min-height: 104px;
-  place-items: center;
+  place-content: center;
+  gap: 8px;
+  padding: 16px;
   color: var(--muted);
   font-size: 14px;
   font-weight: 800;
+  text-align: center;
+}
+
+.empty-card-next {
+  color: var(--text);
 }
 
 .match-card {

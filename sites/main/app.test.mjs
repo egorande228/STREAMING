@@ -826,7 +826,7 @@ test('keeps scheduled status visible when a future match already has streams', a
   assert.doesNotMatch(gridHtml, /match-status live/);
 });
 
-test('today view stays empty when only tomorrow has matches', async () => {
+test('today view stays empty when the next match is later than tomorrow', async () => {
   let gridHtml = '';
   const matchGrid = {
     get innerHTML() {
@@ -844,10 +844,15 @@ test('today view stays empty when only tomorrow has matches', async () => {
     addEventListener() {},
   };
   const today = localDateKey();
-  const tomorrow = new Date(`${today}T00:00:00Z`);
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  const tomorrowText = tomorrow.toISOString().slice(0, 10);
+  const nextMatchDay = new Date(`${today}T00:00:00Z`);
+  nextMatchDay.setUTCDate(nextMatchDay.getUTCDate() + 2);
+  const nextMatchDayText = nextMatchDay.toISOString().slice(0, 10);
   const requests = [];
+  const dayButtons = [
+    createMatchDayButton(-1),
+    createMatchDayButton(0, true),
+    createMatchDayButton(1),
+  ];
 
   const context = {
     URL,
@@ -877,6 +882,7 @@ test('today view stays empty when only tomorrow has matches', async () => {
         return id === 'match-grid' ? matchGrid : null;
       },
       querySelectorAll(selector) {
+        if (selector === '[data-match-day]') return dayButtons;
         return selector === '[data-ad-slot]' ? [] : [];
       },
     },
@@ -889,11 +895,11 @@ test('today view stays empty when only tomorrow has matches', async () => {
           json: () => Promise.resolve({}),
         });
       }
-      const matches = request.includes(`date=${tomorrowText}`)
+      const matches = request.includes(`date=${nextMatchDayText}`)
         ? [
             {
               id: 19609127,
-              scheduled_at: `${tomorrowText}T19:00:00+00:00`,
+              scheduled_at: `${nextMatchDayText}T19:00:00+00:00`,
               status: 'scheduled',
               stage: 'Group Stage',
               league: { name: 'World Cup' },
@@ -913,9 +919,23 @@ test('today view stays empty when only tomorrow has matches', async () => {
   vm.runInNewContext(appSource, context);
   await new Promise((resolve) => setImmediate(resolve));
 
+  assert.match(gridHtml, /No matches today/);
+  assert.match(gridHtml, /Next match/);
+  assert.match(gridHtml, /CEST/);
   assert.doesNotMatch(gridHtml, /Mexico vs South Africa/);
+
+  dayButtons[2].click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(gridHtml, /No matches tomorrow/);
+  assert.match(gridHtml, /Next match/);
+
+  dayButtons[0].click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(gridHtml, /No matches yesterday/);
+  assert.match(gridHtml, /Next match/);
+
   assert.equal(requests.some((url) => url.includes(`/api/matches?date=${today}`)), true);
-  assert.equal(requests.some((url) => url.includes(`/api/matches?date=${tomorrowText}`)), true);
+  assert.equal(requests.some((url) => url.includes(`/api/matches?date=${nextMatchDayText}`)), true);
 });
 
 test('tomorrow tab swaps visible matches and active state', async () => {

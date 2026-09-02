@@ -34,6 +34,10 @@
       loadingMatches: 'Loading matches',
       loadingNews: 'Loading football news',
       matchesUnavailable: 'Coming Soon',
+      noMatchesYesterday: 'No matches yesterday',
+      noMatchesToday: 'No matches today',
+      noMatchesTomorrow: 'No matches tomorrow',
+      nextMatch: 'Next match',
       newsUnavailable: 'Football news is not available right now.',
       statsAfterKickoff: 'Statistics will appear after kickoff.',
       statsUnavailable: 'Statistics are not available from the API yet.',
@@ -96,6 +100,10 @@
       loadingMatches: 'Cargando partidos',
       loadingNews: 'Cargando noticias de fútbol',
       matchesUnavailable: 'Próximamente',
+      noMatchesYesterday: 'No hubo partidos ayer',
+      noMatchesToday: 'No hay partidos hoy',
+      noMatchesTomorrow: 'No hay partidos mañana',
+      nextMatch: 'Próximo partido',
       newsUnavailable: 'Las noticias de fútbol no están disponibles ahora.',
       statsAfterKickoff: 'Las estadísticas aparecerán tras el inicio del partido.',
       statsUnavailable: 'Las estadísticas aún no están disponibles en la API.',
@@ -157,6 +165,10 @@
       loadingMatches: 'Chargement des matchs',
       loadingNews: 'Chargement des actualités football',
       matchesUnavailable: 'Bientôt disponible',
+      noMatchesYesterday: 'Aucun match hier',
+      noMatchesToday: 'Aucun match aujourd’hui',
+      noMatchesTomorrow: 'Aucun match demain',
+      nextMatch: 'Prochain match',
       newsUnavailable: 'Les actualités football ne sont pas disponibles pour le moment.',
       statsAfterKickoff: 'Les statistiques apparaîtront après le coup d’envoi.',
       statsUnavailable: 'Les statistiques ne sont pas encore disponibles depuis l’API.',
@@ -218,6 +230,10 @@
       loadingMatches: 'جارٍ تحميل المباريات',
       loadingNews: 'جارٍ تحميل أخبار كرة القدم',
       matchesUnavailable: 'قريبًا',
+      noMatchesYesterday: 'لم تكن هناك مباريات أمس',
+      noMatchesToday: 'لا توجد مباريات اليوم',
+      noMatchesTomorrow: 'لا توجد مباريات غدًا',
+      nextMatch: 'المباراة القادمة',
       newsUnavailable: 'أخبار كرة القدم غير متاحة الآن.',
       statsAfterKickoff: 'ستظهر الإحصاءات بعد بداية المباراة.',
       statsUnavailable: 'الإحصاءات غير متاحة حالياً من الـ API.',
@@ -279,6 +295,10 @@
       loadingMatches: 'Тоглолтуудыг ачаалж байна',
       loadingNews: 'Хөлбөмбөгийн мэдээ ачаалж байна',
       matchesUnavailable: 'Тун удахгүй',
+      noMatchesYesterday: 'Өчигдөр тоглолт байгаагүй',
+      noMatchesToday: 'Өнөөдөр тоглолт байхгүй',
+      noMatchesTomorrow: 'Маргааш тоглолт байхгүй',
+      nextMatch: 'Дараагийн тоглолт',
       newsUnavailable: 'Хөлбөмбөгийн мэдээ одоогоор боломжгүй байна.',
       statsAfterKickoff: 'Статистик тоглолт эхэлсний дараа гарна.',
       statsUnavailable: 'Статистик API-аас одоогоор боломжгүй байна.',
@@ -922,15 +942,20 @@
       .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || '')));
   }
 
-  function matchesForMatchDayView(matches, date, offset = activeMatchDayOffset) {
-    const exactMatches = matchesForDate(matches, date);
-    if (exactMatches.length || Number(offset) !== 0) return exactMatches;
-    const today = todayLocalKey();
-    const tomorrow = addUtcDays(today, 1);
-    return mergeManualMatches(matches)
-      .filter((match) => matchLocalDateKey(match) > tomorrow && String(match?.status || '') !== 'finished')
-      .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || '')))
-      .slice(0, scheduleFallbackMaxMatches);
+  function matchesForMatchDayView(matches, date) {
+    return matchesForDate(matches, date);
+  }
+
+  function emptyMatchesTranslationKey() {
+    if (activeMatchDayOffset < 0) return 'noMatchesYesterday';
+    if (activeMatchDayOffset > 0) return 'noMatchesTomorrow';
+    return 'noMatchesToday';
+  }
+
+  function nextMatchAfter(date) {
+    return mergeManualMatches(currentScheduleMatches)
+      .filter((match) => matchLocalDateKey(match) > date && String(match?.status || '') !== 'finished')
+      .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || '')))[0] || null;
   }
 
   function shouldShowPlayerButtons(match = {}) {
@@ -1837,7 +1862,16 @@
     currentMatches = displayMatches;
     matches = displayMatches;
     if (!matches.length) {
-      grid.innerHTML = `<article class="empty-card">${escapeHtml(t('matchesUnavailable'))}</article>`;
+      const nextMatch = nextMatchAfter(matchDateForOffset());
+      const nextMatchHtml = nextMatch
+        ? `<span class="empty-card-next">${escapeHtml(t('nextMatch'))}: ${bidiDateTimeHtml(nextMatch.scheduled_at)}</span>`
+        : '';
+      grid.innerHTML = `
+        <article class="empty-card">
+          <span>${escapeHtml(t(emptyMatchesTranslationKey()))}</span>
+          ${nextMatchHtml}
+        </article>
+      `;
       return;
     }
 

@@ -446,16 +446,26 @@ async function routeFootballDataRequest(url, env, ttl, ctx = {}) {
   const primaryTheRundownPayload = scheduleProvider === 'therundown' && url.pathname === '/api/matches'
     ? await fetchTheRundownScheduleJson(requestedDate, env)
     : null;
-  const payload = primaryTheRundownPayload?.ok
+  const primaryTheRundownMatches = Array.isArray(primaryTheRundownPayload?.body?.events)
+    ? primaryTheRundownPayload.body.events
+    : [];
+  const primaryTheRundownHasTopLeagueMatch = primaryTheRundownPayload?.ok && primaryTheRundownMatches.some((match) => (
+    isTopLeagueMatch(normalizeTheRundownScheduleMatch(match, env, streamConfig))
+  ));
+  const payload = primaryTheRundownHasTopLeagueMatch
     ? { ok: false, status: 0, body: null }
-    : await fetchFootballDataJson(buildFootballDataApiUrl(url), env);
-  const footballDataMatches = payload.ok && !primaryTheRundownPayload?.ok
+    : primaryTheRundownPayload
+      ? await fetchFootballDataScheduleJson(requestedDate, env)
+      : await fetchFootballDataJson(buildFootballDataApiUrl(url), env);
+  const footballDataMatches = payload.ok
     ? (Array.isArray(payload.body?.matches) ? payload.body.matches : payload.body ? [payload.body] : [])
       .filter((match) => footballDataMatchDate(match) === requestedDate)
     : [];
-  const shouldUseScheduleFallback = !primaryTheRundownPayload?.ok && (!payload.ok || (url.pathname === '/api/matches' && footballDataMatches.length === 0));
-  const fallbackPayload = shouldUseScheduleFallback ? await fetchTheRundownScheduleJson(requestedDate, env) : null;
-  const schedulePayload = primaryTheRundownPayload?.ok ? primaryTheRundownPayload : fallbackPayload;
+  const shouldUseScheduleFallback = !primaryTheRundownHasTopLeagueMatch && (!payload.ok || (url.pathname === '/api/matches' && footballDataMatches.length === 0));
+  const fallbackPayload = shouldUseScheduleFallback
+    ? (primaryTheRundownPayload || await fetchTheRundownScheduleJson(requestedDate, env))
+    : null;
+  const schedulePayload = primaryTheRundownHasTopLeagueMatch ? primaryTheRundownPayload : fallbackPayload;
   if (!payload.ok && !schedulePayload?.ok) return jsonResponse({ error: 'football_data_error', status: payload.status }, 502, 30);
   const sourceMatches = schedulePayload?.ok && (scheduleProvider === 'therundown' || footballDataMatches.length === 0 || !payload.ok)
     ? (Array.isArray(schedulePayload.body?.events) ? schedulePayload.body.events : [])
@@ -512,6 +522,24 @@ async function fetchFootballDataJson(apiUrl, env = {}) {
   } catch {
     return { ok: false, status: response.status, body: null };
   }
+}
+
+async function fetchFootballDataScheduleJson(date, env = {}) {
+  if (!env.FOOTBALL_DATA_TOKEN) return { ok: false, status: 0, body: null };
+  const matches = [];
+  let lastStatus = 0;
+  for (const competition of ['PL', 'CL']) {
+    const apiUrl = new URL(`/v4/competitions/${competition}/matches`, FOOTBALL_DATA_API_BASE);
+    apiUrl.searchParams.set('dateFrom', date);
+    apiUrl.searchParams.set('dateTo', date);
+    const payload = await fetchFootballDataJson(apiUrl, env);
+    lastStatus = payload.status;
+    if (!payload.ok) continue;
+    matches.push(...(Array.isArray(payload.body?.matches) ? payload.body.matches : []));
+  }
+  return matches.length
+    ? { ok: true, status: 200, body: { matches } }
+    : { ok: false, status: lastStatus, body: null };
 }
 
 async function routeSportmonksFootballRequest(url, env, ttl, ctx = {}) {

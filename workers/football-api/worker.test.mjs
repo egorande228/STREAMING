@@ -750,6 +750,68 @@ test('uses TheRundown as primary schedule provider when configured', async () =>
   }
 });
 
+test('falls back to football-data.org PL and CL schedules when TheRundown omits the date', async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const requestUrl = String(url);
+    calls.push(requestUrl);
+    if (requestUrl === 'https://therundown.io/api/v1/sports/18/events/2026-09-04?period_id=full_game&include=scores&key=therundown-token') {
+      return new Response(JSON.stringify({ events: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl === 'https://api.football-data.org/v4/competitions/PL/matches?dateFrom=2026-09-04&dateTo=2026-09-04') {
+      assert.equal(options.headers?.['X-Auth-Token'] || '', 'football-data-token');
+      return new Response(JSON.stringify({
+        matches: [{
+          id: 600904,
+          utcDate: '2026-09-04T19:00:00Z',
+          status: 'TIMED',
+          stage: 'REGULAR_SEASON',
+          area: { name: 'England' },
+          competition: { id: 2021, name: 'Premier League', code: 'PL' },
+          homeTeam: { id: 349, name: 'Ipswich Town', tla: 'IPS', crest: 'https://crests.football-data.org/349.svg' },
+          awayTeam: { id: 64, name: 'Liverpool', tla: 'LIV', crest: 'https://crests.football-data.org/64.svg' },
+          score: { fullTime: { home: null, away: null } },
+        }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl === 'https://api.football-data.org/v4/competitions/CL/matches?dateFrom=2026-09-04&dateTo=2026-09-04') {
+      assert.equal(options.headers?.['X-Auth-Token'] || '', 'football-data-token');
+      return new Response(JSON.stringify({ matches: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({}), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches?date=2026-09-04'),
+      {
+        FOOTBALL_PROVIDER: 'football-data',
+        FOOTBALL_SCHEDULE_PROVIDER: 'therundown',
+        FOOTBALL_DATA_TOKEN: 'football-data-token',
+        THERUNDOWN_KEY: 'therundown-token',
+        THERUNDOWN_SPORT_ID: '18',
+      },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.source, 'football-data');
+    assert.equal(body.matches.length, 1);
+    assert.equal(body.matches[0].league.id, 39);
+    assert.equal(body.matches[0].home_team.name_en, 'Ipswich Town');
+    assert.equal(body.matches[0].away_team.name_en, 'Liverpool');
+    assert.deepEqual(calls, [
+      'https://therundown.io/api/v1/sports/18/events/2026-09-04?period_id=full_game&include=scores&key=therundown-token',
+      'https://api.football-data.org/v4/competitions/PL/matches?dateFrom=2026-09-04&dateTo=2026-09-04',
+      'https://api.football-data.org/v4/competitions/CL/matches?dateFrom=2026-09-04&dateTo=2026-09-04',
+    ]);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test('serves TheRundown single match details by id for player boot', async () => {
   const previousFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {

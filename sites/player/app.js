@@ -9,6 +9,24 @@
   const viewerHeartbeatBase = apiBase ? `${apiBase}/api/viewers` : '';
   const preferredLang = params.get('lang') || config.defaultLang || 'en';
   const normalizedPreferredLang = normalizePreferredLanguage(preferredLang);
+  const uiLocale = ['en', 'es', 'fr', 'ar', 'mn'].includes(normalizedPreferredLang) ? normalizedPreferredLang : 'en';
+  const i18n = {
+    en: {
+      advertisement: 'Advertisement', streamPlayer: 'Stream player', nowPlaying: 'Now playing', stream: 'Stream', source: 'Source', copyIframe: 'Copy iframe', copied: 'Copied', copyIframeCode: 'Copy iframe code', close: 'Close', community: 'Community', telegramTitle: 'World Cup Telegram', telegramMessage: 'Join our Telegram channels for match updates and live stream alerts.', openTelegram: 'Open Telegram', playStream: 'Play stream', loadingStream: 'Loading stream...', adblockTitle: 'Ad blocker detected', adblockMessage: 'KingLive is supported by sponsor banners. Please disable your ad blocker for this site to keep streams and match updates available.', continue: 'Continue', watching: 'watching', tbd: 'TBD', configuredStream: 'Configured stream', englishIframe: 'English iframe', player: 'Player', home: 'KingLive home', socialContacts: 'Social contacts',
+    },
+    es: {
+      advertisement: 'Publicidad', streamPlayer: 'Reproductor de transmisión', nowPlaying: 'Reproduciendo ahora', stream: 'Transmisión', source: 'Fuente', copyIframe: 'Copiar iframe', copied: 'Copiado', copyIframeCode: 'Copiar código iframe', close: 'Cerrar', community: 'Comunidad', telegramTitle: 'Telegram del Mundial', telegramMessage: 'Únete a nuestros canales de Telegram para recibir novedades de partidos y alertas de transmisiones en vivo.', openTelegram: 'Abrir Telegram', playStream: 'Reproducir transmisión', loadingStream: 'Cargando transmisión...', adblockTitle: 'Bloqueador de anuncios detectado', adblockMessage: 'KingLive se financia mediante banners de patrocinadores. Desactiva el bloqueador de anuncios en este sitio para mantener disponibles las transmisiones y las actualizaciones de los partidos.', continue: 'Continuar', watching: 'viendo', tbd: 'Por confirmar', configuredStream: 'Transmisión configurada', englishIframe: 'Iframe en inglés', player: 'Reproductor', home: 'Inicio de KingLive', socialContacts: 'Contactos sociales',
+    },
+    fr: {
+      advertisement: 'Publicité', streamPlayer: 'Lecteur de stream', nowPlaying: 'Lecture en cours', stream: 'Stream', source: 'Source', copyIframe: 'Copier l’iframe', copied: 'Copié', copyIframeCode: 'Copier le code iframe', close: 'Fermer', community: 'Communauté', telegramTitle: 'Telegram de la Coupe du monde', telegramMessage: 'Rejoignez nos chaînes Telegram pour recevoir les nouvelles des matchs et les alertes de streams en direct.', openTelegram: 'Ouvrir Telegram', playStream: 'Lire le stream', loadingStream: 'Chargement du stream...', adblockTitle: 'Bloqueur de publicités détecté', adblockMessage: 'KingLive est financé par les bannières de ses sponsors. Désactivez votre bloqueur de publicités pour ce site afin de conserver l’accès aux streams et aux mises à jour des matchs.', continue: 'Continuer', watching: 'regardent', tbd: 'À confirmer', configuredStream: 'Stream configuré', englishIframe: 'Iframe en anglais', player: 'Lecteur', home: 'Accueil KingLive', socialContacts: 'Réseaux sociaux',
+    },
+    ar: {
+      advertisement: 'إعلان', streamPlayer: 'مشغل البث', nowPlaying: 'يُعرض الآن', stream: 'البث', source: 'المصدر', copyIframe: 'نسخ iframe', copied: 'تم النسخ', copyIframeCode: 'نسخ كود iframe', close: 'إغلاق', community: 'المجتمع', telegramTitle: 'تيليجرام كأس العالم', telegramMessage: 'انضم إلى قنواتنا على تيليجرام للحصول على تحديثات المباريات وتنبيهات البث المباشر.', openTelegram: 'فتح تيليجرام', playStream: 'تشغيل البث', loadingStream: 'جارٍ تحميل البث...', adblockTitle: 'تم اكتشاف مانع إعلانات', adblockMessage: 'يعتمد KingLive على إعلانات الرعاة. يرجى تعطيل مانع الإعلانات لهذا الموقع للحفاظ على توفر البث وتحديثات المباريات.', continue: 'متابعة', watching: 'يشاهدون', tbd: 'يحدد لاحقًا', configuredStream: 'بث مهيأ', englishIframe: 'إطار إنجليزي', player: 'المشغل', home: 'الرئيسية في KingLive', socialContacts: 'حسابات التواصل',
+    },
+    mn: {
+      advertisement: 'Зар сурталчилгаа', streamPlayer: 'Дамжуулалтын тоглуулагч', nowPlaying: 'Одоо тоглож байна', stream: 'Дамжуулалт', source: 'Эх сурвалж', copyIframe: 'Iframe хуулах', copied: 'Хуулсан', copyIframeCode: 'Iframe код хуулах', close: 'Хаах', community: 'Нийгэмлэг', telegramTitle: 'Дэлхийн цомын Telegram', telegramMessage: 'Тоглолтын шинэчлэлт болон шууд дамжуулалтын мэдэгдэл авахын тулд манай Telegram сувгуудад нэгдээрэй.', openTelegram: 'Telegram нээх', playStream: 'Дамжуулалт тоглуулах', loadingStream: 'Дамжуулалт ачаалж байна...', adblockTitle: 'Зар хориглогч илэрлээ', adblockMessage: 'KingLive нь ивээн тэтгэгчийн баннераар дэмжигддэг. Шууд дамжуулалт болон тоглолтын шинэчлэлтийг үзэхийн тулд энэ сайтад зар хориглогчоо унтраана уу.', continue: 'Үргэлжлүүлэх', watching: 'үзэж байна', tbd: 'Тодорхойгүй', configuredStream: 'Тохируулсан дамжуулалт', englishIframe: 'Англи iframe', player: 'Тоглуулагч', home: 'KingLive нүүр', socialContacts: 'Сошиал холбоос',
+    },
+  };
   const preferredRegion = params.get('region') || config.defaultRegion || 'global';
   const stage = document.getElementById('stage');
   const controls = document.getElementById('controls');
@@ -44,6 +62,30 @@
   const viewerClientId = getViewerClientId();
 
   copyEmbed.hidden = !isAdmin;
+
+  function t(key) {
+    return i18n[uiLocale]?.[key] ?? i18n.en[key] ?? key;
+  }
+
+  function localizePlayerChrome() {
+    if (document.documentElement) {
+      document.documentElement.lang = uiLocale;
+      document.documentElement.dir = uiLocale === 'ar' ? 'rtl' : 'ltr';
+    }
+    Array.from(document.querySelectorAll?.('[data-i18n]') || []).forEach((element) => {
+      element.textContent = t(element.dataset.i18n);
+    });
+    Array.from(document.querySelectorAll?.('[data-i18n-aria]') || []).forEach((element) => {
+      element.setAttribute('aria-label', t(element.dataset.i18nAria));
+    });
+    Array.from(document.querySelectorAll?.('[data-ad-slot]') || []).forEach((element) => {
+      element.setAttribute?.('aria-label', t('advertisement'));
+      Array.from(element.querySelectorAll?.('img') || []).forEach((image) => image.setAttribute('alt', t('advertisement')));
+      Array.from(element.querySelectorAll?.('a') || []).forEach((link) => link.setAttribute('aria-label', t('advertisement')));
+    });
+    if (titleEl && !params.get('title')) titleEl.textContent = t('stream');
+    if (copyEmbed) copyEmbed.textContent = t('copyIframe');
+  }
 
   function escapeHtml(value) {
     return String(value)
@@ -96,15 +138,15 @@
       return;
     }
 
-    const title = tgPopupConfig.title || 'Telegram';
-    const message = tgPopupConfig.message || 'Join our Telegram updates.';
-    const buttonLabel = tgPopupConfig.buttonLabel || 'Open Telegram';
+    const title = tgPopupConfig.titleByLang?.[uiLocale] || (uiLocale === 'en' ? tgPopupConfig.title : '') || t('telegramTitle');
+    const message = tgPopupConfig.messageByLang?.[uiLocale] || (uiLocale === 'en' ? tgPopupConfig.message : '') || t('telegramMessage');
+    const buttonLabel = tgPopupConfig.buttonLabelByLang?.[uiLocale] || (uiLocale === 'en' ? tgPopupConfig.buttonLabel : '') || t('openTelegram');
     const delayMs = Math.max(0, Number(tgPopupConfig.delayMs) || 0);
 
     tgPopup.innerHTML = `
       <section class="tg-popup-card" role="dialog" aria-label="${escapeHtml(title)}">
-        <button class="tg-popup-close" type="button" data-tg-close aria-label="Close">×</button>
-        <p class="tg-popup-kicker">Community</p>
+        <button class="tg-popup-close" type="button" data-tg-close aria-label="${escapeHtml(t('close'))}">×</button>
+        <p class="tg-popup-kicker">${escapeHtml(t('community'))}</p>
         <h2>${escapeHtml(title)}</h2>
         <p>${escapeHtml(message)}</p>
         <a class="button tg-popup-button" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(buttonLabel)}</a>
@@ -251,7 +293,7 @@
             id: `config-${matchId}-${index}`,
             url: stream,
             source_type: inferType(stream),
-            label: 'Configured stream',
+            label: t('configuredStream'),
             language_code: preferredLang,
             region: preferredRegion,
             priority: 100 - index,
@@ -264,7 +306,7 @@
           id: stream.id || `config-${matchId}-${index}`,
           url: stream.url,
           source_type: stream.source_type || stream.sourceType || inferType(stream.url),
-          label: stream.label || 'Configured stream',
+          label: stream.label || t('configuredStream'),
           language_code: stream.language_code || stream.languageCode || preferredLang,
           region: stream.region || preferredRegion,
           priority: typeof stream.priority === 'number' ? stream.priority : 100 - index,
@@ -397,7 +439,7 @@
     const isDami = isDamiEmbedUrl(stream.url);
     const iframe = document.createElement('iframe');
     iframe.src = isDami && config.damiEmbedProxyEnabled === true ? damiEmbedProxyUrl(stream.url) : stream.url;
-    iframe.title = stream.title || stream.label || 'Stream player';
+    iframe.title = stream.title || stream.label || t('streamPlayer');
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
     iframe.allowFullscreen = true;
     iframe.referrerPolicy = stream.referrer_policy || stream.referrerPolicy || 'no-referrer-when-downgrade';
@@ -423,7 +465,7 @@
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'stream-play-button';
-    button.setAttribute('aria-label', 'Play stream');
+    button.setAttribute('aria-label', t('playStream'));
     if (typeof button.addEventListener !== 'function') return;
     button.addEventListener('click', (event) => {
       event.preventDefault();
@@ -809,13 +851,13 @@
   async function playStream(index) {
     const stream = currentStreams[index];
     if (!stream) return;
-    titleEl.textContent = stream.title || stream.label || params.get('title') || 'Stream';
+    titleEl.textContent = stream.title || stream.label || params.get('title') || t('stream');
     if (stream.source_type === 'iframe') {
       renderIframe(stream);
       return;
     }
     if (stream.source_type === 'dami-channel') {
-      stage.innerHTML = '<div class="player-empty">Loading stream...</div>';
+      stage.innerHTML = `<div class="player-empty">${escapeHtml(t('loadingStream'))}</div>`;
       try {
         renderHls(await resolveDamiChannel(stream));
       } catch {
@@ -850,7 +892,7 @@
       .join('');
     sourceSelect.value = String(initialIndex);
     sourceSelect.hidden = currentStreams.length < 2;
-    titleEl.textContent = title || params.get('title') || 'Stream';
+    titleEl.textContent = title || params.get('title') || t('stream');
     controls.hidden = false;
     playStream(initialIndex);
   }
@@ -865,13 +907,13 @@
           id: params.get('source') || 'direct',
           url: directUrl,
           source_type: directType,
-          label: params.get('title') || 'English iframe',
+          label: params.get('title') || t('englishIframe'),
           language_code: preferredLang,
           priority: 100,
           is_active: true,
         },
       ],
-      params.get('title') || 'Stream',
+      params.get('title') || t('stream'),
     );
     return true;
   }
@@ -891,10 +933,10 @@
     notice.className = 'adblock-modal';
     notice.innerHTML = `
       <div class="adblock-modal-backdrop" data-adblock-close></div>
-      <section class="adblock-dialog" role="dialog" aria-modal="true" aria-label="Ad blocker detected">
-        <h2>Ad blocker detected</h2>
-        <p>KingLive is supported by sponsor banners. Please disable your ad blocker for this site to keep streams and match updates available.</p>
-        <button class="button" type="button" data-adblock-close>Continue</button>
+      <section class="adblock-dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(t('adblockTitle'))}">
+        <h2>${escapeHtml(t('adblockTitle'))}</h2>
+        <p>${escapeHtml(t('adblockMessage'))}</p>
+        <button class="button" type="button" data-adblock-close>${escapeHtml(t('continue'))}</button>
       </section>
     `;
     notice.addEventListener('click', (event) => {
@@ -946,7 +988,7 @@
     const normalized = Math.max(1, Math.round(count));
     const formatted = normalized.toLocaleString('en-US');
     viewerCountEl.textContent = formatted;
-    viewerCountEl.setAttribute?.('aria-label', `${formatted} watching`);
+    viewerCountEl.setAttribute?.('aria-label', `${formatted} ${t('watching')}`);
     viewerCountEl.hidden = false;
   }
 
@@ -1011,8 +1053,8 @@
       if (!configuredStreams.length) throw error;
     }
 
-    const home = match?.home_team?.name_en || 'TBD';
-    const away = match?.away_team?.name_en || 'TBD';
+    const home = match?.home_team?.name_en || t('tbd');
+    const away = match?.away_team?.name_en || t('tbd');
     const streams = mergeStreams([configuredStreams, match?.streams || []]);
     setStreams(streams, `${home} vs ${away}`);
     if (currentStreams.length && !isPreviewMode) startViewerHeartbeat(matchId);
@@ -1031,12 +1073,12 @@
       const code = `<iframe src="${window.location.href}" width="960" height="540" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
       try {
         await navigator.clipboard.writeText(code);
-        copyEmbed.textContent = 'Copied';
+        copyEmbed.textContent = t('copied');
         setTimeout(() => {
-          copyEmbed.textContent = 'Copy iframe';
+          copyEmbed.textContent = t('copyIframe');
         }, 1600);
       } catch {
-        window.prompt('Copy iframe code', code);
+        window.prompt(t('copyIframeCode'), code);
       }
     });
   }
@@ -1045,6 +1087,7 @@
     const key = adSlotKeys[slot.dataset.adSlot];
     if (key && adSlots[key]) slot.innerHTML = adSlots[key];
   });
+  localizePlayerChrome();
   setupSocialDock();
   if (!isPreviewMode) detectAdblock();
 

@@ -3,6 +3,21 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
 
+const playerSource = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
+
+function translationKeys(locale) {
+  const block = playerSource.match(new RegExp(`    ${locale}: \\{([\\s\\S]*?)\\n    \\},`));
+  assert.ok(block, `missing ${locale} translation block`);
+  return [...block[1].matchAll(/\b([A-Za-z0-9_]+):/g)].map((match) => match[1]).sort();
+}
+
+test('all player locales expose the same translation keys', () => {
+  const englishKeys = translationKeys('en');
+  for (const locale of ['es', 'fr', 'ar', 'mn']) {
+    assert.deepEqual(translationKeys(locale), englishKeys);
+  }
+});
+
 const appSource = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
 const arabicTelegramUrl = 'https://t.me/worldcup_live2026arabia';
 const arabicYoutubeUrl =

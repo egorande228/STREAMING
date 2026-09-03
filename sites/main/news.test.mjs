@@ -5,6 +5,22 @@ import vm from 'node:vm';
 
 const newsSource = readFileSync(new URL('./news.js', import.meta.url), 'utf8');
 
+function translationKeys(locale) {
+  const block = newsSource.match(new RegExp(`    ${locale}: \\{([\\s\\S]*?)\\n    \\},`));
+  assert.ok(block, `missing ${locale} translation block`);
+  return [...block[1].matchAll(/^      ([A-Za-z0-9_]+):/gm)].map((match) => match[1]).sort();
+}
+
+test('all news-page locales expose the same translation keys', () => {
+  const englishKeys = translationKeys('en');
+  for (const locale of ['es', 'fr', 'ar', 'mn']) {
+    assert.deepEqual(translationKeys(locale), englishKeys);
+  }
+  assert.match(newsSource, /url\.searchParams\.set\('lang', uiLocale\)/);
+  assert.match(newsSource, /if \(uiLocale === 'mn'\) return false;/);
+  assert.doesNotMatch(newsSource, /← Back to news/);
+});
+
 test('renders a selected RSS news item on an internal story page', async () => {
   let articleHtml = '';
   let title = '';

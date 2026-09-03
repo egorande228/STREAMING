@@ -11,6 +11,21 @@ const sharedTelegramUrl = 'https://t.me/Teamcash_x_Melbet_Asia';
 const staleArabicSocialHandlePattern = new RegExp(`worldcup(?:${['2026', 'arabworld'].join('')}|${['_', 'arabia'].join('')})`);
 const staleMongolianInstagramHandle = ['worldcuplive', 'mongolia', 'melbet'].join('_');
 
+function translationKeys(source, locale, terminator) {
+  const block = source.match(new RegExp(`    ${locale}: \\{([\\s\\S]*?)\\n    \\}${terminator}`));
+  assert.ok(block, `missing ${locale} translation block`);
+  return [...block[1].matchAll(/^      ([A-Za-z0-9_]+):/gm)].map((match) => match[1]).sort();
+}
+
+test('all main-site locales expose the same translation keys', () => {
+  const englishKeys = translationKeys(appSource, 'en', ',');
+  for (const locale of ['es', 'fr', 'ar', 'mn']) {
+    assert.deepEqual(translationKeys(appSource, locale, ','), englishKeys);
+  }
+  assert.match(appSource, /url\.searchParams\.set\('lang', uiLocale\)/);
+  assert.match(appSource, /if \(uiLocale === 'mn'\) return false;/);
+});
+
 test('initial schedule load uses three nearby days before a batched future fallback', () => {
   assert.match(appSource, /const schedule = await fetchInitialScheduleMatches\(today, options\);/);
   assert.match(appSource, /const initial = await fetchMatchDayMatches\(today, options\);/);

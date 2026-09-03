@@ -20,18 +20,18 @@
     <main class="shell">
       <section class="watch-layout">
         <div class="watch-main">
-          <section class="ad-shell ad-leaderboard" data-ad-slot="player-top" data-ad-size="728x90">
-            <span>Advertisement</span>
+          <section class="ad-shell ad-leaderboard" data-ad-slot="player-top" data-ad-size="728x90" aria-label="Advertisement">
+            <span data-i18n="advertisement">Advertisement</span>
             <strong>728 x 90</strong>
           </section>
           <div class="player-grid">
-            <section class="player-panel" aria-label="Stream player">
+            <section class="player-panel" data-i18n-aria="streamPlayer" aria-label="Stream player">
               <header class="player-brand">
-                <a class="brand" href="../main/" aria-label="KingLive home">
+                <a class="brand" href="../main/" data-i18n-aria="home" aria-label="KingLive home">
                   <span class="brand-mark">K</span>
                   <span>
                     <span class="brand-kicker">KingLive</span>
-                    <strong>Player</strong>
+                    <strong data-i18n="player">Player</strong>
                   </span>
                 </a>
                 <span class="viewer-count viewer-count-header" id="viewer-count" aria-live="polite" hidden></span>
@@ -40,12 +40,12 @@
               </div>
               <div class="controls" id="controls" hidden>
                 <div>
-                  <p class="eyebrow">Now playing</p>
+                  <p class="eyebrow" data-i18n="nowPlaying">Now playing</p>
                   <h1 id="title">Stream</h1>
                 </div>
                 <div class="control-row">
                   <label>
-                    Source
+                    <span data-i18n="source">Source</span>
                     <select id="source-select"></select>
                   </label>
                   <button class="button" id="copy-embed" type="button">Copy iframe</button>
@@ -54,19 +54,19 @@
             </section>
 
           </div>
-          <section class="ad-shell ad-leaderboard" data-ad-slot="player-bottom" data-ad-size="728x90">
-            <span>Advertisement</span>
+          <section class="ad-shell ad-leaderboard" data-ad-slot="player-bottom" data-ad-size="728x90" aria-label="Advertisement">
+            <span data-i18n="advertisement">Advertisement</span>
             <strong>728 x 90</strong>
           </section>
         </div>
-        <aside class="ad-shell ad-rail" data-ad-slot="player-rail" data-ad-size="300x600">
-          <span>Advertisement</span>
+        <aside class="ad-shell ad-rail" data-ad-slot="player-rail" data-ad-size="300x600" aria-label="Advertisement">
+          <span data-i18n="advertisement">Advertisement</span>
           <strong>300 x 600</strong>
         </aside>
       </section>
       <div class="tg-popup" id="tg-popup" hidden></div>
-      <aside class="social-dock" data-social-dock aria-label="Social contacts">
-        <button class="social-dock-toggle" type="button" data-social-toggle aria-expanded="false" aria-label="Social contacts">
+      <aside class="social-dock" data-social-dock data-i18n-aria="socialContacts" aria-label="Social contacts">
+        <button class="social-dock-toggle" type="button" data-social-toggle data-i18n-aria="socialContacts" aria-expanded="false" aria-label="Social contacts">
           <span>+</span>
         </button>
         <div class="social-dock-panel" data-social-panel></div>

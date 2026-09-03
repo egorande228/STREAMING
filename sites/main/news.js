@@ -24,6 +24,11 @@
       fallbackMetaSource: 'Football',
       noText: 'News text is not available right now.',
       localeCode: 'EN',
+      primaryNavigation: 'Primary navigation',
+      colorTheme: 'Color theme',
+      lightTheme: 'Light',
+      darkTheme: 'Dark',
+      language: 'Language',
     },
     es: {
       brandTitle: 'Noticias',
@@ -40,6 +45,11 @@
       fallbackMetaSource: 'Fútbol',
       noText: 'El texto de la noticia no está disponible ahora.',
       localeCode: 'ES',
+      primaryNavigation: 'Navegación principal',
+      colorTheme: 'Tema de color',
+      lightTheme: 'Claro',
+      darkTheme: 'Oscuro',
+      language: 'Idioma',
     },
     fr: {
       brandTitle: 'Actualités',
@@ -56,6 +66,11 @@
       fallbackMetaSource: 'Football',
       noText: 'Le texte de l’article n’est pas disponible pour le moment.',
       localeCode: 'FR',
+      primaryNavigation: 'Navigation principale',
+      colorTheme: 'Thème de couleur',
+      lightTheme: 'Clair',
+      darkTheme: 'Sombre',
+      language: 'Langue',
     },
     ar: {
       brandTitle: 'الأخبار',
@@ -72,6 +87,32 @@
       fallbackMetaSource: 'كرة القدم',
       noText: 'نص الخبر غير متاح حالياً.',
       localeCode: 'AR',
+      primaryNavigation: 'التنقل الرئيسي',
+      colorTheme: 'نمط الألوان',
+      lightTheme: 'فاتح',
+      darkTheme: 'داكن',
+      language: 'اللغة',
+    },
+    mn: {
+      brandTitle: 'Мэдээ',
+      navHome: 'Нүүр',
+      navSchedule: 'Хуваарь',
+      navNews: 'Мэдээ',
+      loadingNews: 'Мэдээ ачаалж байна',
+      kicker: 'Хөлбөмбөгийн хэмнэл',
+      notFoundTitle: 'Мэдээ олдсонгүй',
+      notFoundLead: 'Мэдээ шилжсэн эсвэл RSS сувгаас устсан байж болзошгүй.',
+      backToNews: 'Мэдээ рүү буцах',
+      fallbackSource: 'Хөлбөмбөгийн мэдээ',
+      fallbackTitle: 'Хөлбөмбөгийн мэдээ',
+      fallbackMetaSource: 'Хөлбөмбөг',
+      noText: 'Мэдээний текст одоогоор боломжгүй байна.',
+      localeCode: 'MN',
+      primaryNavigation: 'Үндсэн цэс',
+      colorTheme: 'Өнгөний горим',
+      lightTheme: 'Цайвар',
+      darkTheme: 'Бараан',
+      language: 'Хэл',
     },
   };
   const uiLocale = resolveLocale();
@@ -154,29 +195,30 @@
   function localizedNewsUrl() {
     try {
       const url = new URL(String(newsApiUrl), window.location.href);
-      url.searchParams.set('lang', uiLocale === 'ar' ? 'ar' : 'en');
+      url.searchParams.set('lang', uiLocale);
       return url.toString();
     } catch {
       const fallback = `${apiBase}/api/news?limit=12`;
-      return `${fallback}&lang=${uiLocale === 'ar' ? 'ar' : 'en'}`;
+      return `${fallback}&lang=${encodeURIComponent(uiLocale)}`;
     }
   }
 
   function resolveLocale() {
     const fromQuery = params.get('lang');
-    if (fromQuery === 'en' || fromQuery === 'ar' || fromQuery === 'es' || fromQuery === 'fr') return fromQuery;
+    if (fromQuery === 'en' || fromQuery === 'ar' || fromQuery === 'es' || fromQuery === 'fr' || fromQuery === 'mn') return fromQuery;
     try {
       const stored = window.localStorage?.getItem('kinglive_locale');
-      if (stored === 'en' || stored === 'ar' || stored === 'es' || stored === 'fr') return stored;
+      if (stored === 'en' || stored === 'ar' || stored === 'es' || stored === 'fr' || stored === 'mn') return stored;
     } catch {}
     const defaultLocale = String(config.defaultLocale || 'en').toLowerCase();
-    if (defaultLocale === 'en' || defaultLocale === 'ar' || defaultLocale === 'es' || defaultLocale === 'fr') {
+    if (defaultLocale === 'en' || defaultLocale === 'ar' || defaultLocale === 'es' || defaultLocale === 'fr' || defaultLocale === 'mn') {
       return defaultLocale;
     }
     const language = String((window.navigator && window.navigator.language) || '').toLowerCase();
     if (language.startsWith('fr')) return 'fr';
     if (language.startsWith('es')) return 'es';
     if (language.startsWith('ar')) return 'ar';
+    if (language.startsWith('mn')) return 'mn';
     return 'en';
   }
 
@@ -187,6 +229,7 @@
       { code: 'es', label: 'ESPAÑOL', lang: 'es' },
       { code: 'fr', label: 'FRANÇAIS', lang: 'fr' },
       { code: 'ar', label: 'العربية', lang: 'ar', dir: 'rtl' },
+      { code: 'mn', label: 'Монгол', lang: 'mn' },
     ];
     const localeFlag = (code) => `<span class="locale-flag locale-flag-${escapeHtml(code)}" aria-hidden="true"></span>`;
     const localeLabel = (item) => `<span class="locale-label" lang="${escapeHtml(item.lang || item.code)}" dir="${escapeHtml(item.dir || 'auto')}">${escapeHtml(item.label)}</span>`;
@@ -285,6 +328,17 @@
     setText('nav-news-news', t('navNews'));
     setText('news-kicker', t('kicker'));
     setText('news-loading-title', t('loadingNews'));
+    const nav = typeof document.querySelector === 'function' ? document.querySelector('.nav') : null;
+    nav?.setAttribute?.('aria-label', t('primaryNavigation'));
+    const themeSwitch = typeof document.querySelector === 'function' ? document.querySelector('[data-theme-switch]') : null;
+    themeSwitch?.setAttribute?.('aria-label', t('colorTheme'));
+    const lightTheme = typeof document.querySelector === 'function' ? document.querySelector('[data-theme-option="light"]') : null;
+    lightTheme?.setAttribute?.('aria-label', t('lightTheme'));
+    lightTheme?.setAttribute?.('title', t('lightTheme'));
+    const darkTheme = typeof document.querySelector === 'function' ? document.querySelector('[data-theme-option="dark"]') : null;
+    darkTheme?.setAttribute?.('aria-label', t('darkTheme'));
+    darkTheme?.setAttribute?.('title', t('darkTheme'));
+    localeButton?.setAttribute?.('aria-label', t('language'));
   }
 
   function escapeHtml(value) {
@@ -297,6 +351,7 @@
   }
 
   function hasCyrillic(value) {
+    if (uiLocale === 'mn') return false;
     return /[\u0400-\u04FF]/.test(String(value || ''));
   }
 
@@ -377,6 +432,7 @@
         es: 'es-ES',
         fr: 'fr-FR',
         ar: 'ar-SA',
+        mn: 'mn-MN',
       };
       return new Intl.DateTimeFormat(dateLocales[uiLocale] || 'en-GB', {
         month: 'short',
@@ -428,7 +484,7 @@
     const title = cleanText(item.title, t('fallbackTitle'));
     document.title = `${title} | KingLive`;
     article.innerHTML = `
-      <a class="story-back" href="./#news-title">← Back to news</a>
+      <a class="story-back" href="./#news-title">← ${escapeHtml(t('backToNews'))}</a>
       <p class="section-kicker">${escapeHtml(cleanText(item.source, t('fallbackSource')))}</p>
       <h1>${escapeHtml(title)}</h1>
       <div class="news-meta story-meta">

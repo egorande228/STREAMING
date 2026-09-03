@@ -57,6 +57,7 @@
       yellowCards: 'Yellow cards',
       redCards: 'Red cards',
       wins: 'Wins',
+      draw: 'Draw',
       draws: 'Draws',
       goals: 'Goals',
       worldCup: 'World Cup 26',
@@ -73,6 +74,24 @@
       liveStreamTitle: 'Live stream',
       watchInLanguage: 'Watch in',
       sponsored: 'Sponsored',
+      scoreboard: 'Scoreboard',
+      adblockTitle: 'Ad blocker detected',
+      adblockMessage: 'KingLive is supported by sponsor banners. Please disable your ad blocker for this site to keep streams and match updates available.',
+      continue: 'Continue',
+      tbd: 'TBD',
+      firstScore: 'First score',
+      streak: 'Streak',
+      fact: 'Fact',
+      kickoffSoon: 'Kickoff soon',
+      countdown: 'Countdown',
+      over: 'Over',
+      under: 'Under',
+      primaryNavigation: 'Primary navigation',
+      colorTheme: 'Color theme',
+      lightTheme: 'Light',
+      darkTheme: 'Dark',
+      language: 'Language',
+      socialContacts: 'Social contacts',
       status_live: 'live',
       status_half_time: 'half time',
       status_scheduled: 'scheduled',
@@ -123,6 +142,7 @@
       yellowCards: 'Tarjetas amarillas',
       redCards: 'Tarjetas rojas',
       wins: 'Victorias',
+      draw: 'Empate',
       draws: 'Empates',
       goals: 'Goles',
       worldCup: 'Mundial 26',
@@ -138,6 +158,25 @@
       watchStream: 'Abrir player',
       liveStreamTitle: 'Transmisión en vivo',
       watchInLanguage: 'Ver en',
+      sponsored: 'Patrocinado',
+      scoreboard: 'Marcador',
+      adblockTitle: 'Bloqueador de anuncios detectado',
+      adblockMessage: 'KingLive se financia mediante banners de patrocinadores. Desactiva el bloqueador de anuncios en este sitio para mantener disponibles las transmisiones y las actualizaciones de los partidos.',
+      continue: 'Continuar',
+      tbd: 'Por confirmar',
+      firstScore: 'Primer gol',
+      streak: 'Racha',
+      fact: 'Dato',
+      kickoffSoon: 'El partido comenzará pronto',
+      countdown: 'Cuenta atrás',
+      over: 'Más de',
+      under: 'Menos de',
+      primaryNavigation: 'Navegación principal',
+      colorTheme: 'Tema de color',
+      lightTheme: 'Claro',
+      darkTheme: 'Oscuro',
+      language: 'Idioma',
+      socialContacts: 'Contactos sociales',
       status_live: 'en vivo',
       status_half_time: 'descanso',
       status_scheduled: 'programado',
@@ -188,6 +227,7 @@
       yellowCards: 'Cartons jaunes',
       redCards: 'Cartons rouges',
       wins: 'Victoires',
+      draw: 'Nul',
       draws: 'Nuls',
       goals: 'Buts',
       worldCup: 'Coupe du monde 26',
@@ -203,6 +243,25 @@
       watchStream: 'Ouvrir le player',
       liveStreamTitle: 'Stream en direct',
       watchInLanguage: 'Regarder en',
+      sponsored: 'Sponsorisé',
+      scoreboard: 'Tableau d’affichage',
+      adblockTitle: 'Bloqueur de publicités détecté',
+      adblockMessage: 'KingLive est financé par les bannières de ses sponsors. Désactivez votre bloqueur de publicités pour ce site afin de conserver l’accès aux streams et aux mises à jour des matchs.',
+      continue: 'Continuer',
+      tbd: 'À confirmer',
+      firstScore: 'Premier but',
+      streak: 'Série',
+      fact: 'Fait',
+      kickoffSoon: 'Coup d’envoi imminent',
+      countdown: 'Compte à rebours',
+      over: 'Plus de',
+      under: 'Moins de',
+      primaryNavigation: 'Navigation principale',
+      colorTheme: 'Thème de couleur',
+      lightTheme: 'Clair',
+      darkTheme: 'Sombre',
+      language: 'Langue',
+      socialContacts: 'Réseaux sociaux',
       status_live: 'en direct',
       status_half_time: 'mi-temps',
       status_scheduled: 'programmé',
@@ -253,6 +312,7 @@
       yellowCards: 'بطاقات صفراء',
       redCards: 'بطاقات حمراء',
       wins: 'الانتصارات',
+      draw: 'تعادل',
       draws: 'التعادلات',
       goals: 'الأهداف',
       worldCup: 'كأس العالم 26',
@@ -268,6 +328,25 @@
       watchStream: 'فتح المشغل',
       liveStreamTitle: 'البث المباشر',
       watchInLanguage: 'شاهد باللغة',
+      sponsored: 'برعاية',
+      scoreboard: 'لوحة النتائج',
+      adblockTitle: 'تم اكتشاف مانع إعلانات',
+      adblockMessage: 'يعتمد KingLive على إعلانات الرعاة. يرجى تعطيل مانع الإعلانات لهذا الموقع للحفاظ على توفر البث وتحديثات المباريات.',
+      continue: 'متابعة',
+      tbd: 'يحدد لاحقًا',
+      firstScore: 'الهدف الأول',
+      streak: 'السلسلة',
+      fact: 'معلومة',
+      kickoffSoon: 'ستبدأ المباراة قريبًا',
+      countdown: 'الوقت المتبقي',
+      over: 'أكثر من',
+      under: 'أقل من',
+      primaryNavigation: 'التنقل الرئيسي',
+      colorTheme: 'نمط الألوان',
+      lightTheme: 'فاتح',
+      darkTheme: 'داكن',
+      language: 'اللغة',
+      socialContacts: 'حسابات التواصل',
       status_live: 'مباشر',
       status_half_time: 'استراحة',
       status_scheduled: 'مجدولة',
@@ -318,6 +397,7 @@
       yellowCards: 'Шар карт',
       redCards: 'Улаан карт',
       wins: 'Ялалт',
+      draw: 'Тэнцээ',
       draws: 'Тэнцээ',
       goals: 'Гоол',
       worldCup: 'World Cup 26',
@@ -334,6 +414,24 @@
       liveStreamTitle: 'Шууд дамжуулалт',
       watchInLanguage: 'Үзэх хэл',
       sponsored: 'Ивээн тэтгэсэн',
+      scoreboard: 'Онооны самбар',
+      adblockTitle: 'Зар хориглогч илэрлээ',
+      adblockMessage: 'KingLive нь ивээн тэтгэгчийн баннераар дэмжигддэг. Шууд дамжуулалт болон тоглолтын шинэчлэлтийг үзэхийн тулд энэ сайтад зар хориглогчоо унтраана уу.',
+      continue: 'Үргэлжлүүлэх',
+      tbd: 'Тодорхойгүй',
+      firstScore: 'Эхний гоол',
+      streak: 'Цуврал',
+      fact: 'Баримт',
+      kickoffSoon: 'Тоглолт удахгүй эхэлнэ',
+      countdown: 'Үлдсэн хугацаа',
+      over: 'Их',
+      under: 'Бага',
+      primaryNavigation: 'Үндсэн цэс',
+      colorTheme: 'Өнгөний горим',
+      lightTheme: 'Цайвар',
+      darkTheme: 'Бараан',
+      language: 'Хэл',
+      socialContacts: 'Сошиал холбоос',
       status_live: 'шууд',
       status_half_time: 'завсарлага',
       status_scheduled: 'товлогдсон',
@@ -836,11 +934,30 @@
     setText('news-kicker', t('newsKicker'));
     setText('news-title-prefix', t('newsTitlePrefix'));
     setText('news-title-accent', t('newsTitleAccent'));
+    const nav = typeof document.querySelector === 'function' ? document.querySelector('.nav') : null;
+    nav?.setAttribute?.('aria-label', t('primaryNavigation'));
+    const themeSwitch = typeof document.querySelector === 'function' ? document.querySelector('[data-theme-switch]') : null;
+    themeSwitch?.setAttribute?.('aria-label', t('colorTheme'));
+    const lightTheme = typeof document.querySelector === 'function' ? document.querySelector('[data-theme-option="light"]') : null;
+    lightTheme?.setAttribute?.('aria-label', t('lightTheme'));
+    lightTheme?.setAttribute?.('title', t('lightTheme'));
+    const darkTheme = typeof document.querySelector === 'function' ? document.querySelector('[data-theme-option="dark"]') : null;
+    darkTheme?.setAttribute?.('aria-label', t('darkTheme'));
+    darkTheme?.setAttribute?.('title', t('darkTheme'));
+    localeButton?.setAttribute?.('aria-label', t('language'));
+    const socialDock = typeof document.querySelector === 'function' ? document.querySelector('[data-social-dock]') : null;
+    socialDock?.setAttribute?.('aria-label', t('socialContacts'));
+    const socialToggle = typeof document.querySelector === 'function' ? document.querySelector('[data-social-toggle]') : null;
+    socialToggle?.setAttribute?.('aria-label', t('socialContacts'));
     const topBannerSrcKey = uiLocale === 'ar' ? 'arSrc' : 'enSrc';
     Array.from(document.querySelectorAll?.('[data-locale-top-banner]') || []).forEach((image) => {
       const nextSrc = image.dataset?.[topBannerSrcKey] || image.dataset?.enSrc;
       if (nextSrc && image.getAttribute('src') !== nextSrc) image.setAttribute('src', nextSrc);
       image.setAttribute('alt', t('sponsored'));
+    });
+    Array.from(document.querySelectorAll?.('[data-ad-slot], .sponsor-slot') || []).forEach((slot) => {
+      slot.setAttribute?.('aria-label', t('sponsored'));
+      Array.from(slot.querySelectorAll?.('img') || []).forEach((image) => image.setAttribute('alt', t('sponsored')));
     });
 
     const controls = typeof document.querySelector === 'function' ? document.querySelector('.carousel-controls') : null;
@@ -863,13 +980,19 @@
     Object.entries(params).forEach(([key, value]) => {
       if (value) url.searchParams.set(key, value);
     });
-    if (!url.searchParams.has('lang')) url.searchParams.set('lang', defaultLocale);
+    if (!url.searchParams.has('lang')) url.searchParams.set('lang', uiLocale);
     url.searchParams.set('v', '20260611-chat-live');
     return url.toString();
   }
 
   function streamLanguageLabel(stream = {}, index = 0) {
     const code = String(stream.language_code || stream.languageCode || stream.lang || '').toLowerCase();
+    try {
+      if (code && typeof Intl.DisplayNames === 'function') {
+        const localized = new Intl.DisplayNames([uiLocale], { type: 'language' }).of(code);
+        if (localized) return localized;
+      }
+    } catch {}
     const labels = {
       ar: 'Arabic',
       en: 'English',
@@ -1097,6 +1220,7 @@
   }
 
   function hasCyrillic(value) {
+    if (uiLocale === 'mn') return false;
     return /[\u0400-\u04FF]/.test(String(value || ''));
   }
 
@@ -1172,8 +1296,8 @@
   }
 
   function teamName(team) {
-    if (!team) return 'TBD';
-    return cleanText(team.name_en, cleanText(team.code, 'TBD'));
+    if (!team) return t('tbd');
+    return cleanText(team.name_en, cleanText(team.code, t('tbd')));
   }
 
   function leagueName(match) {
@@ -1194,7 +1318,7 @@
   }
 
   function placeName(value) {
-    return cleanText(value, 'TBD');
+    return cleanText(value, t('tbd'));
   }
 
   function teamLogo(team) {
@@ -1242,7 +1366,7 @@
         timeZone: timeZoneLabels[uiLocale] || timeZoneLabels.en,
       };
     } catch {
-      return { dateTime: value || 'TBD', timeZone: '' };
+      return { dateTime: value || t('tbd'), timeZone: '' };
     }
   }
 
@@ -1502,7 +1626,7 @@
     const players = sorted.map((item, index) => {
       const slotClass = formationClass(item, index);
       const number = item.number ? escapeHtml(item.number) : '-';
-      const fullName = cleanText(item.player_name, 'TBD');
+      const fullName = cleanText(item.player_name, t('tbd'));
       const name = escapeHtml(fullName);
       const photo = item.image_url
         ? `<img class="formation-avatar" src="${escapeHtml(item.image_url)}" alt="" loading="lazy" />`
@@ -1530,8 +1654,8 @@
     const away = starters.filter((item) => item.team === 'away');
     if (!home.length && !away.length) return '';
     const teams = Array.isArray(stats?.team_stats) ? stats.team_stats : (Array.isArray(stats?.teams) ? stats.teams : []);
-    const homeTitle = teams[0]?.team?.name || 'Home';
-    const awayTitle = teams[1]?.team?.name || 'Away';
+    const homeTitle = teams[0]?.team?.name || t('homeWin');
+    const awayTitle = teams[1]?.team?.name || t('awayWin');
     return renderDetailAccordion(
       t('startingLineups'),
       `
@@ -1570,10 +1694,10 @@
   function factInsight(fact) {
     const value = `${fact?.title || ''} ${fact?.text || ''}`.toLowerCase();
     if (value.includes('h2h') || value.includes('head-to-head') || value.includes('head to head')) return { key: 'h2h', label: 'H2H' };
-    if (value.includes('first') && value.includes('score')) return { key: 'first-score', label: 'First score' };
-    if (value.includes('goal')) return { key: 'goals', label: 'Goals' };
-    if (value.includes('streak') || value.includes('unbeaten') || value.includes('win ')) return { key: 'streak', label: 'Streak' };
-    return { key: 'general', label: 'Fact' };
+    if (value.includes('first') && value.includes('score')) return { key: 'first-score', label: t('firstScore') };
+    if (value.includes('goal')) return { key: 'goals', label: t('goals') };
+    if (value.includes('streak') || value.includes('unbeaten') || value.includes('win ')) return { key: 'streak', label: t('streak') };
+    return { key: 'general', label: t('fact') };
   }
 
   function renderMatchDetailPanels(stats) {
@@ -1614,8 +1738,8 @@
   function melbetMarketItems(market, outcomes, homeName, awayName) {
     if (market?.key === 'total_goals') {
       return [
-        [`Over ${outcomes.over?.total || ''}`.trim(), outcomes.over],
-        [`Under ${outcomes.under?.total || ''}`.trim(), outcomes.under],
+        [`${t('over')} ${outcomes.over?.total || ''}`.trim(), outcomes.over],
+        [`${t('under')} ${outcomes.under?.total || ''}`.trim(), outcomes.under],
       ].filter(([, item]) => item);
     }
     if (market?.key === 'asian_handicap') {
@@ -1645,7 +1769,7 @@
     const kickoff = Date.parse(value || '');
     if (Number.isNaN(kickoff)) return '';
     const delta = kickoff - Date.now();
-    if (delta <= 0) return 'Kickoff soon';
+    if (delta <= 0) return t('kickoffSoon');
     const minutes = Math.ceil(delta / 60_000);
     const days = Math.floor(minutes / 1440);
     const hours = Math.floor((minutes % 1440) / 60);
@@ -1660,7 +1784,7 @@
     const countdown = kickoffCountdown(match.scheduled_at);
     const items = [
       [t('kickoff'), match.scheduled_at, 'datetime'],
-      ['Countdown', countdown, 'ltr'],
+      [t('countdown'), countdown, 'ltr'],
       [t('stage'), stageName(match), 'auto'],
       [t('venue'), placeName(match.venue), 'auto'],
       [t('city'), placeName(match.city), 'auto'],
@@ -1952,10 +2076,10 @@
     notice.className = 'adblock-modal';
     notice.innerHTML = `
       <div class="adblock-modal-backdrop" data-adblock-close></div>
-      <section class="adblock-dialog" role="dialog" aria-modal="true" aria-label="Ad blocker detected">
-        <h2>Ad blocker detected</h2>
-        <p>KingLive is supported by sponsor banners. Please disable your ad blocker for this site to keep streams and match updates available.</p>
-        <button class="button primary" type="button" data-adblock-close>Continue</button>
+      <section class="adblock-dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(t('adblockTitle'))}">
+        <h2>${escapeHtml(t('adblockTitle'))}</h2>
+        <p>${escapeHtml(t('adblockMessage'))}</p>
+        <button class="button primary" type="button" data-adblock-close>${escapeHtml(t('continue'))}</button>
       </section>
     `;
     notice.addEventListener('click', (event) => {
@@ -2078,7 +2202,7 @@
       <article class="match-detail" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
         <button class="detail-close" type="button" data-modal-close aria-label="${escapeHtml(t('closeMatchDetails'))}">×</button>
         <p class="section-kicker">${escapeHtml(t('matchDetails'))}</p>
-        <div class="detail-scoreboard-shell" aria-label="${escapeHtml(title)} scoreboard">
+        <div class="detail-scoreboard-shell" aria-label="${escapeHtml(title)} ${escapeHtml(t('scoreboard'))}">
           <div class="detail-scorebar">
             <div class="detail-score-team home">
               ${renderTeamLogo(match.home_team, home)}

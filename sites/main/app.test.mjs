@@ -85,6 +85,12 @@ test('does not render a public refresh matches button', () => {
   assert.doesNotMatch(indexHtml, /Refresh now/);
 });
 
+test('news section renders only the localized Latest News heading', () => {
+  assert.doesNotMatch(indexHtml, /id="news-kicker"/);
+  assert.doesNotMatch(appSource, /newsKicker/);
+  assert.match(indexHtml, /id="news-title"/);
+});
+
 test('admin API errors prefer server message details', () => {
   assert.match(adminSource, /payload\.message \|\| payload\.error/);
 });

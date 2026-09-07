@@ -25,7 +25,6 @@
       matchDayYesterday: 'Yesterday',
       matchDayToday: 'Today',
       matchDayTomorrow: 'Tomorrow',
-      newsKicker: 'Football pulse',
       newsTitlePrefix: 'Latest',
       newsTitleAccent: 'news',
       carouselPrev: 'Previous news',
@@ -110,7 +109,6 @@
       matchDayYesterday: 'Ayer',
       matchDayToday: 'Hoy',
       matchDayTomorrow: 'Mañana',
-      newsKicker: 'Pulso del fútbol',
       newsTitlePrefix: 'Últimas',
       newsTitleAccent: 'noticias',
       carouselPrev: 'Noticias anteriores',
@@ -195,7 +193,6 @@
       matchDayYesterday: 'Hier',
       matchDayToday: 'Aujourd’hui',
       matchDayTomorrow: 'Demain',
-      newsKicker: 'Pouls du football',
       newsTitlePrefix: 'Dernières',
       newsTitleAccent: 'actualités',
       carouselPrev: 'Actualités précédentes',
@@ -280,7 +277,6 @@
       matchDayYesterday: 'الأمس',
       matchDayToday: 'اليوم',
       matchDayTomorrow: 'الغد',
-      newsKicker: 'نبض الكرة',
       newsTitlePrefix: 'آخر',
       newsTitleAccent: 'الأخبار',
       carouselPrev: 'الأخبار السابقة',
@@ -365,7 +361,6 @@
       matchDayYesterday: 'Өчигдөр',
       matchDayToday: 'Өнөөдөр',
       matchDayTomorrow: 'Маргааш',
-      newsKicker: 'Хөлбөмбөгийн хэмнэл',
       newsTitlePrefix: 'Сүүлийн',
       newsTitleAccent: 'мэдээ',
       carouselPrev: 'Өмнөх мэдээ',
@@ -931,7 +926,6 @@
     setText('match-day-yesterday', t('matchDayYesterday'));
     setText('match-day-today', t('matchDayToday'));
     setText('match-day-tomorrow', t('matchDayTomorrow'));
-    setText('news-kicker', t('newsKicker'));
     setText('news-title-prefix', t('newsTitlePrefix'));
     setText('news-title-accent', t('newsTitleAccent'));
     const nav = typeof document.querySelector === 'function' ? document.querySelector('.nav') : null;

@@ -26,6 +26,12 @@ test('all main-site locales expose the same translation keys', () => {
   assert.match(appSource, /if \(uiLocale === 'mn'\) return false;/);
 });
 
+test('news section renders only the localized Latest News heading', () => {
+  assert.doesNotMatch(indexHtml, /id="news-kicker"/);
+  assert.doesNotMatch(appSource, /newsKicker/);
+  assert.match(indexHtml, /id="news-title"/);
+});
+
 test('initial schedule load uses three nearby days before a batched future fallback', () => {
   assert.match(appSource, /const schedule = await fetchInitialScheduleMatches\(today, options\);/);
   assert.match(appSource, /const initial = await fetchMatchDayMatches\(today, options\);/);

@@ -685,9 +685,14 @@ async function fetchCachedTheRundownOddsJson(match = {}, env = {}, ttl = 0, ctx 
 }
 
 async function fetchCachedTheRundownScheduleJson(date, env = {}, ttl = 0, ctx = {}) {
-  const apiUrl = buildTheRundownScheduleUrl(date, env);
-  if (!apiUrl) return { ok: false, status: 0, body: null };
-  return fetchCachedTheRundownJsonByUrl(apiUrl, env, ttl, ctx);
+  const payloads = await Promise.all(
+    theRundownScheduleSportIds(env).map(async (sportId) => {
+      const apiUrl = buildTheRundownScheduleUrl(date, env, sportId);
+      if (!apiUrl) return { ok: false, status: 0, body: null };
+      return fetchCachedTheRundownJsonByUrl(apiUrl, env, ttl, ctx);
+    }),
+  );
+  return combineTheRundownSchedulePayloads(payloads);
 }
 
 async function fetchCachedTheRundownJsonByUrl(apiUrl, env = {}, ttl = 0, ctx = {}) {
@@ -730,9 +735,14 @@ async function resolveTheRundownMatchById(matchId, env = {}, ttl = 0, ctx = {}) 
 }
 
 async function fetchTheRundownScheduleJson(date, env = {}) {
-  const apiUrl = buildTheRundownScheduleUrl(date, env);
-  if (!apiUrl) return { ok: false, status: 0, body: null };
-  return fetchTheRundownJson(apiUrl, env);
+  const payloads = await Promise.all(
+    theRundownScheduleSportIds(env).map(async (sportId) => {
+      const apiUrl = buildTheRundownScheduleUrl(date, env, sportId);
+      if (!apiUrl) return { ok: false, status: 0, body: null };
+      return fetchTheRundownJson(apiUrl, env);
+    }),
+  );
+  return combineTheRundownSchedulePayloads(payloads);
 }
 
 async function fetchTheRundownJson(apiUrl, env = {}) {
@@ -746,11 +756,26 @@ async function fetchTheRundownJson(apiUrl, env = {}) {
   }
 }
 
-function buildTheRundownScheduleUrl(date, env = {}) {
+function theRundownScheduleSportIds(env = {}) {
+  const configured = String(env.THERUNDOWN_SCHEDULE_SPORT_IDS || env.THERUNDOWN_SPORT_ID || '18');
+  return [...new Set(configured.split(',').map((value) => String(value).trim()).filter((value) => /^\d+$/.test(value)))];
+}
+
+function combineTheRundownSchedulePayloads(payloads = []) {
+  const successful = payloads.filter((payload) => payload?.ok);
+  if (!successful.length) return { ok: false, status: payloads.find((payload) => payload?.status)?.status || 0, body: null };
+  return {
+    ok: true,
+    status: 200,
+    body: { events: successful.flatMap((payload) => Array.isArray(payload.body?.events) ? payload.body.events : []) },
+  };
+}
+
+function buildTheRundownScheduleUrl(date, env = {}, sportId = '') {
   const key = String(env.THERUNDOWN_KEY || '').trim();
   if (!key || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return null;
-  const sportId = String(env.THERUNDOWN_SPORT_ID || '18').trim() || '18';
-  const url = new URL(`/api/v1/sports/${encodeURIComponent(sportId)}/events/${encodeURIComponent(date)}`, THERUNDOWN_API_BASE);
+  const resolvedSportId = String(sportId || env.THERUNDOWN_SPORT_ID || '18').trim() || '18';
+  const url = new URL(`/api/v1/sports/${encodeURIComponent(resolvedSportId)}/events/${encodeURIComponent(date)}`, THERUNDOWN_API_BASE);
   url.searchParams.set('period_id', 'full_game');
   url.searchParams.set('include', 'scores');
   url.searchParams.set('key', key);
@@ -2790,12 +2815,7 @@ function normalizeTheRundownScheduleMatch(item, env = {}, streamConfig = null) {
   return {
     id,
     external_id: item?.event_id || item?.event_uuid || id,
-    league: {
-      id: 1,
-      external_id: Number(item?.sport_id) || 18,
-      name: 'FIFA World Cup',
-      country: 'World',
-    },
+    league: theRundownLeague(item),
     stage: item?.schedule?.season_type || 'FIFA',
     venue: score.venue_name || '',
     city: score.venue_location || '',
@@ -2808,6 +2828,18 @@ function normalizeTheRundownScheduleMatch(item, env = {}, streamConfig = null) {
     away_team: normalizeTheRundownTeam(awayTeam),
     streams: streamsForFootballDataMatch(syntheticFootballDataItem, env, streamConfig),
   };
+}
+
+function theRundownLeague(item = {}) {
+  const sportId = Number(item?.sport_id);
+  const known = {
+    11: { id: 39, name: 'Premier League', country: 'England' },
+    14: { id: 140, name: 'La Liga', country: 'Spain' },
+    16: { id: 2, name: 'UEFA Champions League', country: 'Europe' },
+    18: { id: 1, name: 'FIFA World Cup', country: 'World' },
+  };
+  if (known[sportId]) return { ...known[sportId], external_id: sportId };
+  return { id: sportId || 1, external_id: sportId || 18, name: 'Football', country: 'World' };
 }
 
 function theRundownStableMatchId(item = {}) {

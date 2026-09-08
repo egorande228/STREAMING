@@ -697,6 +697,56 @@ test('falls back to TheRundown schedule when football-data.org match list is emp
   }
 });
 
+test('loads and maps La Liga from the configured TheRundown schedule sports', async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    calls.push(requestUrl);
+    if (requestUrl.includes('/sports/14/events/2026-09-12')) {
+      return new Response(JSON.stringify({
+        events: [{
+          event_id: 'laliga-test-event',
+          sport_id: 14,
+          event_date: '2026-09-12T19:00:00Z',
+          score: { event_status: 'STATUS_SCHEDULED', score_home: 0, score_away: 0 },
+          teams_normalized: [
+            { team_id: 1, name: 'Real Sociedad', abbreviation: 'RSO', is_away: true, is_home: false },
+            { team_id: 2, name: 'Real Madrid', abbreviation: 'RMA', is_away: false, is_home: true },
+          ],
+        }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({}), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/matches?date=2026-09-12'),
+      {
+        FOOTBALL_PROVIDER: 'football-data',
+        FOOTBALL_SCHEDULE_PROVIDER: 'therundown',
+        FOOTBALL_DATA_TOKEN: 'football-data-token',
+        THERUNDOWN_KEY: 'therundown-token',
+        THERUNDOWN_SCHEDULE_SPORT_IDS: '11,14,16',
+      },
+      {},
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(calls.some((call) => call.includes('/sports/11/events/2026-09-12')), true);
+    assert.equal(calls.some((call) => call.includes('/sports/14/events/2026-09-12')), true);
+    assert.equal(calls.some((call) => call.includes('/sports/16/events/2026-09-12')), true);
+    assert.equal(body.matches.length, 1);
+    assert.equal(body.matches[0].league.id, 140);
+    assert.equal(body.matches[0].league.name, 'La Liga');
+    assert.equal(body.matches[0].league.country, 'Spain');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test('uses TheRundown as primary schedule provider when configured', async () => {
   const previousFetch = globalThis.fetch;
   const calls = [];

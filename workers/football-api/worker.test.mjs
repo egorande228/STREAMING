@@ -1873,16 +1873,63 @@ test('returns deduped Sportmonks football news before RSS fallback', async () =>
   }
 });
 
+test('removes external images from Arabic Sportmonks news for the KL placeholder', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    if (requestUrl.includes('/v3/football/news/pre-match')) {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 701,
+              title: 'خبر كرة قدم عربي',
+              type: 'prematch',
+              body: 'تفاصيل الخبر العربي.',
+              image_path: 'https://cdn.test/arabic-football.png',
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (requestUrl.includes('/v3/football/news/post-match')) {
+      return new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    return new Response('unexpected rss call', { status: 500 });
+  };
+
+  try {
+    const response = await routeRequest(
+      new Request('https://kinglive.test/api/news?limit=1&lang=ar'),
+      { SPORTMONKS_TOKEN: 'token' },
+      {},
+    );
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.lang, 'ar');
+    assert.equal(body.news.length, 1);
+    assert.equal(body.news[0].image_url, '');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test('returns Arabic football RSS news when lang=ar is requested', async () => {
   const previousFetch = globalThis.fetch;
-  globalThis.fetch = async () =>
-    new Response(
+  const calls = [];
+  globalThis.fetch = async (request) => {
+    calls.push(String(request.url || request));
+    return new Response(
       `<?xml version="1.0"?>
       <rss><channel>
         <item>
           <title><![CDATA[ترامب يعلن اتفاقات تجارية]]></title>
           <description><![CDATA[ملخص سياسي غير رياضي.]]></description>
-          <link>https://www.bbc.com/arabic/articles/politics-test</link>
+          <link>https://aawsat.com/home/article/politics-test</link>
           <guid isPermaLink="false">news-guid-ar-politics</guid>
           <pubDate>Fri, 15 May 2026 12:10:00 GMT</pubDate>
         </item>
@@ -1893,20 +1940,22 @@ test('returns Arabic football RSS news when lang=ar is requested', async () => {
             <p>هذا نص الخبر الكامل.</p>
             <p>فقرة ثانية للتفاصيل.</p>
           ]]></content:encoded>
-          <link>https://news.google.com/articles/test-ar</link>
+          <link>https://aawsat.com/home/article/test-ar</link>
           <guid isPermaLink="false">news-guid-ar</guid>
           <pubDate>Fri, 15 May 2026 12:00:00 GMT</pubDate>
+          <media:thumbnail url="https://cdn.aawsat.com/football/test-ar.jpg" />
         </item>
       </channel></rss>`,
       { status: 200, headers: { 'Content-Type': 'application/rss+xml' } },
     );
+  };
 
   try {
     const response = await routeRequest(new Request('https://kinglive.test/api/news?limit=1&lang=ar'), {}, {});
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
-      source: 'BBC Arabic',
-      feed_url: 'https://feeds.bbci.co.uk/arabic/rss.xml',
+      source: 'الشرق الأوسط',
+      feed_url: 'https://aawsat.com/feed/sport',
       lang: 'ar',
       news: [
         {
@@ -1915,31 +1964,33 @@ test('returns Arabic football RSS news when lang=ar is requested', async () => {
           summary: 'ملخص الخبر.',
           full_text: 'هذا نص الخبر الكامل.\n\nفقرة ثانية للتفاصيل.',
           has_full_text: true,
-          url: 'https://news.google.com/articles/test-ar',
+          url: 'https://aawsat.com/home/article/test-ar',
           published_at: 'Fri, 15 May 2026 12:00:00 GMT',
           image_url: '',
-          source: 'BBC Arabic',
+          source: 'الشرق الأوسط',
         },
       ],
     });
+    assert.deepEqual(calls, ['https://aawsat.com/feed/sport']);
   } finally {
     globalThis.fetch = previousFetch;
   }
 });
 
-test('falls back to Google Arabic football feed when BBC Arabic filter has no football items', async () => {
+test('falls back to Google Arabic football feed when Asharq filter has no football items', async () => {
   const previousFetch = globalThis.fetch;
-  let call = 0;
-  globalThis.fetch = async () => {
-    call += 1;
-    if (call === 1) {
+  const calls = [];
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    calls.push(requestUrl);
+    if (requestUrl === 'https://aawsat.com/feed/sport') {
       return new Response(
         `<?xml version="1.0"?>
         <rss><channel>
           <item>
             <title><![CDATA[خبر سياسي عام]]></title>
             <description><![CDATA[ملخص سياسي عام بلا رياضة.]]></description>
-            <link>https://www.bbc.com/arabic/articles/politics-only</link>
+            <link>https://aawsat.com/home/article/politics-only</link>
             <guid isPermaLink="false">politics-only-guid</guid>
             <pubDate>Fri, 15 May 2026 12:10:00 GMT</pubDate>
           </item>
@@ -1975,7 +2026,51 @@ test('falls back to Google Arabic football feed when BBC Arabic filter has no fo
     assert.equal(body.lang, 'ar');
     assert.equal(body.news.length, 1);
     assert.equal(body.news[0].title, 'كرة القدم: خبر عاجل');
-    assert.equal(call, 2);
+    assert.deepEqual(calls, [
+      'https://aawsat.com/feed/sport',
+      'https://news.google.com/rss/search?q=%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85&hl=ar&gl=AE&ceid=AE:ar',
+    ]);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('falls back to Google Arabic football feed when Asharq RSS is unavailable', async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (request) => {
+    const requestUrl = String(request.url || request);
+    calls.push(requestUrl);
+    if (requestUrl === 'https://aawsat.com/feed/sport') {
+      return new Response('', { status: 503 });
+    }
+
+    return new Response(
+      `<?xml version="1.0"?>
+      <rss><channel>
+        <item>
+          <title><![CDATA[الدوري العربي: خبر عاجل]]></title>
+          <description><![CDATA[ملخص كروي من Google News.]]></description>
+          <link>https://news.google.com/articles/google-football-ar-unavailable</link>
+          <guid isPermaLink="false">google-football-unavailable-guid</guid>
+          <pubDate>Fri, 15 May 2026 12:20:00 GMT</pubDate>
+        </item>
+      </channel></rss>`,
+      { status: 200, headers: { 'Content-Type': 'application/rss+xml' } },
+    );
+  };
+
+  try {
+    const response = await routeRequest(new Request('https://kinglive.test/api/news?limit=1&lang=ar'), {}, {});
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.source, 'Google News Arabic Football');
+    assert.equal(body.news.length, 1);
+    assert.equal(body.news[0].title, 'الدوري العربي: خبر عاجل');
+    assert.deepEqual(calls, [
+      'https://aawsat.com/feed/sport',
+      'https://news.google.com/rss/search?q=%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85&hl=ar&gl=AE&ceid=AE:ar',
+    ]);
   } finally {
     globalThis.fetch = previousFetch;
   }

@@ -1545,6 +1545,8 @@ async function routeRestreamSyncList(request, env = {}) {
       const slug = normalizeSlug(restream.slug || `${matchId}-${index + 1}`);
       if (!slug) return;
       const overlays = normalizeRestreamOverlays(restream.overlays || restream.overlay);
+      const startsAt = normalizeOptionalDateTime(entry?.starts_at || entry?.startsAt);
+      const endsAt = normalizeOptionalDateTime(entry?.ends_at || entry?.endsAt);
       restreams.push({
         id: slug,
         slug,
@@ -1553,8 +1555,10 @@ async function routeRestreamSyncList(request, env = {}) {
         label: String(entry?.label || slug),
         donor_url: String(restream.donor_url),
         output_url: publicRestreamUrl(restream.output_url || entry?.url || `${restreamPublicBaseUrl(originId, env)}/${slug}/index.m3u8`),
-        desired_state: entry?.is_active === false ? 'stopped' : String(restream.desired_state || 'running'),
+        desired_state: restreamDesiredState(entry, restream, env),
         is_active: entry?.is_active !== false,
+        starts_at: startsAt,
+        ends_at: endsAt,
         channel_name: String(restream.channel_name || ''),
         transcode_profile: normalizeRestreamTranscodeProfile(restream.transcode_profile, restream.donor_url),
         overlay: overlays[0] || null,
@@ -3560,6 +3564,23 @@ function isStreamActiveNow(stream, now = Date.now()) {
   if (!Number.isNaN(startsAt) && now < startsAt) return false;
   if (!Number.isNaN(endsAt) && now > endsAt) return false;
   return true;
+}
+
+function restreamDesiredState(stream, restream, env = {}, now = Date.now()) {
+  if (stream?.is_active === false || stream?.isActive === false || String(restream?.desired_state || '').toLowerCase() === 'stopped') {
+    return 'stopped';
+  }
+
+  const startsAt = Date.parse(stream?.starts_at || stream?.startsAt || '');
+  const endsAt = Date.parse(stream?.ends_at || stream?.endsAt || '');
+  const configuredPrewarm = Number(env.RESTREAM_PREWARM_SECONDS);
+  const prewarmSeconds = Number.isFinite(configuredPrewarm)
+    ? Math.max(0, Math.min(Math.floor(configuredPrewarm), 60 * 60))
+    : 10 * 60;
+
+  if (!Number.isNaN(startsAt) && now < startsAt - prewarmSeconds * 1000) return 'stopped';
+  if (!Number.isNaN(endsAt) && now > endsAt) return 'stopped';
+  return 'running';
 }
 
 function inferStreamType(url) {

@@ -107,6 +107,14 @@ KINGLIVE_WATCHDOG_COOLDOWN_SECONDS=180
 KINGLIVE_WATCHDOG_FRAME_CHECK=true
 ```
 
+## Scheduled Match Restreams
+
+For an admin stream with both `Start` and `End`, the Worker returns `desired_state: stopped`
+to the origin sync until ten minutes before `Start`, then `running` through `End`, and
+`stopped` after it. The stream is still public only during its exact `Start`–`End` window.
+Streams without a schedule retain the existing always-running behavior. Set the Worker
+variable `RESTREAM_PREWARM_SECONDS` (0–3600) to override the ten-minute prewarm.
+
 ## Admin Stream Settings
 
 For a restreamed IPTV channel use:

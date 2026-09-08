@@ -2789,6 +2789,55 @@ test('converts IPTV donor streams into private restream definitions', async () =
   assert.equal(restreamBody.restreams[0].output_url, 'https://cdn-hls.livekinglive.win/live/42-en-espn-2/index.m3u8');
 });
 
+test('schedules restream sync with a ten-minute prewarm while keeping unscheduled streams running', async () => {
+  const kv = {
+    async get() {
+      return JSON.stringify({
+        42: [
+          {
+            id: 1,
+            match_id: 42,
+            label: 'Scheduled Arabic',
+            is_active: true,
+            starts_at: '2026-09-08T18:45:00.000Z',
+            ends_at: '2026-09-08T20:45:00.000Z',
+            restream: { enabled: true, slug: '42-ar-arabic', donor_url: 'https://licensed.example/ar.m3u8' },
+          },
+          {
+            id: 2,
+            match_id: 42,
+            label: 'Always on',
+            is_active: true,
+            restream: { enabled: true, slug: '42-en-always-on', donor_url: 'https://licensed.example/en.m3u8' },
+          },
+        ],
+      });
+    },
+  };
+  const env = { RESTREAM_SYNC_TOKEN: 'sync-token', STREAM_CONFIG_KV: kv };
+  const originalDateNow = Date.now;
+  const request = new Request('https://kinglive.test/api/restreams', { headers: { Authorization: 'Bearer sync-token' } });
+
+  async function desiredStatesAt(iso) {
+    Date.now = () => Date.parse(iso);
+    const response = await routeRequest(request, env, {});
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.restreams[0].starts_at, '2026-09-08T18:45:00.000Z');
+    assert.equal(body.restreams[0].ends_at, '2026-09-08T20:45:00.000Z');
+    return body.restreams.map((stream) => stream.desired_state);
+  }
+
+  try {
+    assert.deepEqual(await desiredStatesAt('2026-09-08T18:34:59.000Z'), ['stopped', 'running']);
+    assert.deepEqual(await desiredStatesAt('2026-09-08T18:35:00.000Z'), ['running', 'running']);
+    assert.deepEqual(await desiredStatesAt('2026-09-08T19:30:00.000Z'), ['running', 'running']);
+    assert.deepEqual(await desiredStatesAt('2026-09-08T20:45:01.000Z'), ['stopped', 'running']);
+  } finally {
+    Date.now = originalDateNow;
+  }
+});
+
 test('converts generic ip m3u8 donor streams into private restream definitions', async () => {
   const kvData = new Map();
   const kv = {

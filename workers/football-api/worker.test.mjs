@@ -1863,7 +1863,7 @@ test('returns deduped Sportmonks football news before RSS fallback', async () =>
     assert.equal(body.news[0].title, 'Report: France edge Spain');
     assert.equal(body.news[1].summary, 'Brazil enter the fixture with a strong attacking run.');
     assert.equal(body.news[1].full_text, 'Brazil enter the fixture with a strong attacking run.\n\nJapan need a compact defensive shape.');
-    assert.equal(body.news[1].image_url, 'https://cdn.test/world-cup.png');
+    assert.equal(body.news[1].image_url, '');
     assert.equal(body.news[1].source, 'Sportmonks');
     assert.equal(body.news[1].fixture_id, 42);
     assert.equal(calls.every((url) => url.includes('locale=fr')), true);
@@ -1873,7 +1873,7 @@ test('returns deduped Sportmonks football news before RSS fallback', async () =>
   }
 });
 
-test('removes external images from Arabic Sportmonks news for the KL placeholder', async () => {
+test('removes external images from news in every supported locale for the KL placeholder', async () => {
   const previousFetch = globalThis.fetch;
   globalThis.fetch = async (request) => {
     const requestUrl = String(request.url || request);
@@ -1903,16 +1903,18 @@ test('removes external images from Arabic Sportmonks news for the KL placeholder
   };
 
   try {
-    const response = await routeRequest(
-      new Request('https://kinglive.test/api/news?limit=1&lang=ar'),
-      { SPORTMONKS_TOKEN: 'token' },
-      {},
-    );
-    assert.equal(response.status, 200);
-    const body = await response.json();
-    assert.equal(body.lang, 'ar');
-    assert.equal(body.news.length, 1);
-    assert.equal(body.news[0].image_url, '');
+    for (const locale of ['en', 'es', 'fr', 'ar', 'mn']) {
+      const response = await routeRequest(
+        new Request(`https://kinglive.test/api/news?limit=1&lang=${locale}`),
+        { SPORTMONKS_TOKEN: 'token' },
+        {},
+      );
+      assert.equal(response.status, 200);
+      const body = await response.json();
+      assert.equal(body.lang, locale);
+      assert.equal(body.news.length, 1);
+      assert.equal(body.news[0].image_url, '', `expected KL placeholder for ${locale}`);
+    }
   } finally {
     globalThis.fetch = previousFetch;
   }

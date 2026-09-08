@@ -847,7 +847,7 @@ async function routeNewsRequest(request, env = {}, ctx = {}) {
         source: 'Sportmonks Football News',
         feed_url: sportmonksNews.feed_url,
         lang: newsLang,
-        news: applyNewsImagePolicy(sportmonksNews.news, newsLang),
+        news: applyNewsImagePolicy(sportmonksNews.news),
       };
       const newsResponse = jsonResponse(body, 200, ttl);
       if (cache && newsResponse.ok) {
@@ -878,7 +878,7 @@ async function routeNewsRequest(request, env = {}, ctx = {}) {
     }
   }
 
-  news = applyNewsImagePolicy(news, newsLang);
+  news = applyNewsImagePolicy(news);
 
   const body = {
     source,
@@ -3798,8 +3798,7 @@ function normalizeNewsImageUrl(value) {
   }
 }
 
-function applyNewsImagePolicy(items = [], newsLang = 'en') {
-  if (newsLang !== 'ar') return items;
+function applyNewsImagePolicy(items = []) {
   return items.map((item) => ({ ...item, image_url: '' }));
 }
 

@@ -32,6 +32,11 @@ test('news section renders only the localized Latest News heading', () => {
   assert.match(indexHtml, /id="news-title"/);
 });
 
+test('homepage cache-busts match data and the app bundle after crest updates', () => {
+  assert.match(appSource, /const apiVersion = 'match-crests-20260908';/);
+  assert.match(indexHtml, /app\.js\?v=20260908-match-crests/);
+});
+
 test('initial schedule load uses three nearby days before a batched future fallback', () => {
   assert.match(appSource, /const schedule = await fetchInitialScheduleMatches\(today, options\);/);
   assert.match(appSource, /const initial = await fetchMatchDayMatches\(today, options\);/);

@@ -1,7 +1,7 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
-  const apiVersion = 'ts-restream-aac-cache-refresh-20260619';
+  const apiVersion = 'match-crests-20260908';
   const scheduleLookaheadDays = 14;
   const scheduleFallbackBatchDays = 3;
   const scheduleFallbackMaxMatches = 5;

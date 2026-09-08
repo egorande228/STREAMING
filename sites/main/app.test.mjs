@@ -33,8 +33,8 @@ test('news section renders only the localized Latest News heading', () => {
 });
 
 test('homepage cache-busts match data and the app bundle after crest updates', () => {
-  assert.match(appSource, /const apiVersion = 'match-crests-20260908';/);
-  assert.match(indexHtml, /app\.js\?v=20260908-match-crests/);
+  assert.match(appSource, /const apiVersion = 'match-crests-fallback-20260908';/);
+  assert.match(indexHtml, /app\.js\?v=20260908-crest-fallback/);
 });
 
 test('initial schedule load uses three nearby days before a batched future fallback', () => {
@@ -408,8 +408,8 @@ test('renders same-day matches beyond the first six API results', async () => {
     scheduled_at: `${today}T19:00:00+00:00`,
     status: 'scheduled',
     stage: 'Semi-finals',
-    home_team: { name_en: 'Arsenal', flag_url: 'https://logo.test/ars.png' },
-    away_team: { name_en: 'Atletico Madrid', flag_url: 'https://logo.test/atm.png' },
+    home_team: { name_en: 'Club Brugge' },
+    away_team: { name_en: 'Aston Villa' },
   };
 
   const context = {
@@ -461,7 +461,9 @@ test('renders same-day matches beyond the first six API results', async () => {
   vm.runInNewContext(appSource, context);
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.match(gridHtml, /Arsenal vs Atletico Madrid/);
+  assert.match(gridHtml, /Club Brugge vs Aston Villa/);
+  assert.match(gridHtml, /https:\/\/crests\.football-data\.org\/851\.png/);
+  assert.match(gridHtml, /https:\/\/crests\.football-data\.org\/58\.png/);
 });
 
 test('main stream buttons prefer videojs and hide iframe reserves', async () => {

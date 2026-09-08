@@ -1,7 +1,31 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
-  const apiVersion = 'match-crests-20260908';
+  const apiVersion = 'match-crests-fallback-20260908';
+  const knownTeamCrests = Object.freeze({
+    'aek athens': 'https://crests.football-data.org/1899.png',
+    'pae aek': 'https://crests.football-data.org/1899.png',
+    'lask': 'https://crests.football-data.org/2016.png',
+    'lask linz': 'https://crests.football-data.org/2016.png',
+    'club brugge': 'https://crests.football-data.org/851.png',
+    'club brugge kv': 'https://crests.football-data.org/851.png',
+    'aston villa': 'https://crests.football-data.org/58.png',
+    'aston villa fc': 'https://crests.football-data.org/58.png',
+    'real madrid': 'https://crests.football-data.org/86.png',
+    'real madrid cf': 'https://crests.football-data.org/86.png',
+    'internazionale': 'https://crests.football-data.org/108.png',
+    'fc internazionale milano': 'https://crests.football-data.org/108.png',
+    'fc porto': 'https://crests.football-data.org/503.png',
+    'manchester city': 'https://crests.football-data.org/65.png',
+    'manchester city fc': 'https://crests.football-data.org/65.png',
+    'borussia dortmund': 'https://crests.football-data.org/4.png',
+    'villarreal': 'https://crests.football-data.org/94.png',
+    'villarreal cf': 'https://crests.football-data.org/94.png',
+    'lille': 'https://crests.football-data.org/521.png',
+    'lille osc': 'https://crests.football-data.org/521.png',
+    'real betis': 'https://crests.football-data.org/90.png',
+    'real betis balompie': 'https://crests.football-data.org/90.png',
+  });
   const scheduleLookaheadDays = 14;
   const scheduleFallbackBatchDays = 3;
   const scheduleFallbackMaxMatches = 5;
@@ -1316,7 +1340,14 @@
   }
 
   function teamLogo(team) {
-    return team?.flag_url || '';
+    if (team?.flag_url) return team.flag_url;
+    const name = String(team?.name_en || team?.name_ru || team?.name || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+    return knownTeamCrests[name] || '';
   }
 
   function renderTeamLogo(team, alt) {

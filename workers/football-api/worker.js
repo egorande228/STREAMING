@@ -10,8 +10,7 @@ const SPORTMONKS_LINEUPS_INCLUDES = 'participants;lineups.player:display_name,im
 const SPORTMONKS_NEWS_INCLUDES = 'fixture;league;lines';
 const NEWS_FEED_URL = 'https://feeds.bbci.co.uk/sport/football/rss.xml';
 const NEWS_FEED_PROXY_URL = `https://morss.it/${NEWS_FEED_URL}`;
-const NEWS_FEED_AR_URL = 'https://feeds.bbci.co.uk/arabic/rss.xml';
-const NEWS_FEED_AR_PROXY_URL = `https://morss.it/${NEWS_FEED_AR_URL}`;
+const NEWS_FEED_AR_URL = 'https://aawsat.com/feed/sport';
 const NEWS_FEED_AR_FOOTBALL_URL = 'https://news.google.com/rss/search?q=%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85&hl=ar&gl=AE&ceid=AE:ar';
 const GOOGLE_NEWS_FEEDS = {
   es: 'https://news.google.com/rss/search?q=f%C3%BAtbol&hl=es&gl=ES&ceid=ES:es',
@@ -848,7 +847,7 @@ async function routeNewsRequest(request, env = {}, ctx = {}) {
         source: 'Sportmonks Football News',
         feed_url: sportmonksNews.feed_url,
         lang: newsLang,
-        news: sportmonksNews.news,
+        news: applyNewsImagePolicy(sportmonksNews.news),
       };
       const newsResponse = jsonResponse(body, 200, ttl);
       if (cache && newsResponse.ok) {
@@ -878,6 +877,8 @@ async function routeNewsRequest(request, env = {}, ctx = {}) {
       news = normalizeRssNews(fallbackFeed.xml, limit, fallbackFeed.itemSource);
     }
   }
+
+  news = applyNewsImagePolicy(news);
 
   const body = {
     source,
@@ -2436,22 +2437,16 @@ function hashToPositiveInt(value = '') {
 
 async function fetchNewsFeed(newsLang) {
   if (newsLang === 'ar') {
-    const primary = await fetchFeedUrl(NEWS_FEED_AR_PROXY_URL);
+    const primary = await fetchFeedUrl(NEWS_FEED_AR_URL);
     if (primary.ok) {
       return {
         ...primary,
-        source: 'BBC Arabic',
-        itemSource: 'BBC Arabic',
+        source: 'الشرق الأوسط',
+        itemSource: 'الشرق الأوسط',
         url: NEWS_FEED_AR_URL,
       };
     }
-    const response = await fetchFeedUrl(NEWS_FEED_AR_URL);
-    return {
-      ...response,
-      source: 'BBC Arabic',
-      itemSource: 'BBC Arabic',
-      url: NEWS_FEED_AR_URL,
-    };
+    return fetchArabicFootballFallbackFeed();
   }
   if (GOOGLE_NEWS_FEEDS[newsLang]) {
     const response = await fetchFeedUrl(GOOGLE_NEWS_FEEDS[newsLang]);
@@ -3801,6 +3796,10 @@ function normalizeNewsImageUrl(value) {
   } catch {
     return image;
   }
+}
+
+function applyNewsImagePolicy(items = []) {
+  return items.map((item) => ({ ...item, image_url: '' }));
 }
 
 function textFromXml(xml, tagName) {

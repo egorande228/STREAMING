@@ -1,0 +1,7 @@
+*.encrypted.json
+*receipt.json
+__pycache__/
+*.env
+*.m3u
+*.m3u8
+*.log

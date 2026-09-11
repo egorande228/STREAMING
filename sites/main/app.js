@@ -1,7 +1,7 @@
 (function () {
   const config = window.KINGLIVE_MAIN_CONFIG || {};
   const apiBase = String(config.apiBase || '').replace(/\/$/, '');
-  const apiVersion = 'match-crests-fallback-20260908';
+  const apiVersion = 'match-details-cache-status-20260910';
   const knownTeamCrests = Object.freeze({
     'aek athens': 'https://crests.football-data.org/1899.png',
     'pae aek': 'https://crests.football-data.org/1899.png',
@@ -490,6 +490,8 @@
   let matchDayLoadId = 0;
   let activeStreamMatchIds = new Set();
   let activeStreamDetails = new Map();
+  let activeStreamsReady = false;
+  const knownStreamMatches = new Map();
   let openMatchId = '';
   let liveDetailTimer = null;
   const modal = document.createElement('div');
@@ -591,10 +593,18 @@
     if (!force && cachedEntry?.data != null && ageMs <= maxAgeMs) return cachedEntry.data;
     try {
       const data = await fetchJson(url);
+      // A transient empty schedule is not evidence that all known fixtures disappeared.
+      // Keep the last successful list for at most 15 minutes; never renew its age here.
+      if (String(scope).startsWith(`matches:${uiLocale}:`)
+          && Array.isArray(data?.matches) && data.matches.length === 0
+          && Array.isArray(cachedEntry?.data?.matches) && cachedEntry.data.matches.length > 0
+          && ageMs >= 0 && ageMs <= 15 * 60_000) {
+        return { ...cachedEntry.data, schedule_stale: true };
+      }
       writeDailyCache(scope, data);
       return data;
     } catch (error) {
-      if (cachedEntry?.data != null) return cachedEntry.data;
+      if (cachedEntry?.data != null && (!String(scope).startsWith('match-stats:') || ageMs <= 300000)) return cachedEntry.data;
       throw error;
     }
   }
@@ -1029,8 +1039,10 @@
   }
 
   function streamsForMatch(match = {}) {
-    return Array.isArray(match.streams)
-      ? match.streams.filter((stream) => stream && stream.url && stream.is_active !== false && stream.isActive !== false)
+    const active = activeStreamDetails.get(String(match.id));
+    const streams = activeStreamsReady ? (active || []) : match.streams;
+    return Array.isArray(streams)
+      ? streams.filter((stream) => stream && stream.url && stream.is_active !== false && stream.isActive !== false)
       : [];
   }
 
@@ -1100,6 +1112,7 @@
   }
 
   function shouldShowPlayerButtons(match = {}) {
+    if (['2023415940', '1399921411'].includes(String(match.id)) && displayStreamsForMatch(match).some(stream => String(stream.label || '').startsWith('TEST:'))) return true;
     if (matchLocalDateKey(match) === localDateKey(new Date()) || isLiveCarryoverMatch(match)) return true;
     if (!streamEnabledForMatch(match)) return false;
 
@@ -1113,12 +1126,13 @@
   function renderStreamButtons(match, title, options = {}) {
     if (!shouldShowPlayerButtons(match)) return '';
     const streams = displayStreamsForMatch(match);
+    const entryTitle = streams.some(stream => String(stream.label || '').startsWith('TEST:')) ? 'TEST STREAM — not match coverage' : t('liveStreamTitle');
     const groupClass = options.groupClass || 'stream-options';
     const buttonClass = options.buttonClass || '';
     if (streams.length) {
       return `
-        <div class="stream-entry ${escapeHtml(groupClass)}" aria-label="${escapeHtml(t('liveStreamTitle'))}">
-          <div class="stream-entry-label"><span class="stream-entry-dot" aria-hidden="true"></span>${escapeHtml(t('liveStreamTitle'))}</div>
+        <div class="stream-entry ${escapeHtml(groupClass)}" aria-label="${escapeHtml(entryTitle)}">
+          <div class="stream-entry-label"><span class="stream-entry-dot" aria-hidden="true"></span>${escapeHtml(entryTitle)}</div>
           <div class="stream-entry-actions">
             ${streams
               .map((stream, index) => {
@@ -1133,7 +1147,7 @@
                   type: stream.source_type || stream.sourceType || inferStreamType(stream.url),
                 });
                 const hasLanguageLabel = Boolean(lang || stream.language_code || stream.languageCode || stream.lang || stream.label);
-                const label = hasLanguageLabel ? `${t('watchInLanguage')} ${streamLanguageLabel(stream, index)}` : t('watchStream');
+                const label = String(stream.label || '').startsWith('TEST:') ? stream.label : hasLanguageLabel ? `${t('watchInLanguage')} ${streamLanguageLabel(stream, index)}` : t('watchStream');
                 return `<a class="stream-button ${escapeHtml(buttonClass)}" href="${href}"><span aria-hidden="true">▶</span>${escapeHtml(label)}</a>`;
               })
               .join('')}
@@ -1143,8 +1157,8 @@
     }
     if (!streamEnabledForMatch(match)) return '';
     return `
-      <div class="stream-entry ${escapeHtml(groupClass)}" aria-label="${escapeHtml(t('liveStreamTitle'))}">
-        <div class="stream-entry-label"><span class="stream-entry-dot" aria-hidden="true"></span>${escapeHtml(t('liveStreamTitle'))}</div>
+      <div class="stream-entry ${escapeHtml(groupClass)}" aria-label="${escapeHtml(entryTitle)}">
+        <div class="stream-entry-label"><span class="stream-entry-dot" aria-hidden="true"></span>${escapeHtml(entryTitle)}</div>
         <div class="stream-entry-actions">
           <a class="stream-button ${escapeHtml(buttonClass)}" href="${playerUrl({ match: match.id, title })}"><span aria-hidden="true">▶</span>${escapeHtml(t('watchStream'))}</a>
         </div>
@@ -1431,6 +1445,7 @@
       });
       const idsFromList = Array.isArray(payload?.match_ids) ? payload.match_ids.map((id) => String(id)) : [];
       if (payload && typeof payload.streams === 'object' && payload.streams !== null) {
+        activeStreamsReady = true;
         activeStreamDetails = new Map(
           Object.entries(payload.streams)
             .filter(([, streams]) => Array.isArray(streams) && streams.some((stream) => stream && stream.url))
@@ -1612,9 +1627,9 @@
         if (homeValue == null && awayValue == null) return '';
         return `
           <div class="stat-row">
-            <strong>${escapeHtml(homeValue ?? '0')}</strong>
-            <span>${escapeHtml(label)} ${escapeHtml(homeValue ?? '0')} - ${escapeHtml(awayValue ?? '0')}</span>
-            <strong>${escapeHtml(awayValue ?? '0')}</strong>
+            <strong>${escapeHtml(homeValue ?? '—')}</strong>
+            <span>${escapeHtml(label)} ${escapeHtml(homeValue ?? '—')} - ${escapeHtml(awayValue ?? '—')}</span>
+            <strong>${escapeHtml(awayValue ?? '—')}</strong>
           </div>
         `;
       })
@@ -1842,7 +1857,7 @@
     try {
       return await fetchJsonDaily(scope, url, {
         force: options.force,
-        maxAgeMs: options.maxAgeMs,
+        maxAgeMs: Math.min(options.maxAgeMs ?? 60000, 60000),
       });
     } catch {
       return null;
@@ -1878,11 +1893,14 @@
 
   function mergeMatchScoreFromStats(match, stats) {
     if (!match || !stats) return match;
-    const homeScore = Number(stats.home_score);
-    const awayScore = Number(stats.away_score);
-    if (!Number.isFinite(homeScore) && !Number.isFinite(awayScore)) return match;
+    const homeScore = stats.home_score == null ? NaN : Number(stats.home_score);
+    const awayScore = stats.away_score == null ? NaN : Number(stats.away_score);
     return updateCurrentMatch({
       id: match.id,
+      status: ['scheduled','live','half_time','finished','postponed','cancelled'].includes(stats.status) ? stats.status : match.status,
+      venue: stats.venue || match.venue,
+      city: stats.city || match.city,
+      minute: Number.isFinite(stats.minute) ? stats.minute : match.minute,
       home_score: Number.isFinite(homeScore) ? homeScore : match.home_score,
       away_score: Number.isFinite(awayScore) ? awayScore : match.away_score,
     }) || match;
@@ -2007,6 +2025,14 @@
 
   function renderMatches(matches) {
     if (!grid) return;
+    matches = Array.isArray(matches) ? [...matches] : [];
+    matches.forEach((match) => knownStreamMatches.set(String(match.id), match));
+    // A transient empty schedule must not remove a known match with an active broadcast.
+    const visibleIds = new Set(matches.map((match) => String(match.id)));
+    activeStreamDetails.forEach((_streams, id) => {
+      const known = knownStreamMatches.get(id);
+      if (known && !visibleIds.has(id) && matchLocalDateKey(known) === matchDateForOffset()) matches.push(known);
+    });
     const displayMatches = mergeActiveStreamDetails(matches);
     currentMatches = displayMatches;
     matches = displayMatches;
@@ -2203,17 +2229,18 @@
     const home = teamName(match.home_team);
     const away = teamName(match.away_team);
     const title = `${home} vs ${away}`;
+    const requestedLive = match.status === 'live' || match.status === 'half_time';
+    const matchStats = await fetchMatchStatsPayload(match.id, {
+      force: options.force,
+      live: requestedLive,
+      maxAgeMs: requestedLive ? 30000 : 60000,
+    });
+    match = mergeMatchScoreFromStats(match, matchStats);
     const status = String(match.status || 'scheduled');
     const displayStatus = status;
     const isLive = displayStatus === 'live' || displayStatus === 'half_time';
     const badgeClass = statusBadgeClass(displayStatus);
-    const isLiveStatus = displayStatus === 'live' || displayStatus === 'half_time';
-    const matchStats = await fetchMatchStatsPayload(match.id, {
-      force: options.force,
-      live: isLiveStatus,
-      maxAgeMs: isLiveStatus ? 30_000 : 24 * 60 * 60 * 1000,
-    });
-    match = mergeMatchScoreFromStats(match, matchStats);
+    const isLiveStatus = isLive;
     const liveStatsText = renderStatsText(matchStats);
     const statsText = liveStatsText || (match.status === 'scheduled'
       ? await fetchPrematchStats(match, { force: options.force, maxAgeMs: 24 * 60 * 60 * 1000 })
@@ -2262,7 +2289,7 @@
           <div>${labeledBidiHtml(t('venue'), placeName(match.venue))}</div>
           <div>${labeledBidiHtml(t('city'), placeName(match.city))}</div>
         </div>
-        <div class="detail-statline">${escapeHtml(statsText || emptyStatsMessage(match))}</div>
+        ${statsText ? `<div class="detail-statline">${escapeHtml(statsText)}</div>` : ''}
         ${renderMatchDetailPanels(matchStats)}
         <div class="detail-footer">
           <div class="match-meta">${labeledBidiHtml(t('updatedAt'), new Date().toISOString(), 'datetime')}</div>
@@ -2440,11 +2467,17 @@
   installCyrillicGuard();
   setupActiveNav();
   loadMatches();
+  // Load stream availability independently of slow or unavailable schedule feeds.
+  fetchActiveStreamMatchIds({ force: true }).then((ids) => {
+    activeStreamMatchIds = ids;
+    renderMatches(currentMatches);
+  });
   loadNews();
   if (typeof setInterval === 'function') {
     setInterval(() => {
       fetchActiveStreamMatchIds().then((ids) => {
         activeStreamMatchIds = ids;
+        renderMatches(currentMatches);
       });
     }, 30_000);
   }

@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { buildCatalog, catalogSummary, candidatesForMatch, parsePlaylist } from './iptv-catalog.mjs';
+const entry=(n,mac='00:11:22:33:44:55',label=`AR| BEIN SPORTS ${n} FHD`)=>`#EXTINF:-1,${label}\nhttp://example.test/live?mac=${mac}&stream=${n}&token=secret\n`;
+const catalog=()=>buildCatalog([{accountId:'account1',text:entry(1)+entry(4)}, {accountId:'account2',text:entry(2,'00:11:22:33:44:66')+entry(4,'00:11:22:33:44:66')}]);
+test('keeps whole catalog and enforces one slot per profile',()=>{const c=catalog();assert.equal(c.accounts.length,2);assert.ok(c.accounts.every(a=>a.maxConcurrent===1&&a.entries.length===2));});
+test('match channel can change without changing account',()=>{const c=catalog();assert.equal(candidatesForMatch(c,{accountId:'account1',channel:'bein-ar-1'}).candidates.length,1);assert.equal(candidatesForMatch(c,{accountId:'account1',channel:'bein-ar-4'}).candidates.length,1);});
+test('manual stream blocks all channels on that account',()=>assert.equal(candidatesForMatch(catalog(),{accountId:'account1',channel:'bein-ar-4',occupiedAccounts:['account1']}).status,'held'));
+test('name is not confirmed identity and summaries never disclose credentials',()=>{const c=catalog();assert.ok(candidatesForMatch(c,{accountId:'account1',channel:'bein-ar-1'}).candidates[0].requiresIdentityCheck);const s=JSON.stringify(catalogSummary(c));assert.ok(!s.includes('secret')&&!s.includes('00:11')&&!s.includes('http'));});
+test('handles decorated original playlist names',()=>assert.equal(parsePlaylist(entry(3,undefined,'8K: beIN SP⚽RTS 3 ᴴᴰ ◉'),'account1').entries[0].candidateChannel,'bein-ar-3'));
+test('foreign and MAX entries retained but not assigned to MENA',()=>{for(const label of ['US: BEIN SPORTS 2 HD','TR VIP: BEIN SPORTS MAX 1 HD','GOLD: beIN SPORTS MAX 1 RAW'])assert.equal(parsePlaylist(entry(2,undefined,label),'account1').entries[0].candidateChannel,null);});
+test('same MAC cannot be counted as two subscriptions',()=>assert.throws(()=>buildCatalog([{accountId:'account1',text:entry(1)},{accountId:'account2',text:entry(2)}]),/independent/));
+test('incomplete entries and mixed profiles fail closed',()=>{assert.throws(()=>parsePlaylist('#EXTINF:-1,x','account1'));assert.throws(()=>parsePlaylist(entry(1)+entry(2,'00:11:22:33:44:66'),'account1'));});
+test('duplicate URL aliases do not consume extra slots or source choices',()=>assert.equal(parsePlaylist(entry(1)+entry(1),'account1').entries.length,1));

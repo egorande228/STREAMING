@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {allocateSubscriptions as plan} from './subscription-pool.mjs';
+const accounts=n=>Array.from({length:n},(_,i)=>({id:'subscription'+i,enabled:true,maxConcurrent:1,channels:['bein1','bein2','bein3','bein4']}));
+const jobs=n=>Array.from({length:n},(_,i)=>({id:'match'+i,channel:'bein'+(i+1),start:100,end:200,scheduleFresh:true,channelConfirmed:true}));
+test('two subscriptions serve two simultaneous different channels',()=>assert.equal(plan(accounts(2),jobs(2)).jobs.filter(j=>j.status==='planned').length,2));
+test('four matches do not exceed two subscription slots',()=>assert.equal(plan(accounts(2),jobs(4)).jobs.filter(j=>j.reason==='subscription_capacity').length,2));
+test('adding two accounts supports four without code changes',()=>assert.equal(plan(accounts(4),jobs(4)).jobs.filter(j=>j.status==='planned').length,4));
+test('manual stream held indefinitely consumes account',()=>assert.equal(plan(accounts(2),jobs(2),[{jobId:'manual',accountId:'subscription0',start:0,end:Infinity}]).jobs.filter(j=>j.status==='planned').length,1));
+test('sequential jobs reuse a subscription at exact boundary',()=>{const j=jobs(2);j[1].start=200;j[1].end=300;assert.equal(plan(accounts(1),j).jobs.filter(j=>j.status==='planned').length,2);});
+test('unconfirmed channel and stale schedule are blocked',()=>{const j=jobs(2);j[0].channelConfirmed=false;j[1].scheduleFresh=false;assert.ok(plan(accounts(2),j).jobs.every(j=>j.status==='blocked'));});
+test('invalid reservation fails closed instead of freeing slot',()=>assert.throws(()=>plan(accounts(1),jobs(1),[{accountId:'subscription0',start:0,end:NaN}])));
+test('disabled subscription cannot be selected',()=>{const a=accounts(1);a[0].enabled=false;assert.equal(plan(a,jobs(1)).jobs[0].reason,'no_confirmed_source');});

@@ -33,7 +33,7 @@ test('news section renders only the localized Latest News heading', () => {
 
 test('homepage cache-busts match data and the app bundle after production updates', () => {
   assert.match(appSource, /const apiVersion = 'match-details-cache-status-20260910';/);
-  assert.match(indexHtml, /app\.js\?v=20260916-live-half-no-kickoff/);
+  assert.match(indexHtml, /app\.js\?v=20260916-scored-no-kickoff/);
 });
 
 test('initial schedule load uses three nearby days before a batched future fallback', () => {
@@ -247,7 +247,7 @@ test('Arabic match cards isolate team names, dates, and scores by bidi direction
         defaultLocale: 'ar',
         adSlots: {},
         manualMatchesOnly: true,
-        manualMatches: [match],
+        manualMatches: [match, { ...match, id: 27, status: 'scheduled' }],
       },
     },
     document: {
@@ -280,6 +280,9 @@ test('Arabic match cards isolate team names, dates, and scores by bidi direction
   assert.match(gridHtml, /<bdi class="bidi-auto team-name"[^>]*>الهلال FC<\/bdi>/);
   assert.match(gridHtml, /<bdi class="bidi-auto team-name"[^>]*>Al Nassr النصر<\/bdi>/);
   assert.match(gridHtml, /<bdi class="bidi-ltr" dir="ltr">1 : 2<\/bdi>/);
+  const finishedCard = gridHtml.match(/<article[^>]*data-match-id="26"[\s\S]*?<\/article>/)?.[0];
+  assert.ok(finishedCard, 'finished fixture should render');
+  assert.doesNotMatch(finishedCard, /match-time|bidi-timezone/);
   assert.match(
     gridHtml,
     /<span class="bidi-datetime"><bdi class="bidi-ltr" dir="ltr">21:00<\/bdi><bdi class="bidi-auto bidi-timezone" dir="auto">غرينتش<bdi class="bidi-ltr" dir="ltr">\+3<\/bdi><\/bdi><\/span>/,

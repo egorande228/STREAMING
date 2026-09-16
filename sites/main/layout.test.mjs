@@ -681,17 +681,12 @@ test('desktop typography changes preserve compact mobile match text', { skip: !c
   assert.deepEqual(homepageLayout.mobile.matchFontSizes, { time: 12, zone: 10, league: 11 });
 });
 
-test('score stays large and contained without kickoff on live or half-time cards', { skip: !chromePath }, () => {
+test('score stays large and contained without kickoff on live, half-time or finished cards', { skip: !chromePath }, () => {
   for (const [view, minimumSize] of [[homepageLayout, 28], [homepageLayout.arabic, 28], [homepageLayout.mobile, 24]]) {
     assert.equal(view.scoredCards.length, 3, 'cover live, half-time and finished matches, including a two-digit score');
-    for (const { id, score, time, timezonePresent, center, fontSize, clipped, textLines } of view.scoredCards) {
-      if (id === '9003' || id === '9004') {
-        assert.equal(time, null, 'LIVE and HALF TIME must have no kickoff element');
-        assert.equal(timezonePresent, false, 'LIVE and HALF TIME must have no timezone');
-      } else {
-        assert.ok(time && time.bottom < score.top, 'finished-match kickoff must remain above the score');
-        assert.equal(timezonePresent, true);
-      }
+    for (const { score, time, timezonePresent, center, fontSize, clipped, textLines } of view.scoredCards) {
+      assert.equal(time, null, 'LIVE, HALF TIME and FINISHED must have no kickoff element');
+      assert.equal(timezonePresent, false, 'LIVE, HALF TIME and FINISHED must have no timezone');
       assert.ok(fontSize >= minimumSize, `score text is too small: ${fontSize}px`);
       assert.ok(score.left >= center.left - 1 && score.right <= center.right + 1, 'score must fit between the teams');
       assert.equal(clipped, false, 'score text must not be clipped');

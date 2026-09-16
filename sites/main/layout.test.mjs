@@ -195,16 +195,14 @@ async function measureDesktopLayout() {
               </div>
               <div class="match-list">
                 <article class="match-card">
-                  <div class="match-time"><span>26 Aug, 21:00</span><small>UEFA Champions League</small></div>
                   <div class="match-main">
                     <div class="match-teams">
                       <span class="team-side"><span class="team-logo empty"></span><span>AEK Athens</span></span>
-                      <span class="match-vs">vs</span>
+                      <div class="match-center"><div class="match-time">26 Aug, 21:00</div><div class="match-status">Scheduled</div></div>
                       <span class="team-side"><span class="team-logo empty"></span><span>Levski Sofia</span></span>
                     </div>
-                    <div class="match-meta">Regular season</div>
+                    <div class="match-meta">UEFA Champions League · Regular season</div>
                   </div>
-                  <div class="match-actions"><div class="match-status">Scheduled</div></div>
                 </article>
               </div>
             </div>
@@ -251,7 +249,8 @@ async function measureDesktopLayout() {
             const tabsStyle = getComputedStyle(document.querySelector('.match-day-tabs'));
             const home = document.querySelector('.team-side:first-child > span:last-child').getBoundingClientRect();
             const away = document.querySelector('.team-side:last-child > span:last-child').getBoundingClientRect();
-            const versus = document.querySelector('.match-vs').getBoundingClientRect();
+            const center = document.querySelector('.match-center').getBoundingClientRect();
+            const teams = document.querySelector('.match-teams').getBoundingClientRect();
             const newsCard = document.querySelector('.news-card:not(.sponsor-news-card)').getBoundingClientRect();
             const newsPanel = document.querySelector('.news-panel').getBoundingClientRect();
             const footer = document.querySelector('.sponsor-footer').getBoundingClientRect();
@@ -271,8 +270,10 @@ async function measureDesktopLayout() {
               tabsWidth: tabs.width,
               tabHeight: tab.height,
               tabGap: Number.parseFloat(tabsStyle.columnGap),
-              homeGap: versus.left - home.right,
-              awayGap: away.left - versus.right,
+              homeGap: center.left - home.right,
+              awayGap: away.left - center.right,
+              teamsWidth: teams.width,
+              matchCenter: center.left + center.width / 2,
               newsCardWidth: newsCard.width,
               newsPanelWidth: newsPanel.width,
               newsPanelCenter: newsPanel.left + newsPanel.width / 2,
@@ -360,7 +361,20 @@ async function measureHomepageFirstScreen() {
         const brandRect = brand?.getBoundingClientRect();
         const localeRect = locale?.getBoundingClientRect();
         const tabsRect = tabs?.getBoundingClientRect();
+        const teams = Array.from(card?.querySelectorAll('.team-side') || []).map((team) => {
+          const logo = team.querySelector('.team-logo').getBoundingClientRect();
+          const name = team.querySelector('.team-name').getBoundingClientRect();
+          return { logo: logo.toJSON(), name: name.toJSON() };
+        });
+        const timeRect = card?.querySelector('.match-time')?.getBoundingClientRect();
+        const statusRect = card?.querySelector('.match-status')?.getBoundingClientRect();
+        const metaRect = card?.querySelector('.match-meta')?.getBoundingClientRect();
         document.querySelector('#first-screen-result').textContent = JSON.stringify({
+          teams,
+          timeRect: timeRect?.toJSON(),
+          statusRect: statusRect?.toJSON(),
+          metaRect: metaRect?.toJSON(),
+          leagueOccurrences: card?.textContent.split('Premier League').length - 1,
           viewportHeight: innerHeight,
           viewportWidth: innerWidth,
           firstCardTop: cardRect?.top ?? null,
@@ -595,6 +609,23 @@ test('homepage exposes the first match card within a 720px desktop viewport', { 
   );
 });
 
+test('match cards place large crests above names with time and status between teams', { skip: !chromePath }, () => {
+  for (const view of [homepageLayout, homepageLayout.mobile]) {
+    assert.equal(view.teams.length, 2);
+    for (const { logo, name } of view.teams) {
+      assert.ok(logo.width >= 48 && logo.height >= 48, 'club crests should remain legible on mobile and desktop');
+      assert.ok(logo.bottom <= name.top, 'the name must appear below its crest');
+      assert.ok(Math.abs(logo.x + logo.width / 2 - name.x - name.width / 2) <= 1, 'the name and crest must share a center');
+    }
+    const [left, right] = [...view.teams].sort((a, b) => a.name.left - b.name.left);
+    for (const rect of [view.timeRect, view.statusRect]) {
+      assert.ok(rect.left >= left.name.right && rect.right <= right.name.left, 'time and status must stay between the teams');
+    }
+    assert.ok(view.metaRect.top >= Math.max(...view.teams.map(({ name }) => name.bottom)), 'league belongs below the teams');
+    assert.equal(view.leagueOccurrences, 1, 'league should appear only once');
+  }
+});
+
 test('public header removes Home and groups theme control beside language', { skip: !chromePath }, () => {
   assert.equal(homepageLayout.themeSwitchPresent, true, 'homepage should expose a public theme control');
   assert.equal(homepageLayout.homeNavPresent, false, 'Home should not duplicate the logo link');
@@ -669,9 +700,10 @@ test('match day tabs use the compact Fabor spacing rhythm', { skip: !chromePath 
   assert.ok(rtlLayout.tabGap >= 5 && rtlLayout.tabGap <= 7, `mobile tab gap was ${rtlLayout.tabGap}px`);
 });
 
-test('desktop team labels stay visually grouped around versus', { skip: !chromePath }, () => {
-  assert.ok(layout.homeGap >= 0 && layout.homeGap <= 72, `home team gap was ${layout.homeGap}px`);
-  assert.ok(layout.awayGap >= 0 && layout.awayGap <= 72, `away team gap was ${layout.awayGap}px`);
+test('desktop teams stay in a compact group around centered match information', { skip: !chromePath }, () => {
+  assert.ok(layout.teamsWidth <= 680.5, `teams spread over ${layout.teamsWidth}px`);
+  assert.ok(layout.homeGap >= 0 && layout.awayGap >= 0, 'team names must not overlap match information');
+  assert.ok(Math.abs(layout.matchCenter - layout.feedCenter) <= 1, 'match information must stay in the middle of the card');
 });
 
 test('desktop Telegram action has a distinct blue surface', { skip: !chromePath }, () => {

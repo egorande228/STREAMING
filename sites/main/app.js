@@ -2142,26 +2142,25 @@
         const isLive = normalizedStatus === 'live' || normalizedStatus === 'half_time';
         const hasScore = isLive || normalizedStatus === 'finished';
         const badgeClass = statusBadgeClass(displayStatus);
-        const centerLabel = hasScore ? scoreLabel(match) : 'vs';
         const hasStreams = displayStreamsForMatch(match).length > 0;
         const cardStage = matchCardStageName(match);
         return `
           <article class="match-card${hasStreams ? ' has-streams' : ''}" data-match-id="${escapeHtml(match.id)}" role="button" tabindex="0">
-            <div class="match-time">
-              <span>${bidiDateTimeHtml(match.scheduled_at)}</span>
-              <small>${bidiAutoHtml(leagueName(match))}</small>
-            </div>
             <div class="match-main">
               <div class="match-teams" aria-label="${escapeHtml(title)}">
                 <span class="team-side">${renderTeamLogo(match.home_team, home)}${teamNameHtml(home)}</span>
-                <span class="match-vs${hasScore ? ' match-score' : ''}">${bidiLtrHtml(centerLabel)}</span>
+                <div class="match-center">
+                  ${hasScore ? `<span class="match-vs match-score">${bidiLtrHtml(scoreLabel(match))}</span>` : ''}
+                  <div class="match-time">${bidiDateTimeHtml(match.scheduled_at)}</div>
+                  <div class="match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</div>
+                </div>
                 <span class="team-side">${renderTeamLogo(match.away_team, away)}${teamNameHtml(away)}</span>
               </div>
               <div class="match-title">${escapeHtml(title)}</div>
-              ${cardStage ? `<div class="match-meta">${bidiAutoHtml(cardStage)}</div>` : ''}
-            </div>
-            <div class="match-actions">
-              <div class="match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</div>
+              <div class="match-meta">
+                ${bidiAutoHtml(leagueName(match))}
+                ${cardStage ? `<span class="match-meta-separator" aria-hidden="true">·</span>${bidiAutoHtml(cardStage)}` : ''}
+              </div>
             </div>
             ${renderStreamButtons(match, title, { groupClass: 'match-stream-buttons', buttonClass: 'match-stream-button' })}
           </article>
@@ -2179,14 +2178,13 @@
       .map(
         () => `
           <article class="match-card skeleton-card" aria-hidden="true">
-            <div class="match-time"><span class="skeleton-inline w-84"></span><small class="skeleton-inline w-52"></small></div>
             <div class="match-main">
-              <div class="match-teams skeleton-text"><span class="skeleton-inline w-88"></span></div>
-              <div class="match-title skeleton-inline w-40"></div>
-              <div class="match-meta skeleton-inline w-52"></div>
-            </div>
-            <div class="match-actions">
-              <div class="match-status skeleton-pill"></div>
+              <div class="match-teams">
+                <span class="team-side"><span class="team-logo skeleton-block"></span><span class="skeleton-inline w-84"></span></span>
+                <div class="match-center"><span class="skeleton-inline w-84"></span><span class="skeleton-pill"></span></div>
+                <span class="team-side"><span class="team-logo skeleton-block"></span><span class="skeleton-inline w-84"></span></span>
+              </div>
+              <div class="match-meta"><span class="skeleton-inline w-40"></span></div>
             </div>
           </article>
         `,

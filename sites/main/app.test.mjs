@@ -34,7 +34,7 @@ test('news section renders only the localized Latest News heading', () => {
 
 test('homepage cache-busts match data and the app bundle after production updates', () => {
   assert.match(appSource, /const apiVersion = 'match-details-cache-status-20260910';/);
-  assert.match(indexHtml, /app\.js\?v=20260916-schedule-ui/);
+  assert.match(indexHtml, /app\.js\?v=20260916-match-cards/);
 });
 
 test('initial schedule load uses three nearby days before a batched future fallback', () => {
@@ -1599,7 +1599,11 @@ test('renders live match score in the match list', async () => {
   assert.match(gridHtml, /3 : 0/);
   assert.match(gridHtml, /match-score/);
   assert.match(gridHtml, /Türkiye vs Paraguay/);
-  assert.match(gridHtml, /<span class="match-vs"><bdi class="bidi-ltr" dir="ltr">vs<\/bdi><\/span>/);
+  const scheduledCard = gridHtml.match(/<article[^>]*data-match-id="19609173"[\s\S]*?<\/article>/)?.[0];
+  assert.ok(scheduledCard, 'the scheduled match should remain visible');
+  assert.match(scheduledCard, /match-time[\s\S]*bidi-datetime/);
+  assert.match(scheduledCard, />scheduled<\/div>/);
+  assert.doesNotMatch(scheduledCard, /match-score/, 'an unplayed match should show kickoff, not a 0:0 score');
 });
 
 test('renders football news from the backend news endpoint', async () => {

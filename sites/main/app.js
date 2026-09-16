@@ -1280,15 +1280,15 @@
     return `<bdi class="bidi-ltr" dir="ltr">${escapeHtml(value)}</bdi>`;
   }
 
-  function bidiDateTimeHtml(value) {
-    const { dateTime, timeZone } = formatDateParts(value);
+  function bidiDateTimeHtml(value, { includeDate = true } = {}) {
+    const { dateTime, timeZone } = formatDateParts(value, { includeDate });
     const arabicZone = uiLocale === 'ar' ? timeZone.match(/^(.*?)([+-]\d+)$/) : null;
     const timeZoneHtml = timeZone
       ? (uiLocale === 'ar'
         ? `<bdi class="bidi-auto bidi-timezone" dir="auto">${arabicZone ? `${escapeHtml(arabicZone[1])}${bidiLtrHtml(arabicZone[2])}` : escapeHtml(timeZone)}</bdi>`
         : `<bdi class="bidi-ltr bidi-timezone" dir="ltr">${escapeHtml(timeZone)}</bdi>`)
       : '';
-    return `<span class="bidi-datetime">${bidiAutoHtml(dateTime)}${timeZoneHtml}</span>`;
+    return `<span class="bidi-datetime">${includeDate ? bidiAutoHtml(dateTime) : bidiLtrHtml(dateTime)}${timeZoneHtml}</span>`;
   }
 
   function labeledBidiHtml(label, value, direction = 'auto') {
@@ -1438,7 +1438,7 @@
     return `<img class="team-logo" src="${escapeHtml(logo)}" alt="${escapeHtml(alt)}" loading="lazy" />`;
   }
 
-  function formatDateParts(value) {
+  function formatDateParts(value, { includeDate = true } = {}) {
     try {
       const dateLocales = {
         en: 'en-GB',
@@ -1465,8 +1465,7 @@
         calendar: 'gregory',
         numberingSystem: 'latn',
         hourCycle: 'h23',
-        month: 'short',
-        day: 'numeric',
+        ...(includeDate ? { month: 'short', day: 'numeric' } : {}),
         hour: '2-digit',
         minute: '2-digit',
         timeZone: dateTimeZones[uiLocale] || dateTimeZones.en,
@@ -1476,7 +1475,7 @@
         timeZone: timeZoneLabels[uiLocale] || timeZoneLabels.en,
       };
     } catch {
-      return { dateTime: value || t('tbd'), timeZone: '' };
+      return { dateTime: includeDate ? (value || t('tbd')) : t('tbd'), timeZone: '' };
     }
   }
 
@@ -2151,7 +2150,7 @@
                 <span class="team-side">${renderTeamLogo(match.home_team, home)}${teamNameHtml(home)}</span>
                 <div class="match-center">
                   ${hasScore ? `<span class="match-vs match-score">${bidiLtrHtml(scoreLabel(match))}</span>` : ''}
-                  <div class="match-time">${bidiDateTimeHtml(match.scheduled_at)}</div>
+                  <div class="match-time">${bidiDateTimeHtml(match.scheduled_at, { includeDate: false })}</div>
                   <div class="match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</div>
                 </div>
                 <span class="team-side">${renderTeamLogo(match.away_team, away)}${teamNameHtml(away)}</span>

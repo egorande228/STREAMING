@@ -183,6 +183,29 @@ test('Arabic names and western 24-hour time render in cards and match details', 
   assert.equal((view.modal.innerHTML.match(/UEFA Champions League/g) || []).length, 1);
 });
 
+test('day-tab cards show only kickoff time while match details keep the full date', async () => {
+  for (const [locale, clock, month, status] of [
+    ['en', '12:05', 'Sept', 'scheduled'],
+    ['es', '12:05', 'sept', 'scheduled'],
+    ['fr', '13:05', 'sept', 'scheduled'],
+    ['ar', '13:05', 'سبتمبر', 'live'],
+    ['mn', '18:05', '9', 'finished'],
+  ]) {
+    const fixture = { ...match(), scheduled_at: `${day}T10:05:00Z`, status, home_score: 2, away_score: 1 };
+    const view = boot({ locale, schedule: date => ({ matches: date === day ? [fixture] : [] }) });
+    await tick();
+    const time = view.grid.innerHTML.match(/<div class="match-time">([\s\S]*?)<\/div>/)?.[1];
+    assert.ok(time, `${locale}: match time should be visible`);
+    assert.equal(time.match(/^<span class="bidi-datetime"><bdi class="bidi-ltr" dir="ltr">([^<]+)<\/bdi>/)?.[1], clock, `${locale}: use an isolated 24-hour clock, without date`);
+    assert.doesNotMatch(time, /[٠-٩۰-۹]/);
+    assert.match(time, /bidi-timezone/, 'keep the timezone');
+    await view.app.openMatchDetails(1);
+    const detailsTime = view.modal.innerHTML.match(/<span class="detail-score-time">([\s\S]*?)<\/span>/)?.[1];
+    assert.ok(detailsTime?.includes(month), `${locale}: retain the month in details`);
+    assert.ok(detailsTime?.includes('16'), `${locale}: retain the day in details`);
+  }
+});
+
 test('league aliases are suppressed while a distinct matchday is preserved', () => {
   const { app } = boot();
   for (const [league, stage, want] of [

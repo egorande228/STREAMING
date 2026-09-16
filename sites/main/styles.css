@@ -1015,6 +1015,20 @@ html[dir="rtl"] .match-card .match-meta {
   text-align: center;
 }
 
+@media (min-width: 761px) {
+  .match-card .match-center .match-time {
+    font-size: 20px;
+  }
+
+  .match-card .match-center .bidi-timezone {
+    font-size: 14px;
+  }
+
+  .match-card .match-meta {
+    font-size: 15px;
+  }
+}
+
 .match-stats {
   min-height: 15px;
   margin-top: 6px;

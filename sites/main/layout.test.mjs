@@ -369,8 +369,14 @@ async function measureHomepageFirstScreen() {
         const timeRect = card?.querySelector('.match-time')?.getBoundingClientRect();
         const statusRect = card?.querySelector('.match-status')?.getBoundingClientRect();
         const metaRect = card?.querySelector('.match-meta')?.getBoundingClientRect();
+        const fontSize = (selector) => Number.parseFloat(getComputedStyle(card.querySelector(selector)).fontSize);
         document.querySelector('#first-screen-result').textContent = JSON.stringify({
           teams,
+          matchFontSizes: {
+            time: fontSize('.match-time .bidi-datetime > bdi:first-child'),
+            zone: fontSize('.bidi-timezone'),
+            league: fontSize('.match-meta > bdi:first-child'),
+          },
           timeRect: timeRect?.toJSON(),
           statusRect: statusRect?.toJSON(),
           metaRect: metaRect?.toJSON(),
@@ -463,9 +469,13 @@ async function measureHomepageFirstScreen() {
     const mobileOutput = await runChrome(`http://127.0.0.1:${port}/?lang=ar`, '390,844');
     const mobileMatch = mobileOutput.match(/<pre id="first-screen-result">([^<]+)<\/pre>/);
     assert.ok(mobileMatch, 'mobile homepage metrics should be present in dumped DOM');
+    const arabicOutput = await runChrome(`http://127.0.0.1:${port}/?lang=ar`, '1280,720');
+    const arabicMatch = arabicOutput.match(/<pre id="first-screen-result">([^<]+)<\/pre>/);
+    assert.ok(arabicMatch, 'Arabic desktop homepage metrics should be present in dumped DOM');
     return {
       ...JSON.parse(desktopMatch[1]),
       mobile: JSON.parse(mobileMatch[1]),
+      arabic: JSON.parse(arabicMatch[1]),
     };
   } finally {
     await new Promise((resolve) => server.close(resolve));
@@ -624,6 +634,22 @@ test('match cards place large crests above names with time and status between te
     assert.ok(view.metaRect.top >= Math.max(...view.teams.map(({ name }) => name.bottom)), 'league belongs below the teams');
     assert.equal(view.leagueOccurrences, 1, 'league should appear only once');
   }
+});
+
+test('desktop kickoff, timezone and league remain readable in English and Arabic cards', { skip: !chromePath }, () => {
+  for (const view of [homepageLayout, homepageLayout.arabic]) {
+    assert.ok(view.matchFontSizes.time >= 20, `kickoff was only ${view.matchFontSizes.time}px`);
+    assert.ok(view.matchFontSizes.zone >= 14, `timezone was only ${view.matchFontSizes.zone}px`);
+    assert.ok(view.matchFontSizes.league >= 15, `league was only ${view.matchFontSizes.league}px`);
+    const [left, right] = [...view.teams].sort((a, b) => a.name.left - b.name.left);
+    assert.ok(view.timeRect.left >= left.name.right && view.timeRect.right <= right.name.left, 'enlarged time must not overlap either team');
+    assert.ok(view.metaRect.top >= Math.max(...view.teams.map(({ name }) => name.bottom)), 'enlarged league must stay below team names');
+    assert.ok(view.horizontalOverflow <= 0, 'enlarged text must not add horizontal scrolling');
+  }
+});
+
+test('desktop typography changes preserve compact mobile match text', { skip: !chromePath }, () => {
+  assert.deepEqual(homepageLayout.mobile.matchFontSizes, { time: 12, zone: 10, league: 11 });
 });
 
 test('public header removes Home and groups theme control beside language', { skip: !chromePath }, () => {

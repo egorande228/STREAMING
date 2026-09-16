@@ -337,7 +337,7 @@ async function measureHomepageFirstScreen() {
         home_team: { name_en: 'Crystal Palace' },
         away_team: { name_en: 'Manchester City' },
       },
-      ...['finished', 'live'].map((status, index) => ({
+      ...['finished', 'live', 'half_time'].map((status, index) => ({
         id: 9002 + index,
         scheduled_at: kickoff.toISOString(),
         status,
@@ -681,15 +681,15 @@ test('desktop typography changes preserve compact mobile match text', { skip: !c
   assert.deepEqual(homepageLayout.mobile.matchFontSizes, { time: 12, zone: 10, league: 11 });
 });
 
-test('score stays large and contained with kickoff only on non-live cards', { skip: !chromePath }, () => {
+test('score stays large and contained without kickoff on live or half-time cards', { skip: !chromePath }, () => {
   for (const [view, minimumSize] of [[homepageLayout, 28], [homepageLayout.arabic, 28], [homepageLayout.mobile, 24]]) {
-    assert.equal(view.scoredCards.length, 2, 'cover live and finished matches, including a two-digit score');
+    assert.equal(view.scoredCards.length, 3, 'cover live, half-time and finished matches, including a two-digit score');
     for (const { id, score, time, timezonePresent, center, fontSize, clipped, textLines } of view.scoredCards) {
-      if (id === '9003') {
-        assert.equal(time, null, 'LIVE must have no kickoff element');
-        assert.equal(timezonePresent, false, 'LIVE must have no timezone');
+      if (id === '9003' || id === '9004') {
+        assert.equal(time, null, 'LIVE and HALF TIME must have no kickoff element');
+        assert.equal(timezonePresent, false, 'LIVE and HALF TIME must have no timezone');
       } else {
-        assert.ok(time && time.bottom < score.top, 'non-live kickoff must remain above the score');
+        assert.ok(time && time.bottom < score.top, 'finished-match kickoff must remain above the score');
         assert.equal(timezonePresent, true);
       }
       assert.ok(fontSize >= minimumSize, `score text is too small: ${fontSize}px`);

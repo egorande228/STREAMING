@@ -2091,7 +2091,7 @@
               <div class="match-teams" aria-label="${escapeHtml(title)}">
                 <span class="team-side">${renderTeamLogo(match.home_team, home)}${teamNameHtml(home)}</span>
                 <div class="match-center">
-                  ${normalizedStatus === 'live' ? '' : `<div class="match-time">${bidiDateTimeHtml(match.scheduled_at, { includeDate: false })}</div>`}
+                  ${isLive ? '' : `<div class="match-time">${bidiDateTimeHtml(match.scheduled_at, { includeDate: false })}</div>`}
                   ${hasScore ? `<span class="match-vs match-score">${bidiLtrHtml(scoreLabel(match))}</span>` : ''}
                   <div class="match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</div>
                 </div>

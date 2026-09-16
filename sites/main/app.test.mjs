@@ -19,11 +19,10 @@ function translationKeys(source, locale, terminator) {
 
 test('all main-site locales expose the same translation keys', () => {
   const englishKeys = translationKeys(appSource, 'en', ',');
-  for (const locale of ['es', 'fr', 'ar', 'mn']) {
+  for (const locale of ['es', 'fr', 'ar']) {
     assert.deepEqual(translationKeys(appSource, locale, ','), englishKeys);
   }
   assert.match(appSource, /url\.searchParams\.set\('lang', uiLocale\)/);
-  assert.match(appSource, /if \(uiLocale === 'mn'\) return false;/);
 });
 
 test('news section renders only the localized Latest News heading', () => {
@@ -34,7 +33,7 @@ test('news section renders only the localized Latest News heading', () => {
 
 test('homepage cache-busts match data and the app bundle after production updates', () => {
   assert.match(appSource, /const apiVersion = 'match-details-cache-status-20260910';/);
-  assert.match(indexHtml, /app\.js\?v=20260916-time-only/);
+  assert.match(indexHtml, /app\.js\?v=20260916-locales/);
 });
 
 test('initial schedule load uses three nearby days before a batched future fallback', () => {

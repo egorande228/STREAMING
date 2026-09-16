@@ -186,10 +186,9 @@ test('Arabic names and western 24-hour time render in cards and match details', 
 test('day-tab cards show only kickoff time while match details keep the full date', async () => {
   for (const [locale, clock, month, status] of [
     ['en', '12:05', 'Sept', 'scheduled'],
-    ['es', '12:05', 'sept', 'scheduled'],
+    ['es', '12:05', 'sept', 'finished'],
     ['fr', '13:05', 'sept', 'scheduled'],
     ['ar', '13:05', 'سبتمبر', 'live'],
-    ['mn', '18:05', '9', 'finished'],
   ]) {
     const fixture = { ...match(), scheduled_at: `${day}T10:05:00Z`, status, home_score: 2, away_score: 1 };
     const view = boot({ locale, schedule: date => ({ matches: date === day ? [fixture] : [] }) });

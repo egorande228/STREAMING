@@ -413,10 +413,6 @@ html[dir="rtl"] .locale-menu {
   background-image: url("./assets/flags/sa.svg");
 }
 
-.locale-flag-mn {
-  background-image: url("./assets/flags/mn.svg");
-}
-
 .page-stack {
   display: grid;
   gap: var(--space-5);

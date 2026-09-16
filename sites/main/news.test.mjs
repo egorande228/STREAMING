@@ -13,11 +13,10 @@ function translationKeys(locale) {
 
 test('all news-page locales expose the same translation keys', () => {
   const englishKeys = translationKeys('en');
-  for (const locale of ['es', 'fr', 'ar', 'mn']) {
+  for (const locale of ['es', 'fr', 'ar']) {
     assert.deepEqual(translationKeys(locale), englishKeys);
   }
   assert.match(newsSource, /url\.searchParams\.set\('lang', uiLocale\)/);
-  assert.match(newsSource, /if \(uiLocale === 'mn'\) return false;/);
   assert.doesNotMatch(newsSource, /← Back to news/);
 });
 

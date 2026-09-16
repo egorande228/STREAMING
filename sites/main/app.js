@@ -382,92 +382,6 @@
       status_postponed: 'مؤجلة',
       localeCode: 'AR',
     },
-    mn: {
-      brandTitle: 'Тоглолтын төв',
-      navHome: 'Нүүр',
-      navSchedule: 'Хуваарь',
-      navGroups: 'Мэдээ',
-      scheduleTitlePrefix: 'Удахгүй болох',
-      scheduleTitleAccent: 'тоглолтууд',
-      matchDayLabel: 'Тоглолтын өдөр',
-      matchDayYesterday: 'Өчигдөр',
-      matchDayToday: 'Өнөөдөр',
-      matchDayTomorrow: 'Маргааш',
-      newsTitlePrefix: 'Сүүлийн',
-      newsTitleAccent: 'мэдээ',
-      carouselPrev: 'Өмнөх мэдээ',
-      carouselNext: 'Дараагийн мэдээ',
-      carouselControls: 'Мэдээний каруселийн удирдлага',
-      loadingMatches: 'Тоглолтуудыг ачаалж байна',
-      scheduleUnavailable: 'Тоглолтын хуваарь түр боломжгүй байна',
-      retryMatches: 'Дахин оролдох',
-      loadingNews: 'Хөлбөмбөгийн мэдээ ачаалж байна',
-      matchesUnavailable: 'Тун удахгүй',
-      noMatchesYesterday: 'Өчигдөр тоглолт байгаагүй',
-      noMatchesToday: 'Өнөөдөр тоглолт байхгүй',
-      noMatchesTomorrow: 'Маргааш тоглолт байхгүй',
-      nextMatch: 'Дараагийн тоглолт',
-      newsUnavailable: 'Хөлбөмбөгийн мэдээ одоогоор боломжгүй байна.',
-      statsAfterKickoff: 'Статистик тоглолт эхэлсний дараа гарна.',
-      statsUnavailable: 'Статистик API-аас одоогоор боломжгүй байна.',
-      matchEvents: 'Тоглолтын үйл явдал',
-      teamStatistics: 'Багийн статистик',
-      matchFacts: 'Тоглолтын факт',
-      startingLineups: 'Гарааны бүрэлдэхүүн',
-      melbetOdds: 'MelBet коэффициент',
-      homeWin: 'Эзэн',
-      awayWin: 'Зочин',
-      noMatchEvents: 'Үйл явдал тоглолтын үеэр гарна.',
-      possession: 'Бөмбөг эзэмшилт',
-      shotsOnGoal: 'Хаалга руу цохилт',
-      shots: 'Цохилт',
-      corners: 'Булангийн цохилт',
-      fouls: 'Алдаа',
-      yellowCards: 'Шар карт',
-      redCards: 'Улаан карт',
-      wins: 'Ялалт',
-      draw: 'Тэнцээ',
-      draws: 'Тэнцээ',
-      goals: 'Гоол',
-      worldCup: 'World Cup 26',
-      football: 'Хөлбөмбөг',
-      footballNews: 'Хөлбөмбөгийн мэдээ',
-      matchDetails: 'Тоглолтын дэлгэрэнгүй',
-      closeMatchDetails: 'Тоглолтын дэлгэрэнгүйг хаах',
-      kickoff: 'Эхлэх цаг',
-      venue: 'Цэнгэлдэх',
-      city: 'Хот',
-      stage: 'Шат',
-      updatedAt: 'Шинэчлэгдсэн',
-      watchStream: 'Тоглуулагч нээх',
-      liveStreamTitle: 'Шууд дамжуулалт',
-      watchInLanguage: 'Үзэх хэл',
-      sponsored: 'Ивээн тэтгэсэн',
-      scoreboard: 'Онооны самбар',
-      adblockTitle: 'Зар хориглогч илэрлээ',
-      adblockMessage: 'KingLive нь ивээн тэтгэгчийн баннераар дэмжигддэг. Шууд дамжуулалт болон тоглолтын шинэчлэлтийг үзэхийн тулд энэ сайтад зар хориглогчоо унтраана уу.',
-      continue: 'Үргэлжлүүлэх',
-      tbd: 'Тодорхойгүй',
-      firstScore: 'Эхний гоол',
-      streak: 'Цуврал',
-      fact: 'Баримт',
-      kickoffSoon: 'Тоглолт удахгүй эхэлнэ',
-      countdown: 'Үлдсэн хугацаа',
-      over: 'Их',
-      under: 'Бага',
-      primaryNavigation: 'Үндсэн цэс',
-      colorTheme: 'Өнгөний горим',
-      lightTheme: 'Цайвар',
-      darkTheme: 'Бараан',
-      language: 'Хэл',
-      socialContacts: 'Сошиал холбоос',
-      status_live: 'шууд',
-      status_half_time: 'завсарлага',
-      status_scheduled: 'товлогдсон',
-      status_finished: 'дууссан',
-      status_postponed: 'хойшлогдсон',
-      localeCode: 'MN',
-    },
   };
   const uiLocale = resolveLocale();
   const grid = document.getElementById('match-grid');
@@ -492,7 +406,6 @@
     ar: sharedSocialLinks,
     en: sharedSocialLinks,
     fr: sharedSocialLinks,
-    mn: sharedSocialLinks,
   };
   let currentMatches = [];
   let currentScheduleMatches = [];
@@ -789,6 +702,19 @@
     }
   }
 
+  function migrateRemovedLocale(value) {
+    if (!/^mn(?:-|$)/i.test(String(value || '').trim())) return value;
+    try { window.localStorage?.setItem('kinglive_locale', 'ar'); } catch {}
+    try {
+      const url = new URL(window.location.href);
+      if (/^mn(?:-|$)/i.test(String(url.searchParams.get('lang') || '').trim())) {
+        url.searchParams.set('lang', 'ar');
+        window.history?.replaceState(window.history.state, '', url.toString());
+      }
+    } catch {}
+    return 'ar';
+  }
+
   function resolveLocale() {
     const fromQuery = (() => {
       try {
@@ -797,20 +723,21 @@
         return new URLSearchParams(window.location.search).get('lang');
       }
     })();
-    if (fromQuery === 'en' || fromQuery === 'ar' || fromQuery === 'es' || fromQuery === 'fr' || fromQuery === 'mn') return fromQuery;
+    const queryLocale = migrateRemovedLocale(fromQuery);
+    if (queryLocale === 'en' || queryLocale === 'ar' || queryLocale === 'es' || queryLocale === 'fr') return queryLocale;
     try {
-      const stored = window.localStorage?.getItem('kinglive_locale');
-      if (stored === 'en' || stored === 'ar' || stored === 'es' || stored === 'fr' || stored === 'mn') return stored;
+      const stored = migrateRemovedLocale(window.localStorage?.getItem('kinglive_locale'));
+      if (stored === 'en' || stored === 'ar' || stored === 'es' || stored === 'fr') return stored;
     } catch {}
-    const normalizedDefault = String(defaultLocale || 'en').toLowerCase();
-    if (normalizedDefault === 'en' || normalizedDefault === 'ar' || normalizedDefault === 'es' || normalizedDefault === 'fr' || normalizedDefault === 'mn') {
+    const normalizedDefault = migrateRemovedLocale(String(defaultLocale || 'en').toLowerCase());
+    if (normalizedDefault === 'en' || normalizedDefault === 'ar' || normalizedDefault === 'es' || normalizedDefault === 'fr') {
       return normalizedDefault;
     }
     const language = String((window.navigator && window.navigator.language) || '').toLowerCase();
     if (language.startsWith('fr')) return 'fr';
     if (language.startsWith('es')) return 'es';
     if (language.startsWith('ar')) return 'ar';
-    if (language.startsWith('mn')) return 'mn';
+    if (/^mn(?:-|$)/.test(language)) return migrateRemovedLocale(language);
     return 'en';
   }
 
@@ -839,7 +766,6 @@
       { code: 'es', label: 'ESPAÑOL', lang: 'es' },
       { code: 'fr', label: 'FRANÇAIS', lang: 'fr' },
       { code: 'ar', label: 'العربية', lang: 'ar', dir: 'rtl' },
-      { code: 'mn', label: 'Монгол', lang: 'mn' },
     ];
     const localeFlag = (code) => `<span class="locale-flag locale-flag-${escapeHtml(code)}" aria-hidden="true"></span>`;
     const localeLabel = (item) => `<span class="locale-label" lang="${escapeHtml(item.lang || item.code)}" dir="${escapeHtml(item.dir || 'auto')}">${escapeHtml(item.label)}</span>`;
@@ -1304,7 +1230,6 @@
   }
 
   function hasCyrillic(value) {
-    if (uiLocale === 'mn') return false;
     return /[\u0400-\u04FF]/.test(String(value || ''));
   }
 
@@ -1348,7 +1273,6 @@
   }
 
   function installCyrillicGuard() {
-    if (uiLocale === 'mn') return;
     sanitizeCyrillic();
     if (typeof MutationObserver !== 'function') return;
     let scheduled = false;
@@ -1445,21 +1369,18 @@
         es: 'es-ES',
         fr: 'fr-FR',
         ar: 'ar-SA',
-        mn: 'mn-MN',
       };
       const dateTimeZones = {
         en: 'Europe/Paris',
         es: 'Europe/Paris',
         fr: 'Asia/Riyadh',
         ar: 'Asia/Riyadh',
-        mn: 'Asia/Ulaanbaatar',
       };
       const timeZoneLabels = {
         en: 'CEST',
         es: 'CEST',
         fr: 'GMT+3',
         ar: 'غرينتش+3',
-        mn: 'GMT+8',
       };
       const formatted = new Intl.DateTimeFormat(dateLocales[uiLocale] || 'en-GB', {
         calendar: 'gregory',

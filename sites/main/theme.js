@@ -9,7 +9,6 @@
     es: { group: 'Tema de color', light: 'Claro', dark: 'Oscuro' },
     fr: { group: 'Thème de couleur', light: 'Clair', dark: 'Sombre' },
     ar: { group: 'المظهر', light: 'فاتح', dark: 'داكن' },
-    mn: { group: 'Өнгөний загвар', light: 'Цайвар', dark: 'Бараан' },
   };
 
   function readStoredTheme() {

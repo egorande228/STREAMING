@@ -93,27 +93,6 @@
       darkTheme: 'داكن',
       language: 'اللغة',
     },
-    mn: {
-      brandTitle: 'Мэдээ',
-      navHome: 'Нүүр',
-      navSchedule: 'Хуваарь',
-      navNews: 'Мэдээ',
-      loadingNews: 'Мэдээ ачаалж байна',
-      kicker: 'Хөлбөмбөгийн хэмнэл',
-      notFoundTitle: 'Мэдээ олдсонгүй',
-      notFoundLead: 'Мэдээ шилжсэн эсвэл RSS сувгаас устсан байж болзошгүй.',
-      backToNews: 'Мэдээ рүү буцах',
-      fallbackSource: 'Хөлбөмбөгийн мэдээ',
-      fallbackTitle: 'Хөлбөмбөгийн мэдээ',
-      fallbackMetaSource: 'Хөлбөмбөг',
-      noText: 'Мэдээний текст одоогоор боломжгүй байна.',
-      localeCode: 'MN',
-      primaryNavigation: 'Үндсэн цэс',
-      colorTheme: 'Өнгөний горим',
-      lightTheme: 'Цайвар',
-      darkTheme: 'Бараан',
-      language: 'Хэл',
-    },
   };
   const uiLocale = resolveLocale();
 
@@ -203,22 +182,35 @@
     }
   }
 
-  function resolveLocale() {
-    const fromQuery = params.get('lang');
-    if (fromQuery === 'en' || fromQuery === 'ar' || fromQuery === 'es' || fromQuery === 'fr' || fromQuery === 'mn') return fromQuery;
+  function migrateRemovedLocale(value) {
+    if (!/^mn(?:-|$)/i.test(String(value || '').trim())) return value;
+    try { window.localStorage?.setItem('kinglive_locale', 'ar'); } catch {}
     try {
-      const stored = window.localStorage?.getItem('kinglive_locale');
-      if (stored === 'en' || stored === 'ar' || stored === 'es' || stored === 'fr' || stored === 'mn') return stored;
+      const url = new URL(window.location.href);
+      if (/^mn(?:-|$)/i.test(String(url.searchParams.get('lang') || '').trim())) {
+        url.searchParams.set('lang', 'ar');
+        window.history?.replaceState(window.history.state, '', url.toString());
+      }
     } catch {}
-    const defaultLocale = String(config.defaultLocale || 'en').toLowerCase();
-    if (defaultLocale === 'en' || defaultLocale === 'ar' || defaultLocale === 'es' || defaultLocale === 'fr' || defaultLocale === 'mn') {
+    return 'ar';
+  }
+
+  function resolveLocale() {
+    const fromQuery = migrateRemovedLocale(params.get('lang'));
+    if (fromQuery === 'en' || fromQuery === 'ar' || fromQuery === 'es' || fromQuery === 'fr') return fromQuery;
+    try {
+      const stored = migrateRemovedLocale(window.localStorage?.getItem('kinglive_locale'));
+      if (stored === 'en' || stored === 'ar' || stored === 'es' || stored === 'fr') return stored;
+    } catch {}
+    const defaultLocale = migrateRemovedLocale(String(config.defaultLocale || 'en').toLowerCase());
+    if (defaultLocale === 'en' || defaultLocale === 'ar' || defaultLocale === 'es' || defaultLocale === 'fr') {
       return defaultLocale;
     }
     const language = String((window.navigator && window.navigator.language) || '').toLowerCase();
     if (language.startsWith('fr')) return 'fr';
     if (language.startsWith('es')) return 'es';
     if (language.startsWith('ar')) return 'ar';
-    if (language.startsWith('mn')) return 'mn';
+    if (/^mn(?:-|$)/.test(language)) return migrateRemovedLocale(language);
     return 'en';
   }
 
@@ -229,7 +221,6 @@
       { code: 'es', label: 'ESPAÑOL', lang: 'es' },
       { code: 'fr', label: 'FRANÇAIS', lang: 'fr' },
       { code: 'ar', label: 'العربية', lang: 'ar', dir: 'rtl' },
-      { code: 'mn', label: 'Монгол', lang: 'mn' },
     ];
     const localeFlag = (code) => `<span class="locale-flag locale-flag-${escapeHtml(code)}" aria-hidden="true"></span>`;
     const localeLabel = (item) => `<span class="locale-label" lang="${escapeHtml(item.lang || item.code)}" dir="${escapeHtml(item.dir || 'auto')}">${escapeHtml(item.label)}</span>`;
@@ -351,7 +342,6 @@
   }
 
   function hasCyrillic(value) {
-    if (uiLocale === 'mn') return false;
     return /[\u0400-\u04FF]/.test(String(value || ''));
   }
 
@@ -432,7 +422,6 @@
         es: 'es-ES',
         fr: 'fr-FR',
         ar: 'ar-SA',
-        mn: 'mn-MN',
       };
       return new Intl.DateTimeFormat(dateLocales[uiLocale] || 'en-GB', {
         month: 'short',

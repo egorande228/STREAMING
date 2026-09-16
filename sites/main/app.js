@@ -388,6 +388,7 @@
     },
   };
   const uiLocale = resolveLocale();
+  const curatedNews = window.KINGLIVE_CURATED_NEWS;
   const grid = document.getElementById('match-grid');
   const matchDayTabs = Array.from(document.querySelectorAll?.('[data-match-day]') || []);
   const newsGrid = document.getElementById('news-grid');
@@ -478,7 +479,9 @@
   }
 
   function writeNewsStoryCache(item) {
-    if (!item || hasRussianNews(item)) return;
+    // Local editorial stories already ship with the page; do not leak them into
+    // the API story cache shared by other locales.
+    if (!item || curatedNews?.find(item.id, uiLocale) === item || hasRussianNews(item)) return;
     const identifiers = [item.url, item.id].filter(Boolean);
     if (!identifiers.length) return;
     try {
@@ -1939,7 +1942,11 @@
 
   function renderNews(items) {
     if (!newsGrid) return;
-    const visibleItems = items.filter((item) => !hasRussianNews(item));
+    const localItems = curatedNews?.forLocale(uiLocale) || [];
+    const visibleItems = [
+      ...localItems,
+      ...items.filter(item => !curatedNews?.find(item.url, uiLocale) && !curatedNews?.find(item.id, uiLocale)),
+    ].filter((item) => !hasRussianNews(item));
     if (!visibleItems.length) {
       newsGrid.innerHTML = `<article class="empty-card news-empty">${escapeHtml(t('newsUnavailable'))}</article>`;
       sanitizeCyrillic(newsGrid);
@@ -1947,11 +1954,12 @@
     }
 
     const cards = visibleItems.map((item) => {
+        const isCurated = localItems.includes(item);
         writeNewsStoryCache(item);
         const image = item.image_url
           ? `<img src="${escapeHtml(item.image_url)}" alt="" loading="lazy" />`
           : '<span class="news-football-fallback" aria-hidden="true"><b>KL</b><span></span></span>';
-        const href = `./news.html?url=${encodeURIComponent(item.url || item.id || '')}`;
+        const href = `./news.html?url=${encodeURIComponent(item.url || item.id || '')}${isCurated ? `&lang=${uiLocale}` : ''}`;
         const badges = [
           cleanText(item.source, t('footballNews')),
           cleanText(item.type, ''),
@@ -1962,7 +1970,7 @@
             <div class="news-image">${image}</div>
             <div>
               <div class="news-meta">
-                <time>${bidiDateTimeHtml(item.published_at)}</time>
+                <time>${isCurated ? bidiAutoHtml(item.published_label) : bidiDateTimeHtml(item.published_at)}</time>
                 ${badges.map((badge) => `<span>${bidiAutoHtml(badge)}</span>`).join('')}
               </div>
               <h3>${escapeHtml(cleanText(item.title, t('footballNews')))}</h3>
@@ -2016,7 +2024,8 @@
 
   async function loadNews() {
     if (!newsGrid) return;
-    renderNewsSkeleton();
+    if (curatedNews?.forLocale(uiLocale).length) renderNews([]);
+    else renderNewsSkeleton();
     const scope = `news:${uiLocale}:${localizedNewsUrl()}`;
     try {
       const data = await fetchJsonDaily(scope, localizedNewsUrl());

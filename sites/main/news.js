@@ -465,19 +465,24 @@
     `;
   }
 
-  function renderStory(item) {
+  function renderStory(item, isCurated = false) {
     if (!article) return;
     const image = item.image_url
       ? `<img class="story-image" src="${escapeHtml(item.image_url)}" alt="" loading="lazy" />`
       : '';
     const title = cleanText(item.title, t('fallbackTitle'));
+    const source = escapeHtml(cleanText(item.source, t('fallbackSource')));
+    const sourceLabel = isCurated
+      ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">المصدر: ${source} ↗</a>`
+      : source;
+    const backHref = isCurated ? `./?lang=${uiLocale}#news` : './#news-title';
     document.title = `${title} | KingLive`;
     article.innerHTML = `
-      <a class="story-back" href="./#news-title">← ${escapeHtml(t('backToNews'))}</a>
-      <p class="section-kicker">${escapeHtml(cleanText(item.source, t('fallbackSource')))}</p>
+      <a class="story-back" href="${backHref}">← ${escapeHtml(t('backToNews'))}</a>
+      <p class="section-kicker">${sourceLabel}</p>
       <h1>${escapeHtml(title)}</h1>
       <div class="news-meta story-meta">
-        <time>${escapeHtml(formatDate(item.published_at))}</time>
+        <time>${escapeHtml(isCurated ? item.published_label : formatDate(item.published_at))}</time>
       </div>
       ${image}
       ${renderStoryText(item)}
@@ -487,6 +492,11 @@
 
   async function loadStory() {
     if (!article) return;
+    const curatedStory = window.KINGLIVE_CURATED_NEWS?.find(requestedUrl, uiLocale);
+    if (curatedStory) {
+      renderStory(curatedStory, true);
+      return;
+    }
     const newsUrl = localizedNewsUrl();
     const scope = `news:${uiLocale}:${newsUrl}`;
     const cachedStory = readNewsStoryCache(requestedUrl);

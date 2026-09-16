@@ -1653,6 +1653,17 @@ html[dir="rtl"] .social-dock {
   max-width: calc(100% - 16px);
 }
 
+.match-detail .detail-loading {
+  margin-block: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+}
+
 .match-detail > .section-kicker + .detail-scoreboard-shell {
   margin-top: 32px;
 }

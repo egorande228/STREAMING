@@ -33,7 +33,7 @@ test('news section renders only the localized Latest News heading', () => {
 
 test('homepage cache-busts match data and the app bundle after production updates', () => {
   assert.match(appSource, /const apiVersion = 'match-details-cache-status-20260910';/);
-  assert.match(indexHtml, /app\.js\?v=20260916-locales/);
+  assert.match(indexHtml, /app\.js\?v=20260916-instant-details/);
 });
 
 test('initial schedule load uses three nearby days before a batched future fallback', () => {

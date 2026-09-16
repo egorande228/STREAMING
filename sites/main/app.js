@@ -55,6 +55,7 @@
       carouselNext: 'Next news',
       carouselControls: 'News carousel controls',
       loadingMatches: 'Loading matches',
+      loadingMatchDetails: 'Loading match details',
       scheduleUnavailable: 'Schedule temporarily unavailable',
       retryMatches: 'Try again',
       loadingNews: 'Loading football news',
@@ -141,6 +142,7 @@
       carouselNext: 'Noticias siguientes',
       carouselControls: 'Controles del carrusel de noticias',
       loadingMatches: 'Cargando partidos',
+      loadingMatchDetails: 'Cargando detalles del partido',
       scheduleUnavailable: 'Calendario temporalmente no disponible',
       retryMatches: 'Reintentar',
       loadingNews: 'Cargando noticias de fútbol',
@@ -227,6 +229,7 @@
       carouselNext: 'Actualités suivantes',
       carouselControls: 'Contrôles du carrousel d’actualités',
       loadingMatches: 'Chargement des matchs',
+      loadingMatchDetails: 'Chargement des détails du match',
       scheduleUnavailable: 'Calendrier temporairement indisponible',
       retryMatches: 'Réessayer',
       loadingNews: 'Chargement des actualités football',
@@ -313,6 +316,7 @@
       carouselNext: 'الأخبار التالية',
       carouselControls: 'التحكم في شريط الأخبار',
       loadingMatches: 'جارٍ تحميل المباريات',
+      loadingMatchDetails: 'جارٍ تحميل تفاصيل المباراة',
       scheduleUnavailable: 'جدول المباريات غير متاح مؤقتًا',
       retryMatches: 'إعادة المحاولة',
       loadingNews: 'جارٍ تحميل أخبار كرة القدم',
@@ -417,6 +421,8 @@
   let activeStreamsReady = false;
   const knownStreamMatches = new Map();
   let openMatchId = '';
+  let matchDetailLoadId = 0;
+  const pendingDetailCacheWrites = new Map();
   let liveDetailTimer = null;
   const modal = document.createElement('div');
   modal.className = 'match-modal';
@@ -516,6 +522,10 @@
     const cachedEntry = readDailyCacheEntry(scope);
     const ageMs = cachedEntry?.fetched_at ? Date.now() - Number(cachedEntry.fetched_at) : Infinity;
     if (!force && cachedEntry?.data != null && ageMs <= maxAgeMs) return cachedEntry.data;
+    // Details may be requested by both a popup and background cache warming.
+    // Only the latest request for this detail scope may replace its cached data.
+    const detailRequest = /^(match-stats|match-prematch):/.test(scope) ? {} : null;
+    if (detailRequest) pendingDetailCacheWrites.set(scope, detailRequest);
     try {
       const data = await fetchJson(url);
       // A transient empty schedule is not evidence that all known fixtures disappeared.
@@ -526,7 +536,7 @@
           && ageMs >= 0 && ageMs <= 15 * 60_000) {
         return { ...cachedEntry.data, schedule_stale: true };
       }
-      writeDailyCache(scope, data);
+      if (!detailRequest || pendingDetailCacheWrites.get(scope) === detailRequest) writeDailyCache(scope, data);
       return data;
     } catch (error) {
       if (cachedEntry?.data != null && (!String(scope).startsWith('match-stats:') || ageMs <= 300000)) {
@@ -534,6 +544,8 @@
           ? { ...cachedEntry.data, schedule_stale: true } : cachedEntry.data;
       }
       throw error;
+    } finally {
+      if (detailRequest && pendingDetailCacheWrites.get(scope) === detailRequest) pendingDetailCacheWrites.delete(scope);
     }
   }
 
@@ -2207,44 +2219,63 @@
 
   async function refreshOpenLiveMatch(matchId) {
     if (modal.hidden || String(openMatchId) !== String(matchId)) return;
+    const loadId = matchDetailLoadId;
+    stopLiveDetailRefresh();
     const nextMatch = await fetchMatchDetailPayload(matchId, { live: true });
+    if (!isCurrentMatchDetailLoad(matchId, loadId)) return;
     if (nextMatch) updateCurrentMatch(nextMatch);
-    await openMatchDetails(matchId, { force: true, updateUrl: false });
+    await openMatchDetails(matchId, { force: true, updateUrl: false, background: true });
+  }
+
+  function isCurrentMatchDetailLoad(matchId, loadId) {
+    return !modal.hidden && String(openMatchId) === String(matchId) && matchDetailLoadId === loadId;
   }
 
   async function openMatchDetails(matchId, options = {}) {
     let match = currentMatches.find((item) => String(item.id) === String(matchId));
     if (!match) return;
     openMatchId = String(matchId);
+    const loadId = ++matchDetailLoadId;
     stopLiveDetailRefresh();
     if (options.updateUrl !== false) setMatchUrlParam(matchId);
+    // Paint known match data before waiting for the network. Live refresh keeps
+    // its current content until the replacement is ready, without a loading flash.
+    if (!options.background) renderMatchDetails(match, null, '', { loading: true });
 
     if (!streamsForMatch(match).length && streamEnabledForMatch(match)) {
       const detailedMatch = await fetchMatchDetailPayload(match.id, {
         live: match.status === 'live' || match.status === 'half_time',
       });
+      if (!isCurrentMatchDetailLoad(matchId, loadId)) return;
       if (detailedMatch) match = updateCurrentMatch(detailedMatch) || match;
     }
 
-    const home = teamName(match.home_team);
-    const away = teamName(match.away_team);
-    const title = `${home} vs ${away}`;
     const requestedLive = match.status === 'live' || match.status === 'half_time';
     const matchStats = await fetchMatchStatsPayload(match.id, {
       force: options.force,
       live: requestedLive,
       maxAgeMs: requestedLive ? 30000 : 60000,
     });
+    if (!isCurrentMatchDetailLoad(matchId, loadId)) return;
     match = mergeMatchScoreFromStats(match, matchStats);
-    const status = String(match.status || 'scheduled');
-    const displayStatus = status;
-    const isLive = displayStatus === 'live' || displayStatus === 'half_time';
-    const badgeClass = statusBadgeClass(displayStatus);
-    const isLiveStatus = isLive;
     const liveStatsText = renderStatsText(matchStats);
     const statsText = liveStatsText || (match.status === 'scheduled'
       ? await fetchPrematchStats(match, { force: options.force, maxAgeMs: 24 * 60 * 60 * 1000 })
       : '');
+    if (!isCurrentMatchDetailLoad(matchId, loadId)) return;
+    renderMatchDetails(match, matchStats, statsText);
+    const latest = currentMatches.find((item) => String(item.id) === String(matchId));
+    const latestStatus = String(latest?.status || match.status);
+    if (latestStatus === 'live' || latestStatus === 'half_time') startLiveDetailRefresh(matchId);
+  }
+
+  function renderMatchDetails(match, matchStats, statsText, { loading = false } = {}) {
+    const home = teamName(match.home_team);
+    const away = teamName(match.away_team);
+    const title = `${home} vs ${away}`;
+    const displayStatus = String(match.status || 'scheduled');
+    const isLive = displayStatus === 'live' || displayStatus === 'half_time';
+    const badgeClass = statusBadgeClass(displayStatus);
     const liveStatusBar = renderLiveStatusBar(match, matchStats, displayStatus);
     const prematchPanel = renderPrematchPanel(match, statsText);
 
@@ -2290,7 +2321,9 @@
           <div>${labeledBidiHtml(t('city'), placeName(match.city))}</div>
         </div>
         ${statsText ? `<div class="detail-statline">${escapeHtml(statsText)}</div>` : ''}
-        ${renderMatchDetailPanels(matchStats)}
+        ${loading
+          ? `<div class="detail-loading" role="status">${escapeHtml(t('loadingMatchDetails'))}</div>`
+          : `${matchStats == null ? `<p class="detail-empty" role="status">${escapeHtml(t('statsUnavailable'))}</p>` : ''}${renderMatchDetailPanels(matchStats)}`}
         <div class="detail-footer">
           <div class="match-meta">${labeledBidiHtml(t('updatedAt'), new Date().toISOString(), 'datetime')}</div>
         </div>
@@ -2305,14 +2338,11 @@
       </article>
     `;
     sanitizeCyrillic(modal);
-    const latest = currentMatches.find((item) => String(item.id) === String(matchId));
-    const latestStatus = String(latest?.status || displayStatus);
-    const shouldRefresh = (latestStatus === 'live' || latestStatus === 'half_time') && !modal.hidden;
-    if (shouldRefresh) startLiveDetailRefresh(matchId);
   }
 
   function closeMatchDetails() {
     stopLiveDetailRefresh();
+    matchDetailLoadId += 1;
     openMatchId = '';
     modal.hidden = true;
     modal.innerHTML = '';

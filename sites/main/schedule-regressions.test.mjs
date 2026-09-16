@@ -70,7 +70,7 @@ function boot({ schedule = () => ({ matches: [] }), cached = [], locale = 'en', 
   if (existsSync(teamFile)) vm.runInNewContext(readFileSync(teamFile, 'utf8'), context);
   // Expose real functions only inside this test's VM; production has no testing API.
   vm.runInNewContext(source.replace('  setupLocaleButton();', `
-    globalThis.app = { loadMatchDay, openMatchDetails, teamName, formatDateParts, matchCardStageName, renderLineups };
+    globalThis.app = { loadMatchDay, openMatchDetails, closeMatchDetails, refreshOpenLiveMatch, teamName, formatDateParts, matchCardStageName, renderLineups };
     setupLocaleButton();`), context);
   return { grid, modal, storage, context, app: context.app, positions, scheduleLink, newsLink, windowEvents };
 }
@@ -165,6 +165,162 @@ test('stale schedule fallback does not renew the original cache observation time
   await tick();
   const entry = JSON.parse([...view.storage.entries()].find(([key]) => key.includes(`matches:en:${day}:`))[1]);
   assert.equal(entry.fetched_at, originalTime);
+});
+
+test('match popup opens immediately with known score and localized loading feedback', async () => {
+  for (const [locale, message, initialScore, updatedScore] of [
+    ['en', 'Loading match details', '2 : 1', '3 : 1'],
+    ['ar', 'جارٍ تحميل تفاصيل المباراة', '1 : 2', '1 : 3'],
+  ]) {
+    const fixture = { ...match(), status: 'live', home_score: 2, away_score: 1 };
+    const view = boot({ locale, schedule: date => ({ matches: date === day ? [fixture] : [] }) });
+    await tick();
+    const pending = deferred();
+    view.storage.clear();
+    view.context.fetch = async () => ({ ok: true, json: () => pending.promise });
+    const opening = view.app.openMatchDetails(1);
+    assert.equal(view.modal.hidden, false, 'the popup must be visible before any API response');
+    assert.ok(view.modal.innerHTML.includes(initialScore));
+    assert.ok(view.modal.innerHTML.includes(message));
+    assert.match(view.modal.innerHTML, /role="status"/);
+    pending.resolve({ status: 'live', home_score: 3, away_score: 1, team_stats: [], events: [], lineups: [], facts: [] });
+    await opening;
+    assert.ok(view.modal.innerHTML.includes(updatedScore));
+    assert.doesNotMatch(view.modal.innerHTML, /detail-loading/);
+  }
+});
+
+test('popup stays visible while scheduled-match statistics and prematch information load', async () => {
+  const fixture = { ...match(), home_team: { id: 1, name_en: 'Arsenal' }, away_team: { id: 2, name_en: 'Chelsea' } };
+  const view = boot({ schedule: date => ({ matches: date === day ? [fixture] : [] }) });
+  await tick();
+  view.storage.clear();
+  const stats = deferred(), prematch = deferred();
+  view.context.fetch = async url => ({ ok: true, json: () => String(url).includes('/prematch') ? prematch.promise : stats.promise });
+  const opening = view.app.openMatchDetails(1);
+  assert.equal(view.modal.hidden, false);
+  stats.resolve({ team_stats: [], events: [], lineups: [], facts: [] });
+  await tick();
+  assert.equal(view.modal.hidden, false);
+  assert.match(view.modal.innerHTML, /detail-loading/);
+  prematch.resolve({});
+  await opening;
+  assert.doesNotMatch(view.modal.innerHTML, /detail-loading/);
+  assert.match(view.modal.innerHTML, /Arsenal/);
+});
+
+test('a detail payload needed before statistics cannot delay the initial popup', async () => {
+  const fixture = { ...match(), streams: [{ url: 'https://stream.test/demo.m3u8', is_active: false }] };
+  const view = boot({ schedule: date => ({ matches: date === day ? [fixture] : [] }) });
+  await tick();
+  const detail = deferred();
+  view.context.fetch = async url => ({ ok: true, json: () => /\/api\/matches\/1\?/.test(String(url)) ? detail.promise : Promise.resolve({}) });
+  const opening = view.app.openMatchDetails(1);
+  assert.equal(view.modal.hidden, false);
+  detail.resolve({ ...fixture, venue: 'Updated stadium' });
+  await opening;
+  assert.match(view.modal.innerHTML, /Updated stadium/);
+});
+
+test('closing a pending popup prevents late statistics from reopening it or restarting live refresh', async () => {
+  const fixture = { ...match(), status: 'live' };
+  const view = boot({ schedule: date => ({ matches: date === day ? [fixture] : [] }) });
+  await tick();
+  view.storage.clear();
+  const timers = [];
+  view.context.setInterval = (_callback, delay) => { timers.push(delay); return timers.length; };
+  view.context.clearInterval = () => {};
+  const pending = deferred();
+  view.context.fetch = async () => ({ ok: true, json: () => pending.promise });
+  const opening = view.app.openMatchDetails(1);
+  view.app.closeMatchDetails();
+  pending.resolve({ status: 'live', home_score: 4, away_score: 2 });
+  await opening;
+  assert.equal(view.modal.hidden, true);
+  assert.equal(view.modal.innerHTML, '');
+  assert.equal(timers.length, 0);
+});
+
+test('late response for another match cannot overwrite the newly selected popup', async () => {
+  const fixtures = [match(), { ...match(2), home_team: { name_en: 'Arsenal' }, away_team: { name_en: 'Chelsea' } }];
+  const view = boot({ schedule: date => ({ matches: date === day ? fixtures : [] }) });
+  await tick();
+  const old = deferred();
+  view.context.fetch = async url => ({ ok: true, json: () => String(url).includes('/1/stats') ? old.promise : Promise.resolve({ venue: 'New stadium' }) });
+  const first = view.app.openMatchDetails(1);
+  await view.app.openMatchDetails(2);
+  old.resolve({ venue: 'Old stadium' });
+  await first;
+  assert.match(view.modal.innerHTML, /Arsenal/);
+  assert.match(view.modal.innerHTML, /New stadium/);
+  assert.doesNotMatch(view.modal.innerHTML, /Old stadium|Manchester City/);
+});
+
+test('closing and reopening the same match rejects the earlier in-flight response', async () => {
+  const view = boot({ schedule: date => ({ matches: date === day ? [match()] : [] }) });
+  await tick();
+  const old = deferred(); let calls = 0;
+  view.context.fetch = async () => ({ ok: true, json: () => ++calls === 1 ? old.promise : Promise.resolve({ venue: 'New stadium' }) });
+  const first = view.app.openMatchDetails(1);
+  view.app.closeMatchDetails();
+  await view.app.openMatchDetails(1);
+  old.resolve({ venue: 'Old stadium' });
+  await first;
+  assert.match(view.modal.innerHTML, /New stadium/);
+  assert.doesNotMatch(view.modal.innerHTML, /Old stadium/);
+  view.app.closeMatchDetails();
+  await view.app.openMatchDetails(1);
+  assert.match(view.modal.innerHTML, /New stadium/, 'a late response must not poison the next opening from cache');
+  assert.doesNotMatch(view.modal.innerHTML, /Old stadium/);
+});
+
+test('late prematch responses cannot replace the newer cached information on reopening', async () => {
+  const fixture = { ...match(), home_team: { id: 1, name_en: 'Arsenal' }, away_team: { id: 2, name_en: 'Chelsea' } };
+  const view = boot({ schedule: date => ({ matches: date === day ? [fixture] : [] }) });
+  await tick();
+  view.storage.clear();
+  const old = deferred(); let calls = 0;
+  view.context.fetch = async url => ({ ok: true, json: () => {
+    if (!String(url).includes('/prematch')) return Promise.resolve({});
+    return ++calls === 1 ? old.promise : Promise.resolve({ sample_size: 5, label: 'New form', home: {}, away: {} });
+  } });
+  const first = view.app.openMatchDetails(1);
+  await tick();
+  view.app.closeMatchDetails();
+  await view.app.openMatchDetails(1);
+  old.resolve({ sample_size: 5, label: 'Old form', home: {}, away: {} });
+  await first;
+  view.app.closeMatchDetails();
+  await view.app.openMatchDetails(1);
+  assert.match(view.modal.innerHTML, /New form/);
+  assert.doesNotMatch(view.modal.innerHTML, /Old form/);
+});
+
+test('a late live-refresh detail response cannot reopen a closed popup', async () => {
+  const view = boot({ schedule: date => ({ matches: date === day ? [{ ...match(), status: 'live' }] : [] }) });
+  await tick();
+  await view.app.openMatchDetails(1);
+  const pending = deferred();
+  view.context.fetch = async () => ({ ok: true, json: () => pending.promise });
+  const refresh = view.app.refreshOpenLiveMatch(1);
+  view.app.closeMatchDetails();
+  pending.resolve({ ...match(), status: 'live', home_score: 5, away_score: 0 });
+  await refresh;
+  assert.equal(view.modal.hidden, true);
+  assert.equal(view.modal.innerHTML, '');
+});
+
+test('a failed details request leaves a usable popup instead of an endless loading state', async () => {
+  const view = boot({ schedule: date => ({ matches: date === day ? [match()] : [] }) });
+  await tick();
+  view.context.fetch = async () => { throw Error('offline'); };
+  await view.app.openMatchDetails(1);
+  assert.equal(view.modal.hidden, false);
+  assert.match(view.modal.innerHTML, /Manchester City/);
+  assert.doesNotMatch(view.modal.innerHTML, /detail-loading/);
+  assert.match(view.modal.innerHTML, /Statistics are not available/);
+  view.app.closeMatchDetails();
+  assert.equal(view.modal.hidden, true);
 });
 
 test('Arabic names and western 24-hour time render in cards and match details', async () => {

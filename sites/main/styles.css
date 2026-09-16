@@ -957,18 +957,21 @@ html[dir="rtl"] .match-card .match-meta {
   letter-spacing: 0.12em;
 }
 
-.match-score {
+.match-card .match-score {
   display: inline-flex;
-  min-width: 54px;
-  min-height: 30px;
+  min-width: 80px;
+  min-height: 44px;
+  padding: 3px 12px;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--gold-line);
   border-radius: 999px;
   background: rgba(245, 196, 0, 0.12);
   color: var(--text);
-  font-size: 13px;
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .match-title {
@@ -2915,9 +2918,11 @@ html[dir="rtl"] .social-dock {
     display: block;
   }
 
-  .match-score {
-    min-width: 48px;
-    min-height: 28px;
+  .match-card .match-score {
+    min-width: 72px;
+    min-height: 38px;
+    padding-inline: 6px;
+    font-size: 24px;
     justify-self: center;
   }
 

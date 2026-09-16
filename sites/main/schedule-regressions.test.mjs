@@ -339,6 +339,25 @@ test('Arabic names and western 24-hour time render in cards and match details', 
   assert.equal((view.modal.innerHTML.match(/UEFA Champions League/g) || []).length, 1);
 });
 
+test('cards read time then score then status, while the popup keeps its existing order', async () => {
+  for (const locale of ['en', 'ar']) {
+    for (const status of ['live', 'half_time', 'finished']) {
+      const fixture = { ...match(), status, home_score: 2, away_score: 1 };
+      const view = boot({ locale, schedule: date => ({ matches: date === day ? [fixture] : [] }) });
+      await tick();
+      const html = view.grid.innerHTML;
+      const timeIndex = html.indexOf('class="match-time"');
+      const scoreIndex = html.indexOf('class="match-vs match-score"');
+      const statusIndex = html.indexOf('class="match-status ');
+      assert.ok(timeIndex >= 0 && timeIndex < scoreIndex && scoreIndex < statusIndex, `${locale}/${status}: time must precede score and status`);
+      await view.app.openMatchDetails(1);
+      const popup = view.modal.innerHTML;
+      assert.ok(popup.indexOf('class="detail-score-status ') < popup.indexOf('class="detail-score"'));
+      assert.ok(popup.indexOf('class="detail-score"') < popup.indexOf('class="detail-score-time"'));
+    }
+  }
+});
+
 test('day-tab cards show only kickoff time while match details keep the full date', async () => {
   for (const [locale, clock, month, status] of [
     ['en', '12:05', 'Sept', 'scheduled'],

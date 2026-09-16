@@ -337,6 +337,16 @@ async function measureHomepageFirstScreen() {
         home_team: { name_en: 'Crystal Palace' },
         away_team: { name_en: 'Manchester City' },
       },
+      ...['finished', 'live'].map((status, index) => ({
+        id: 9002 + index,
+        scheduled_at: kickoff.toISOString(),
+        status,
+        home_score: index ? 2 : 10,
+        away_score: index ? 1 : 12,
+        league: { name: 'Premier League' },
+        home_team: { name_en: 'Brighton & Hove Albion' },
+        away_team: { name_en: 'Manchester United' },
+      })),
     ],
   })};`;
   const probe = `
@@ -371,6 +381,21 @@ async function measureHomepageFirstScreen() {
         const metaRect = card?.querySelector('.match-meta')?.getBoundingClientRect();
         const fontSize = (selector) => Number.parseFloat(getComputedStyle(card.querySelector(selector)).fontSize);
         document.querySelector('#first-screen-result').textContent = JSON.stringify({
+          scoredCards: Array.from(document.querySelectorAll('.match-card')).filter(item => item.querySelector('.match-score')).map(item => {
+            const score = item.querySelector('.match-score');
+            const center = item.querySelector('.match-center');
+            const time = item.querySelector('.match-time');
+            const scoreText = document.createRange();
+            scoreText.selectNodeContents(score.querySelector('bdi'));
+            return {
+              score: score.getBoundingClientRect().toJSON(),
+              center: center.getBoundingClientRect().toJSON(),
+              time: time.getBoundingClientRect().toJSON(),
+              fontSize: Number.parseFloat(getComputedStyle(score).fontSize),
+              clipped: score.scrollWidth > score.clientWidth,
+              textLines: scoreText.getClientRects().length,
+            };
+          }),
           teams,
           matchFontSizes: {
             time: fontSize('.match-time .bidi-datetime > bdi:first-child'),
@@ -650,6 +675,20 @@ test('desktop kickoff, timezone and league remain readable in English and Arabic
 
 test('desktop typography changes preserve compact mobile match text', { skip: !chromePath }, () => {
   assert.deepEqual(homepageLayout.mobile.matchFontSizes, { time: 12, zone: 10, league: 11 });
+});
+
+test('score stays below kickoff and is large without overflowing its center column', { skip: !chromePath }, () => {
+  for (const [view, minimumSize] of [[homepageLayout, 28], [homepageLayout.arabic, 28], [homepageLayout.mobile, 24]]) {
+    assert.equal(view.scoredCards.length, 2, 'cover live and finished matches, including a two-digit score');
+    for (const { score, time, center, fontSize, clipped, textLines } of view.scoredCards) {
+      assert.ok(time.bottom < score.top, 'kickoff and timezone must be above the score');
+      assert.ok(fontSize >= minimumSize, `score text is too small: ${fontSize}px`);
+      assert.ok(score.left >= center.left - 1 && score.right <= center.right + 1, 'score must fit between the teams');
+      assert.equal(clipped, false, 'score text must not be clipped');
+      assert.equal(textLines, 1, 'even a two-digit score must stay on a single line');
+    }
+    assert.ok(view.horizontalOverflow <= 0);
+  }
 });
 
 test('public header removes Home and groups theme control beside language', { skip: !chromePath }, () => {

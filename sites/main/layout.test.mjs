@@ -353,7 +353,9 @@ async function measureHomepageFirstScreen() {
     <pre id="first-screen-result"></pre>
     <script>
       addEventListener('load', () => {
-        const card = document.querySelector('.match-card');
+        // Measure kickoff typography on the scheduled fixture, not a LIVE card without a clock.
+        const card = document.querySelector('.match-card[data-match-id="9001"]');
+        const firstCardRect = document.querySelector('.match-card')?.getBoundingClientRect();
         const hero = document.querySelector('.hero-card');
         const heading = document.querySelector('.section-heading');
         const themeSwitch = document.querySelector('[data-theme-switch]');
@@ -388,9 +390,11 @@ async function measureHomepageFirstScreen() {
             const scoreText = document.createRange();
             scoreText.selectNodeContents(score.querySelector('bdi'));
             return {
+              id: item.dataset.matchId,
               score: score.getBoundingClientRect().toJSON(),
               center: center.getBoundingClientRect().toJSON(),
-              time: time.getBoundingClientRect().toJSON(),
+              time: time?.getBoundingClientRect().toJSON() || null,
+              timezonePresent: Boolean(item.querySelector('.bidi-timezone')),
               fontSize: Number.parseFloat(getComputedStyle(score).fontSize),
               clipped: score.scrollWidth > score.clientWidth,
               textLines: scoreText.getClientRects().length,
@@ -408,8 +412,8 @@ async function measureHomepageFirstScreen() {
           leagueOccurrences: card?.textContent.split('Premier League').length - 1,
           viewportHeight: innerHeight,
           viewportWidth: innerWidth,
-          firstCardTop: cardRect?.top ?? null,
-          firstCardVisible: Boolean(cardRect && cardRect.top < innerHeight),
+          firstCardTop: firstCardRect?.top ?? null,
+          firstCardVisible: Boolean(firstCardRect && firstCardRect.top < innerHeight),
           heroPresent: Boolean(hero),
           themeSwitchPresent: Boolean(themeSwitch),
           homeNavPresent: Boolean(document.querySelector('#nav-home')),
@@ -677,11 +681,17 @@ test('desktop typography changes preserve compact mobile match text', { skip: !c
   assert.deepEqual(homepageLayout.mobile.matchFontSizes, { time: 12, zone: 10, league: 11 });
 });
 
-test('score stays below kickoff and is large without overflowing its center column', { skip: !chromePath }, () => {
+test('score stays large and contained with kickoff only on non-live cards', { skip: !chromePath }, () => {
   for (const [view, minimumSize] of [[homepageLayout, 28], [homepageLayout.arabic, 28], [homepageLayout.mobile, 24]]) {
     assert.equal(view.scoredCards.length, 2, 'cover live and finished matches, including a two-digit score');
-    for (const { score, time, center, fontSize, clipped, textLines } of view.scoredCards) {
-      assert.ok(time.bottom < score.top, 'kickoff and timezone must be above the score');
+    for (const { id, score, time, timezonePresent, center, fontSize, clipped, textLines } of view.scoredCards) {
+      if (id === '9003') {
+        assert.equal(time, null, 'LIVE must have no kickoff element');
+        assert.equal(timezonePresent, false, 'LIVE must have no timezone');
+      } else {
+        assert.ok(time && time.bottom < score.top, 'non-live kickoff must remain above the score');
+        assert.equal(timezonePresent, true);
+      }
       assert.ok(fontSize >= minimumSize, `score text is too small: ${fontSize}px`);
       assert.ok(score.left >= center.left - 1 && score.right <= center.right + 1, 'score must fit between the teams');
       assert.equal(clipped, false, 'score text must not be clipped');

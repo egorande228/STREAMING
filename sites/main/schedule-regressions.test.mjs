@@ -339,9 +339,9 @@ test('Arabic names and western 24-hour time render in cards and match details', 
   assert.equal((view.modal.innerHTML.match(/UEFA Champions League/g) || []).length, 1);
 });
 
-test('cards read time then score then status, while the popup keeps its existing order', async () => {
+test('non-live cards read time then score then status, while the popup keeps its existing order', async () => {
   for (const locale of ['en', 'ar']) {
-    for (const status of ['live', 'half_time', 'finished']) {
+    for (const status of ['half_time', 'finished']) {
       const fixture = { ...match(), status, home_score: 2, away_score: 1 };
       const view = boot({ locale, schedule: date => ({ matches: date === day ? [fixture] : [] }) });
       await tick();
@@ -358,12 +358,41 @@ test('cards read time then score then status, while the popup keeps its existing
   }
 });
 
+test('live cards omit kickoff and timezone in every locale without changing popup time', async () => {
+  for (const locale of ['en', 'es', 'fr', 'ar']) {
+    for (const status of ['live', 'LIVE']) {
+      const fixture = { ...match(), status, home_score: 2, away_score: 1 };
+      const view = boot({ locale, schedule: date => ({ matches: date === day ? [fixture] : [] }) });
+      await tick();
+      assert.doesNotMatch(view.grid.innerHTML, /class="match-time"|bidi-timezone/, `${locale}/${status}: no kickoff or timezone in the card`);
+      assert.match(view.grid.innerHTML, /class="match-vs match-score"/);
+      assert.match(view.grid.innerHTML, /class="match-status live/);
+      await view.app.openMatchDetails(1);
+      const popupTime = view.modal.innerHTML.match(/<span class="detail-score-time">([\s\S]*?)<\/span>/)?.[1];
+      assert.ok(popupTime?.includes('bidi-timezone'), 'popup must still show date, kickoff and timezone');
+      assert.ok(view.modal.innerHTML.indexOf('class="detail-score"') < view.modal.innerHTML.indexOf('class="detail-score-time"'));
+    }
+  }
+});
+
+test('kickoff visibility follows status updates rather than hiding every scored match', async () => {
+  let status = 'scheduled';
+  const view = boot({ schedule: date => ({ matches: date === day ? [{ ...match(), status, home_score: 2, away_score: 1 }] : [] }) });
+  await tick();
+  for (const [nextStatus, showTime] of [['scheduled', true], ['live', false], ['half_time', true], ['live', false], ['finished', true], ['postponed', true]]) {
+    status = nextStatus;
+    await view.app.loadMatchDay(0, { force: true });
+    assert.equal(view.grid.innerHTML.includes('class="match-time"'), showTime, nextStatus);
+    assert.equal(view.grid.innerHTML.includes('bidi-timezone'), showTime, nextStatus);
+  }
+});
+
 test('day-tab cards show only kickoff time while match details keep the full date', async () => {
   for (const [locale, clock, month, status] of [
     ['en', '12:05', 'Sept', 'scheduled'],
     ['es', '12:05', 'sept', 'finished'],
     ['fr', '13:05', 'sept', 'scheduled'],
-    ['ar', '13:05', 'سبتمبر', 'live'],
+    ['ar', '13:05', 'سبتمبر', 'half_time'],
   ]) {
     const fixture = { ...match(), scheduled_at: `${day}T10:05:00Z`, status, home_score: 2, away_score: 1 };
     const view = boot({ locale, schedule: date => ({ matches: date === day ? [fixture] : [] }) });

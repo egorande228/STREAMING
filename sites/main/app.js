@@ -55,6 +55,8 @@
       carouselNext: 'Next news',
       carouselControls: 'News carousel controls',
       loadingMatches: 'Loading matches',
+      scheduleUnavailable: 'Schedule temporarily unavailable',
+      retryMatches: 'Try again',
       loadingNews: 'Loading football news',
       matchesUnavailable: 'Coming Soon',
       noMatchesYesterday: 'No matches yesterday',
@@ -139,6 +141,8 @@
       carouselNext: 'Noticias siguientes',
       carouselControls: 'Controles del carrusel de noticias',
       loadingMatches: 'Cargando partidos',
+      scheduleUnavailable: 'Calendario temporalmente no disponible',
+      retryMatches: 'Reintentar',
       loadingNews: 'Cargando noticias de fútbol',
       matchesUnavailable: 'Próximamente',
       noMatchesYesterday: 'No hubo partidos ayer',
@@ -223,6 +227,8 @@
       carouselNext: 'Actualités suivantes',
       carouselControls: 'Contrôles du carrousel d’actualités',
       loadingMatches: 'Chargement des matchs',
+      scheduleUnavailable: 'Calendrier temporairement indisponible',
+      retryMatches: 'Réessayer',
       loadingNews: 'Chargement des actualités football',
       matchesUnavailable: 'Bientôt disponible',
       noMatchesYesterday: 'Aucun match hier',
@@ -307,6 +313,8 @@
       carouselNext: 'الأخبار التالية',
       carouselControls: 'التحكم في شريط الأخبار',
       loadingMatches: 'جارٍ تحميل المباريات',
+      scheduleUnavailable: 'جدول المباريات غير متاح مؤقتًا',
+      retryMatches: 'إعادة المحاولة',
       loadingNews: 'جارٍ تحميل أخبار كرة القدم',
       matchesUnavailable: 'قريبًا',
       noMatchesYesterday: 'لم تكن هناك مباريات أمس',
@@ -391,6 +399,8 @@
       carouselNext: 'Дараагийн мэдээ',
       carouselControls: 'Мэдээний каруселийн удирдлага',
       loadingMatches: 'Тоглолтуудыг ачаалж байна',
+      scheduleUnavailable: 'Тоглолтын хуваарь түр боломжгүй байна',
+      retryMatches: 'Дахин оролдох',
       loadingNews: 'Хөлбөмбөгийн мэдээ ачаалж байна',
       matchesUnavailable: 'Тун удахгүй',
       noMatchesYesterday: 'Өчигдөр тоглолт байгаагүй',
@@ -488,6 +498,7 @@
   let currentScheduleMatches = [];
   let activeMatchDayOffset = 0;
   let matchDayLoadId = 0;
+  let scheduleState = 'loading';
   let activeStreamMatchIds = new Set();
   let activeStreamDetails = new Map();
   let activeStreamsReady = false;
@@ -561,7 +572,8 @@
 
   function shouldWriteDailyCache(scope, data) {
     if (String(scope).startsWith(`matches:${uiLocale}:`)) {
-      return Array.isArray(data?.matches) && data.matches.length > 0;
+      return Array.isArray(data?.matches) && data.matches.length > 0
+        && !data.schedule_stale && !data.matches.some((match) => match.schedule_stale);
     }
     if (String(scope).startsWith(`news:${uiLocale}:`)) {
       return Array.isArray(data?.news) && data.news.length > 0;
@@ -604,7 +616,10 @@
       writeDailyCache(scope, data);
       return data;
     } catch (error) {
-      if (cachedEntry?.data != null && (!String(scope).startsWith('match-stats:') || ageMs <= 300000)) return cachedEntry.data;
+      if (cachedEntry?.data != null && (!String(scope).startsWith('match-stats:') || ageMs <= 300000)) {
+        return String(scope).startsWith(`matches:${uiLocale}:`)
+          ? { ...cachedEntry.data, schedule_stale: true } : cachedEntry.data;
+      }
       throw error;
     }
   }
@@ -648,9 +663,11 @@
       force: options.force,
       maxAgeMs: matchCacheMaxAge(cachedMatches, date),
     });
+    if (!Array.isArray(data?.matches)) throw new Error('invalid_schedule_payload');
     return {
-      matches: Array.isArray(data.matches) ? data.matches : [],
+      matches: data.matches,
       cachedMatches,
+      complete: !data.schedule_stale && !data.matches.some((match) => match.schedule_stale),
     };
   }
 
@@ -702,16 +719,19 @@
 
   async function fetchMatchDayMatches(date, options = {}) {
     const dates = [addUtcDays(date, -1), date, addUtcDays(date, 1)];
-    const results = await Promise.all(dates.map((item) => fetchMatchesForDate(item, options)));
+    const settled = await Promise.allSettled(dates.map((item) => fetchMatchesForDate(item, options)));
+    const results = settled.filter((result) => result.status === 'fulfilled').map((result) => result.value);
     return {
       matches: uniqueMatchesById(results.flatMap((result) => result.matches))
         .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || ''))),
       cachedMatches: uniqueMatchesById(results.flatMap((result) => result.cachedMatches)),
+      complete: results.length === dates.length && results.every((result) => result.complete),
     };
   }
 
   async function fetchInitialScheduleMatches(today, options = {}) {
     const initial = await fetchMatchDayMatches(today, options);
+    if (!initial.complete) return initial;
     const tomorrow = addUtcDays(today, 1);
     const hasImmediateMatches = initial.matches.some((match) => {
       const date = matchLocalDateKey(match);
@@ -725,19 +745,21 @@
         { length: Math.min(scheduleFallbackBatchDays, scheduleLookaheadDays - start + 1) },
         (_, index) => addUtcDays(today, start + index),
       );
-      const results = await Promise.all(dates.map((date) => fetchMatchesForDate(date, options)));
+      const settled = await Promise.allSettled(dates.map((date) => fetchMatchesForDate(date, options)));
+      const results = settled.filter((result) => result.status === 'fulfilled').map((result) => result.value);
       cachedMatches.push(...results.flatMap((result) => result.cachedMatches));
       const matches = uniqueMatchesById(results.flatMap((result) => result.matches))
         .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || '')));
       if (matches.length) {
         return {
+          complete: initial.complete,
           matches: matches.slice(0, scheduleFallbackMaxMatches),
           cachedMatches: uniqueMatchesById(cachedMatches),
         };
       }
     }
 
-    return { matches: [], cachedMatches: uniqueMatchesById(cachedMatches) };
+    return { matches: initial.matches, cachedMatches: uniqueMatchesById(cachedMatches), complete: initial.complete };
   }
 
   function isLiveCarryoverMatch(match) {
@@ -1186,17 +1208,30 @@
       });
     };
 
+    let navigationTarget = null;
     const updateFromScroll = () => {
+      const atBottom = window.scrollY > 0
+        && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
+      if (navigationTarget) {
+        setActive(navigationTarget.link);
+        if (navigationTarget.section.getBoundingClientRect().top <= 130 || atBottom) navigationTarget = null;
+        return;
+      }
       let activeLink = links[0];
       const threshold = 130;
       sectionLinks.forEach(({ link, section }) => {
         if (section.getBoundingClientRect().top <= threshold) activeLink = link;
       });
+      const last = sectionLinks[sectionLinks.length - 1];
+      if (atBottom && last && last.section.getBoundingClientRect().top < window.innerHeight) activeLink = last.link;
       setActive(activeLink);
     };
 
     links.forEach((link) => {
-      link.addEventListener('click', () => setActive(link));
+      link.addEventListener('click', () => {
+        navigationTarget = sectionLinks.find((item) => item.link === link) || null;
+        setActive(link);
+      });
     });
 
     let ticking = false;
@@ -1208,8 +1243,18 @@
         updateFromScroll();
       });
     }, { passive: true });
-    window.addEventListener('hashchange', updateFromScroll);
-    updateFromScroll();
+    const updateFromHash = () => {
+      navigationTarget = sectionLinks.find(({ link }) => link.getAttribute('href') === window.location.hash) || null;
+      updateFromScroll();
+    };
+    // Manual scrolling cancels an in-flight anchor selection.
+    window.addEventListener('wheel', () => { navigationTarget = null; }, { passive: true });
+    window.addEventListener('touchstart', () => { navigationTarget = null; }, { passive: true });
+    window.addEventListener('keydown', (event) => {
+      if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) navigationTarget = null;
+    });
+    window.addEventListener('hashchange', updateFromHash);
+    updateFromHash();
   }
 
   function escapeHtml(value) {
@@ -1237,9 +1282,10 @@
 
   function bidiDateTimeHtml(value) {
     const { dateTime, timeZone } = formatDateParts(value);
+    const arabicZone = uiLocale === 'ar' ? timeZone.match(/^(.*?)([+-]\d+)$/) : null;
     const timeZoneHtml = timeZone
       ? (uiLocale === 'ar'
-        ? `<bdi class="bidi-auto bidi-timezone" dir="auto">${escapeHtml(timeZone)}</bdi>`
+        ? `<bdi class="bidi-auto bidi-timezone" dir="auto">${arabicZone ? `${escapeHtml(arabicZone[1])}${bidiLtrHtml(arabicZone[2])}` : escapeHtml(timeZone)}</bdi>`
         : `<bdi class="bidi-ltr bidi-timezone" dir="ltr">${escapeHtml(timeZone)}</bdi>`)
       : '';
     return `<span class="bidi-datetime">${bidiAutoHtml(dateTime)}${timeZoneHtml}</span>`;
@@ -1335,7 +1381,14 @@
 
   function teamName(team) {
     if (!team) return t('tbd');
-    return cleanText(team.name_en, cleanText(team.code, t('tbd')));
+    const translated = uiLocale === 'ar' ? window.KINGLIVE_TEAM_NAMES?.arabicName(team) : '';
+    return cleanText(translated, cleanText(team.name_en, cleanText(team.name, cleanText(team.code, t('tbd')))));
+  }
+
+  function teamNameHtml(name) {
+    const length = Array.from(name).length;
+    const size = length > 26 ? 'extra-long' : length > 18 ? 'long' : 'regular';
+    return `<bdi class="bidi-auto team-name" dir="auto" data-name-length="${size}" title="${escapeHtml(name)}">${escapeHtml(name)}</bdi>`;
   }
 
   function leagueName(match) {
@@ -1343,15 +1396,24 @@
   }
 
   function stageName(match) {
-    return cleanText(match?.stage, t('worldCup'));
+    return cleanText(match?.stage, '');
   }
 
   function matchCardStageName(match) {
     const league = leagueName(match);
     const stage = stageName(match);
-    const normalizedLeague = league.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-    const normalizedStage = stage.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-    if (normalizedLeague && ` ${normalizedStage} `.includes(` ${normalizedLeague} `)) return '';
+    const aliases = [
+      /(?:UEFA\s+)?Champions\s+League|دوري أبطال أوروبا/iu,
+      /(?:Spanish\s+)?La\s*Liga(?:\s+EA\s+SPORTS)?|الدوري الإسباني/iu,
+      /(?:English\s+)?Premier\s+League|الدوري الإنجليزي الممتاز/iu,
+    ];
+    const alias = aliases.find((pattern) => pattern.test(league));
+    if (alias?.test(stage)) {
+      return stage.replace(alias, '').replace(/\b20\d{2}\s*[-/–]\s*(?:20)?\d{2}\b/g, '')
+        .replace(/^[\s|,:;–—-]+|[\s|,:;–—-]+$/g, '').trim();
+    }
+    const normalize = (value) => value.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    if (normalize(league) === normalize(stage)) return '';
     return stage;
   }
 
@@ -1396,10 +1458,13 @@
         en: 'CEST',
         es: 'CEST',
         fr: 'GMT+3',
-        ar: 'غرينتش+٣',
+        ar: 'غرينتش+3',
         mn: 'GMT+8',
       };
       const formatted = new Intl.DateTimeFormat(dateLocales[uiLocale] || 'en-GB', {
+        calendar: 'gregory',
+        numberingSystem: 'latn',
+        hourCycle: 'h23',
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
@@ -1700,8 +1765,8 @@
     const away = starters.filter((item) => item.team === 'away');
     if (!home.length && !away.length) return '';
     const teams = Array.isArray(stats?.team_stats) ? stats.team_stats : (Array.isArray(stats?.teams) ? stats.teams : []);
-    const homeTitle = teams[0]?.team?.name || t('homeWin');
-    const awayTitle = teams[1]?.team?.name || t('awayWin');
+    const homeTitle = teams[0]?.team ? teamName(teams[0].team) : t('homeWin');
+    const awayTitle = teams[1]?.team ? teamName(teams[1].team) : t('awayWin');
     return renderDetailAccordion(
       t('startingLineups'),
       `
@@ -1831,7 +1896,7 @@
     const items = [
       [t('kickoff'), match.scheduled_at, 'datetime'],
       [t('countdown'), countdown, 'ltr'],
-      [t('stage'), stageName(match), 'auto'],
+      [t('stage'), matchCardStageName(match), 'auto'],
       [t('venue'), placeName(match.venue), 'auto'],
       [t('city'), placeName(match.city), 'auto'],
     ].filter(([, value]) => value);
@@ -2043,6 +2108,17 @@
     currentMatches = displayMatches;
     matches = displayMatches;
     if (!matches.length) {
+      if (scheduleState === 'loading') {
+        renderMatchSkeleton(3);
+        return;
+      }
+      if (scheduleState === 'error') {
+        grid.innerHTML = `<article class="empty-card schedule-error" role="status">
+          <span>${escapeHtml(t('scheduleUnavailable'))}</span>
+          <button type="button" class="schedule-retry" data-retry-matches>${escapeHtml(t('retryMatches'))}</button>
+        </article>`;
+        return;
+      }
       const nextMatch = nextMatchAfter(matchDateForOffset());
       const nextMatchHtml = nextMatch
         ? `<span class="empty-card-next">${escapeHtml(t('nextMatch'))}: ${bidiDateTimeHtml(nextMatch.scheduled_at)}</span>`
@@ -2077,9 +2153,9 @@
             </div>
             <div class="match-main">
               <div class="match-teams" aria-label="${escapeHtml(title)}">
-                <span class="team-side">${renderTeamLogo(match.home_team, home)}${bidiAutoHtml(home)}</span>
+                <span class="team-side">${renderTeamLogo(match.home_team, home)}${teamNameHtml(home)}</span>
                 <span class="match-vs${hasScore ? ' match-score' : ''}">${bidiLtrHtml(centerLabel)}</span>
-                <span class="team-side">${renderTeamLogo(match.away_team, away)}${bidiAutoHtml(away)}</span>
+                <span class="team-side">${renderTeamLogo(match.away_team, away)}${teamNameHtml(away)}</span>
               </div>
               <div class="match-title">${escapeHtml(title)}</div>
               ${cardStage ? `<div class="match-meta">${bidiAutoHtml(cardStage)}</div>` : ''}
@@ -2264,7 +2340,7 @@
           <div class="detail-scorebar">
             <div class="detail-score-team home">
               ${renderTeamLogo(match.home_team, home)}
-              <strong>${bidiAutoHtml(home)}</strong>
+              <strong>${teamNameHtml(home)}</strong>
             </div>
             <div class="detail-score-center">
               <span class="detail-score-status match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</span>
@@ -2273,12 +2349,12 @@
             </div>
             <div class="detail-score-team away">
               ${renderTeamLogo(match.away_team, away)}
-              <strong>${bidiAutoHtml(away)}</strong>
+              <strong>${teamNameHtml(away)}</strong>
             </div>
           </div>
           <div class="detail-score-venue">
             <span>${bidiAutoHtml(cleanText(match.league?.name, cleanText(match.stage, t('football'))))}</span>
-            ${labeledBidiHtml(t('stage'), stageName(match))}
+            ${matchCardStageName(match) ? labeledBidiHtml(t('stage'), matchCardStageName(match)) : ''}
             ${labeledBidiHtml(t('venue'), placeName(match.venue))}
             ${labeledBidiHtml(t('city'), placeName(match.city))}
           </div>
@@ -2291,7 +2367,7 @@
         ${prematchPanel}
         <div class="match-stats detail-meta-lines">
           <div>${labeledBidiHtml(t('kickoff'), match.scheduled_at, 'datetime')}</div>
-          <div>${labeledBidiHtml(t('stage'), stageName(match))}</div>
+          ${matchCardStageName(match) ? `<div>${labeledBidiHtml(t('stage'), matchCardStageName(match))}</div>` : ''}
           <div>${labeledBidiHtml(t('venue'), placeName(match.venue))}</div>
           <div>${labeledBidiHtml(t('city'), placeName(match.city))}</div>
         </div>
@@ -2333,26 +2409,29 @@
     });
   }
 
-  async function loadMatchDay(offset) {
+  async function loadMatchDay(offset, options = {}) {
     const normalizedOffset = Number(offset);
     if (!Number.isInteger(normalizedOffset) || normalizedOffset < -1 || normalizedOffset > 1) return;
     activeMatchDayOffset = normalizedOffset;
     updateMatchDayTabs();
     const date = matchDateForOffset();
     const loadId = ++matchDayLoadId;
+    scheduleState = 'loading';
     const knownMatches = matchesForMatchDayView(currentScheduleMatches, date, normalizedOffset);
     if (knownMatches.length) renderMatches(knownMatches);
     else renderMatchSkeleton(3);
 
     try {
-      const result = await fetchMatchDayMatches(date);
+      const result = await fetchMatchDayMatches(date, options);
       if (loadId !== matchDayLoadId) return;
+      scheduleState = result.complete ? 'ready' : 'error';
       const fetchedMatches = mergeManualMatches(result.matches);
-      currentScheduleMatches = uniqueMatchesById([...currentScheduleMatches, ...fetchedMatches])
+      currentScheduleMatches = uniqueMatchesById([...fetchedMatches, ...currentScheduleMatches])
         .sort((left, right) => String(left?.scheduled_at || '').localeCompare(String(right?.scheduled_at || '')));
       renderMatches(matchesForMatchDayView(currentScheduleMatches, date, normalizedOffset));
     } catch {
       if (loadId !== matchDayLoadId) return;
+      scheduleState = 'error';
       renderMatches(knownMatches);
     }
   }
@@ -2370,6 +2449,8 @@
 
   async function loadMatches(options = {}) {
     if (!grid) return;
+    const loadId = ++matchDayLoadId;
+    scheduleState = 'loading';
     const today = todayLocalKey();
     const cachedScheduleMatches = mergeManualMatches(readCachedScheduleMatches(today));
     const selectedDate = matchDateForOffset();
@@ -2382,6 +2463,8 @@
 
     try {
       const schedule = await fetchInitialScheduleMatches(today, options);
+      if (loadId !== matchDayLoadId) return;
+      scheduleState = schedule.complete ? 'ready' : 'error';
       fetchActiveStreamMatchIds({ force: options.force }).then((activeIds) => {
         activeStreamMatchIds = activeIds;
         renderMatches(currentMatches);
@@ -2414,6 +2497,8 @@
         void fetchMatchStats(match.id, { live: true, maxAgeMs: 30_000 });
       });
     } catch {
+      if (loadId !== matchDayLoadId) return;
+      scheduleState = 'error';
       renderMatches(matchesForMatchDayView(cachedScheduleMatches, matchDateForOffset()));
     }
   }
@@ -2426,6 +2511,10 @@
 
   if (grid) {
     grid.addEventListener('click', (event) => {
+      if (event.target.closest('[data-retry-matches]')) {
+        void loadMatchDay(activeMatchDayOffset, { force: true });
+        return;
+      }
       if (event.target.closest('a')) return;
       const card = event.target.closest('[data-match-id]');
       if (card) openMatchDetails(card.dataset.matchId);

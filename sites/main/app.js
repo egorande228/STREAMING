@@ -1112,7 +1112,7 @@
   }
 
   function shouldShowPlayerButtons(match = {}) {
-    if (['2023415940', '1399921411'].includes(String(match.id)) && displayStreamsForMatch(match).some(stream => String(stream.label || '').startsWith('TEST:'))) return true;
+    if (['2023415940', '1399921411', '906284345'].includes(String(match.id)) && displayStreamsForMatch(match).some(stream => String(stream.label || '').startsWith('TEST:'))) return true;
     if (matchLocalDateKey(match) === localDateKey(new Date()) || isLiveCarryoverMatch(match)) return true;
     if (!streamEnabledForMatch(match)) return false;
 
@@ -1223,6 +1223,12 @@
 
   function bidiAutoHtml(value) {
     return `<bdi class="bidi-auto" dir="auto">${escapeHtml(value)}</bdi>`;
+  }
+
+  function scoreLabel(match) {
+    const home = match.home_score ?? 0, away = match.away_score ?? 0;
+    // RTL mirrors team positions; keep each score beside its own team.
+    return uiLocale === 'ar' ? `${away} : ${home}` : `${home} : ${away}`;
   }
 
   function bidiLtrHtml(value) {
@@ -2060,7 +2066,7 @@
         const isLive = normalizedStatus === 'live' || normalizedStatus === 'half_time';
         const hasScore = isLive || normalizedStatus === 'finished';
         const badgeClass = statusBadgeClass(displayStatus);
-        const centerLabel = hasScore ? `${match.home_score ?? 0} : ${match.away_score ?? 0}` : 'vs';
+        const centerLabel = hasScore ? scoreLabel(match) : 'vs';
         const hasStreams = displayStreamsForMatch(match).length > 0;
         const cardStage = matchCardStageName(match);
         return `
@@ -2262,7 +2268,7 @@
             </div>
             <div class="detail-score-center">
               <span class="detail-score-status match-status ${isLive ? 'live' : ''} ${badgeClass}">${escapeHtml(translateStatus(displayStatus))}</span>
-              <div class="detail-score">${bidiLtrHtml(`${match.home_score ?? 0} : ${match.away_score ?? 0}`)}</div>
+              <div class="detail-score">${bidiLtrHtml(scoreLabel(match))}</div>
               <span class="detail-score-time">${bidiDateTimeHtml(match.scheduled_at)}</span>
             </div>
             <div class="detail-score-team away">

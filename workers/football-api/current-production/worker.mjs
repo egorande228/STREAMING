@@ -1,0 +1,4348 @@
+import { registerMatch, readRegisteredMatch, readRegisteredDay } from './match-registry.mjs';
+import { sharedUpstream } from './upstream-cache.mjs';
+import { addTeamCrests } from './team-crests.mjs';
+import { publicMatchDetails, publicMatchCards, uefaSchedule, plSchedule, laligaSchedule, registerUefaDay } from './public-match-details.mjs';
+var __defProp = Object.defineProperty;
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+
+// worker.js
+var API_BASE = "https://v3.football.api-sports.io";
+var SPORTMONKS_API_BASE = "https://api.sportmonks.com/v3/football";
+var FOOTBALL_DATA_API_BASE = "https://api.football-data.org/v4";
+var THERUNDOWN_API_BASE = "https://therundown.io/api";
+var SPORTMONKS_MATCH_INCLUDES = "participants;scores;events.type;statistics.type;periods;state;venue;stage;league";
+var SPORTMONKS_DETAIL_INCLUDES = "participants;scores;events.type;statistics.type;lineups.player:display_name,image_path;periods;state;venue;stage;league";
+var SPORTMONKS_STATS_INCLUDES = "participants;statistics.type";
+var SPORTMONKS_EVENTS_INCLUDES = "participants;events.type";
+var SPORTMONKS_LINEUPS_INCLUDES = "participants;lineups.player:display_name,image_path";
+var SPORTMONKS_NEWS_INCLUDES = "fixture;league;lines";
+var NEWS_FEED_URL = "https://feeds.bbci.co.uk/sport/football/rss.xml";
+var NEWS_FEED_PROXY_URL = `https://morss.it/${NEWS_FEED_URL}`;
+var NEWS_FEED_AR_URL = "https://aawsat.com/feed/sport";
+var NEWS_FEED_AR_FOOTBALL_URL = "https://news.google.com/rss/search?q=%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85&hl=ar&gl=AE&ceid=AE:ar";
+var GOOGLE_NEWS_FEEDS = {
+  es: "https://news.google.com/rss/search?q=f%C3%BAtbol&hl=es&gl=ES&ceid=ES:es",
+  fr: "https://news.google.com/rss/search?q=football&hl=fr&gl=FR&ceid=FR:fr",
+  mn: "https://news.google.com/rss/search?q=football&hl=mn&gl=MN&ceid=MN:mn"
+};
+var STREAM_CONFIG_KV_KEY = "match_streams_json";
+var MATCH_OVERRIDES_KV_KEY = "match_overrides_json";
+var ADMIN_SETTINGS_KV_KEY = "admin_settings_json";
+var OVERLAY_ASSETS_INDEX_KV_KEY = "restream_overlay_assets_index_json";
+var OVERLAY_ASSET_KV_PREFIX = "restream_overlay_asset:";
+var CACHE_VERSION_KV_KEY = "api_cache_version";
+var MATCH_LIST_KV_CACHE_PREFIX = "public_matches_cache_v2:";
+var MATCH_LIST_KV_MAX_AGE_SECONDS = 60;
+var MATCH_LIST_KV_STALE_TTL_SECONDS = 15 * 60;
+var EXTERNAL_MELBET_ODDS_CACHE_NAMESPACE = "external-melbet-odds-v1";
+var THERUNDOWN_ODDS_CACHE_NAMESPACE = "therundown-odds-v1";
+var RESTREAM_ORIGIN_HOST = "hls.livekinglive.win";
+var RESTREAM_CDN_HOST = "cdn-hls.livekinglive.win";
+var DEFAULT_RESTREAM_PUBLIC_BASE_URL = `https://${RESTREAM_CDN_HOST}/live`;
+var DEFAULT_RESTREAM_ORIGIN_ID = "primary";
+var RESTREAM_ORIGINS = {
+  primary: {
+    id: "primary",
+    label: "Primary origin",
+    envKey: "RESTREAM_PUBLIC_BASE_URL",
+    defaultPublicBaseUrl: DEFAULT_RESTREAM_PUBLIC_BASE_URL
+  },
+  "aws-us-1": {
+    id: "aws-us-1",
+    label: "AWS US",
+    envKey: "AWS_RESTREAM_PUBLIC_BASE_URL",
+    defaultPublicBaseUrl: `https://${RESTREAM_CDN_HOST}/aws/live`
+  }
+};
+var MAX_OVERLAY_ASSET_BYTES = 15e5;
+var BUILTIN_RESTREAM_OVERLAYS = [
+  { id: "kinglive_player_leaderboard.png", name: "KingLive player", builtin: true },
+  { id: "kinglive_banner_1554x192_fixed.png", name: "KingLive wide", builtin: true },
+  { id: "kinglive_top_banner_1554x192.png", name: "KingLive top", builtin: true },
+  { id: "melbet_top_banner_1554x192.png", name: "Melbet top", builtin: true },
+  { id: "melbet_banner_1870x245_safe_player.png", name: "Melbet safe player", builtin: true }
+];
+var API_CACHE_NAMESPACE = "dami-labels-v2";
+var DAMI_STREAMS_KV_KEY = "dami:streams:v1";
+var DAMI_STREAMS_TTL_SECONDS = 60;
+var DAMI_STREAMS_API_URL = "https://dami-tv.pro/papi/api/streams";
+var DAMI_STREAMS_FALLBACK_API_URL = "https://damitv.b-cdn.net/papi/api/streams";
+var DAMI_TEAM_CODE_ALIASES = {
+  ARG: "argentina",
+  AUS: "australia",
+  BEL: "belgium",
+  BIH: "bosnia herzegovina",
+  BRA: "brazil",
+  CAN: "canada",
+  CMR: "cameroon",
+  COL: "colombia",
+  CRC: "costa rica",
+  CRO: "croatia",
+  CZE: "czech",
+  DEN: "denmark",
+  ECU: "ecuador",
+  EGY: "egypt",
+  ENG: "england",
+  ESP: "spain",
+  FRA: "france",
+  GER: "germany",
+  GHA: "ghana",
+  IRN: "iran",
+  ITA: "italy",
+  JPN: "japan",
+  KOR: "korea",
+  MAR: "morocco",
+  MEX: "mexico",
+  NED: "netherlands",
+  NGA: "nigeria",
+  POL: "poland",
+  POR: "portugal",
+  QAT: "qatar",
+  RSA: "south africa",
+  KSA: "saudi arabia",
+  SEN: "senegal",
+  SRB: "serbia",
+  SUI: "switzerland",
+  SWE: "sweden",
+  TUN: "tunisia",
+  TUR: "turkey",
+  UKR: "ukraine",
+  URU: "uruguay",
+  USA: "usa"
+};
+var EXTERNAL_ODDS_TEAM_ALIASES = {
+  "u s a": "usa",
+  us: "usa",
+  usa: "usa",
+  "united states": "usa",
+  "united states of america": "usa",
+  "korea republic": "south korea",
+  "republic of korea": "south korea"
+};
+var SPORTMONKS_SUPPORTED_LOCALES = /* @__PURE__ */ new Set(["ar", "ckb", "de", "el", "es", "fa", "fr", "hu", "it", "ja", "kmr", "ru", "ua", "zh"]);
+var NEWS_SUPPORTED_LOCALES = /* @__PURE__ */ new Set(["en", "es", "fr", "ar", "mn"]);
+var CHAT_MAX_MESSAGES = 100;
+var CHAT_MAX_MESSAGE_LENGTH = 240;
+var CHAT_MAX_AUTHOR_LENGTH = 24;
+var CHAT_RATE_LIMIT_SECONDS = 5;
+var VIEWER_HEARTBEAT_TTL_SECONDS = 75;
+var LIVE_STATUSES = /* @__PURE__ */ new Set(["1H", "2H", "ET", "P", "BT", "INT"]);
+var HALF_TIME_STATUSES = /* @__PURE__ */ new Set(["HT"]);
+var FINISHED_STATUSES = /* @__PURE__ */ new Set(["FT", "AET", "PEN"]);
+var POSTPONED_STATUSES = /* @__PURE__ */ new Set(["PST", "SUSP", "CANC", "ABD"]);
+var STATUS_PRIORITY = {
+  live: 0,
+  half_time: 0,
+  scheduled: 1,
+  postponed: 2,
+  finished: 3
+};
+var TOP_LEAGUE_PRIORITY = /* @__PURE__ */ new Map([
+  [1, 1],
+  // FIFA World Cup
+  [15, 2],
+  // FIFA Club World Cup
+  [2, 3],
+  // UEFA Champions League
+  [3, 4],
+  // UEFA Europa League
+  [848, 5],
+  // UEFA Europa Conference League
+  [4, 6],
+  // UEFA European Championship
+  [5, 7],
+  // UEFA Nations League
+  [11, 8],
+  // CONMEBOL Sudamericana
+  [13, 9],
+  // CONMEBOL Libertadores
+  [39, 10],
+  // Premier League
+  [140, 11],
+  // La Liga
+  [135, 12],
+  // Serie A
+  [78, 13],
+  // Bundesliga
+  [61, 14],
+  // Ligue 1
+  [94, 15],
+  // Primeira Liga
+  [88, 16],
+  // Eredivisie
+  [71, 17],
+  // Serie A Brazil
+  [128, 18],
+  // Liga Profesional Argentina
+  [253, 19],
+  // Major League Soccer
+  [307, 20]
+  // Saudi Pro League
+]);
+var worker_default = {
+  async fetch(request, env, ctx) {
+    try {
+      return await routeRequest(request, env, ctx);
+    } catch (error) {
+      const url = new URL(request.url);
+      const adminMessage = url.pathname.startsWith("/api/admin") ? String(error?.message || error || "internal_error").slice(0, 300) : "internal_error";
+      return jsonResponse({ error: "internal_error", message: adminMessage }, 500, 0);
+    }
+  }
+};
+async function routeRequest(request, env = {}, ctx = {}) {
+  const url = new URL(request.url);
+  if (request.method === "OPTIONS") return emptyResponse(204);
+  if (url.pathname.startsWith("/api/")) {
+    await recordMetric(env, "api_calls");
+  }
+  const viewerHeartbeatMatch = url.pathname.match(/^\/api\/viewers\/(\d+)\/heartbeat$/);
+  if (viewerHeartbeatMatch) {
+    return routeViewerHeartbeatRequest(request, env, Number(viewerHeartbeatMatch[1]));
+  }
+  if (url.pathname.startsWith("/api/admin")) {
+    return routeAdminRequest(request, env, ctx);
+  }
+  if (url.pathname === "/api/restreams") {
+    if (request.method !== "GET") return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+    return routeRestreamSyncList(request, env);
+  }
+  if (url.pathname === "/api/restream-overlays") {
+    if (request.method !== "GET") return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+    return routeRestreamOverlayAssetsList(request, env);
+  }
+  if (url.pathname === "/api/streams/active") {
+    if (request.method !== "GET") return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+    return routePublicStreamsRequest(env);
+  }
+  if (url.pathname === "/api/embed-proxy/dami") {
+    if (request.method !== "GET") return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+    if (env.DAMI_EMBED_PROXY_ENABLED !== "true") {
+      return htmlResponse(damiEmbedErrorHtml("DAMI embed proxy is temporarily disabled"), 503, 0);
+    }
+    return routeDamiEmbedProxyRequest(url);
+  }
+  const chatMatch = url.pathname.match(/^\/api\/chat\/(\d+)$/);
+  if (chatMatch) {
+    return routeChatRequest(request, env, Number(chatMatch[1]));
+  }
+  if (request.method !== "GET") return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  const statsMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/stats$/);
+  const prematchMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/prematch$/);
+  if (url.pathname === "/api/news") {
+    return routeNewsRequest(request, env, ctx);
+  }
+  if (!url.pathname.startsWith("/api/matches")) {
+    return jsonResponse({ error: "not_found" }, 404, 0);
+  }
+  if (!env.SPORTMONKS_TOKEN && !env.API_FOOTBALL_KEY && !env.FOOTBALL_DATA_TOKEN) {
+    if (url.pathname === "/api/matches") {
+      return jsonResponse({ matches: [], total: 0, source: "not_configured" }, 200, 30);
+    }
+    return jsonResponse({ error: "football API token is not configured" }, 503, 30);
+  }
+  const provider = resolveFootballProvider(env);
+  const cacheProvider = `${provider}:${resolveFootballScheduleProvider(env)}:identity-v9-laliga`;
+  const ttl = resolveCacheTtl(url);
+  const cacheVersion = await readCacheVersion(env);
+  const cacheKey = new Request(normalizeCacheUrl(url, cacheProvider, cacheVersion).toString(), request);
+  const cache = globalThis.caches?.default;
+  const cached = cache ? await cache.match(cacheKey) : null;
+  if (cached) {
+    await recordMetric(env, "cache_hits");
+    return cached;
+  }
+  const publicMatchListRequest = isPublicMatchListRequest(url);
+  const kvMatchListCache = publicMatchListRequest ? await readPublicMatchListKvCache(env, url, cacheProvider, cacheVersion) : null;
+  if (kvMatchListCache?.fresh) {
+    await recordMetric(env, "cache_hits");
+    return cachedPublicMatchListResponse(kvMatchListCache.entry, ttl, "kv");
+  }
+  let response;
+  if (provider === "sportmonks") {
+    response = await routeSportmonksFootballRequest(url, env, ttl, ctx);
+  } else if (provider === "football-data") {
+    response = await routeFootballDataRequest(url, env, ttl, ctx);
+  } else {
+    response = await routeApiFootballRequest(url, env, ttl);
+  }
+  if (response.ok && env.TEAM_CRESTS_ENABLED === 'true' && (url.pathname==='/api/matches' || /^\/api\/matches\/\d+$/.test(url.pathname))) {
+    const data=await response.clone().json();
+    const catalog=await fetchFootballDataJson('https://api.football-data.org/v4/competitions/CL/teams',env);
+    if (catalog.ok && Array.isArray(catalog.body?.teams)) {
+      const updated=Array.isArray(data.matches)?{...data,matches:addTeamCrests(data.matches,catalog.body.teams)}:addTeamCrests([data],catalog.body.teams)[0];
+      response=new Response(JSON.stringify(updated),{status:response.status,headers:response.headers});
+    }
+  }
+  if (!response.ok && kvMatchListCache?.entry) {
+    return cachedPublicMatchListResponse(kvMatchListCache.entry, 30, "kv-stale");
+  }
+  if (response.ok && publicMatchListRequest && kvMatchListCache?.entry?.body?.matches?.length) {
+    const next = await response.clone().json();
+    if (Array.isArray(next.matches) && !next.matches.length) {
+      return cachedPublicMatchListResponse(kvMatchListCache.entry, 30, 'kv-stale-empty');
+    }
+  }
+  if (response.ok && publicMatchListRequest) {
+    const cacheableMatchList = response.clone();
+    const cacheWrite = writePublicMatchListKvCache(env, url, cacheProvider, cacheVersion, cacheableMatchList);
+    if (ctx.waitUntil) ctx.waitUntil(cacheWrite);
+    else await cacheWrite;
+  }
+  if (cache && response.ok) {
+    const cacheable = response.clone();
+    if (ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, cacheable));
+    else await cache.put(cacheKey, cacheable);
+  }
+  return response;
+}
+__name(routeRequest, "routeRequest");
+function isPublicMatchListRequest(url) {
+  return url.pathname === "/api/matches" && !url.searchParams.has("admin");
+}
+__name(isPublicMatchListRequest, "isPublicMatchListRequest");
+async function readPublicMatchListKvCache(env = {}, url, provider = "", cacheVersion = "") {
+  if (!env.STREAM_CONFIG_KV?.get) return null;
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(publicMatchListKvCacheKey(url, provider, cacheVersion));
+    const entry = raw ? JSON.parse(raw) : null;
+    const createdAt = Number(entry?.created_at || 0);
+    if (!entry?.body || !createdAt) return null;
+    const ageSeconds = Math.floor((Date.now() - createdAt) / 1e3);
+    if (ageSeconds < 0 || ageSeconds > MATCH_LIST_KV_STALE_TTL_SECONDS) return null;
+    return {
+      entry: { ...entry, age_seconds: Math.max(0, ageSeconds) },
+      fresh: ageSeconds <= MATCH_LIST_KV_MAX_AGE_SECONDS
+    };
+  } catch {
+    return null;
+  }
+}
+__name(readPublicMatchListKvCache, "readPublicMatchListKvCache");
+async function writePublicMatchListKvCache(env = {}, url, provider = "", cacheVersion = "", response) {
+  if (!env.STREAM_CONFIG_KV?.put || !response?.ok) return false;
+  try {
+    const body = await response.json();
+    if (!body || typeof body !== "object" || !Array.isArray(body.matches)) return false;
+    if (body.schedule_stale) return false;
+    const entry = {
+      created_at: Date.now(),
+      body
+    };
+    await env.STREAM_CONFIG_KV.put(publicMatchListKvCacheKey(url, provider, cacheVersion), JSON.stringify(entry), {
+      expirationTtl: MATCH_LIST_KV_STALE_TTL_SECONDS
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+__name(writePublicMatchListKvCache, "writePublicMatchListKvCache");
+function cachedPublicMatchListResponse(entry, maxAge = 30, source = "kv") {
+  const response = jsonResponse({ ...entry.body, ...(source.startsWith('kv-stale') ? { schedule_stale: true } : {}) }, 200, Math.min(Math.max(Number(maxAge) || 30, 30), MATCH_LIST_KV_MAX_AGE_SECONDS));
+  response.headers.set("X-KingLive-Cache", source);
+  response.headers.set("X-KingLive-Cache-Age", String(entry.age_seconds || 0));
+  return response;
+}
+__name(cachedPublicMatchListResponse, "cachedPublicMatchListResponse");
+function publicMatchListKvCacheKey(url, provider = "", cacheVersion = "") {
+  const normalized = normalizeCacheUrl(url, provider, cacheVersion).toString();
+  return `${MATCH_LIST_KV_CACHE_PREFIX}${hashToPositiveInt(normalized)}:${safeKeyPart(normalized.slice(-80))}`;
+}
+__name(publicMatchListKvCacheKey, "publicMatchListKvCacheKey");
+function resolveFootballProvider(env = {}) {
+  const configured = String(env.FOOTBALL_PROVIDER || "").trim().toLowerCase();
+  if (configured === "football-data" && env.FOOTBALL_DATA_TOKEN) return "football-data";
+  if (configured === "api-football" && env.API_FOOTBALL_KEY) return "api-football";
+  if (configured === "sportmonks" && env.SPORTMONKS_TOKEN) return "sportmonks";
+  if (env.SPORTMONKS_TOKEN) return "sportmonks";
+  if (env.FOOTBALL_DATA_TOKEN) return "football-data";
+  return "api-football";
+}
+__name(resolveFootballProvider, "resolveFootballProvider");
+function resolveFootballScheduleProvider(env = {}) {
+  const configured = String(env.FOOTBALL_SCHEDULE_PROVIDER || "").trim().toLowerCase();
+  return configured === "therundown" ? "therundown" : "football-data";
+}
+__name(resolveFootballScheduleProvider, "resolveFootballScheduleProvider");
+async function routeApiFootballRequest(url, env, ttl) {
+  const statsMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/stats$/);
+  const prematchMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/prematch$/);
+  const apiUrl = buildFootballApiUrl(url);
+  await recordMetric(env, "upstream_calls");
+  const apiResponse = await fetch(apiUrl, {
+    headers: {
+      "x-apisports-key": env.API_FOOTBALL_KEY,
+      Accept: "application/json"
+    }
+  });
+  if (!apiResponse.ok) {
+    return jsonResponse({ error: "football_api_error", status: apiResponse.status }, 502, 30);
+  }
+  const payload = await apiResponse.json();
+  if (hasFootballApiErrors(payload.errors)) {
+    return jsonResponse({ error: "football_api_error", details: payload.errors }, 502, 30);
+  }
+  if (statsMatch) {
+    return jsonResponse(normalizeStatistics(Number(statsMatch[1]), payload.response), 200, ttl);
+  }
+  if (prematchMatch) {
+    return jsonResponse(
+      normalizePrematch(Number(prematchMatch[1]), Number(url.searchParams.get("home")), Number(url.searchParams.get("away")), payload.response),
+      200,
+      ttl
+    );
+  }
+  const fixtures = Array.isArray(payload.response) ? payload.response : [];
+  const streamConfig = await readRuntimeStreamConfig(env);
+  const matchOverrides = await readRuntimeMatchOverrides(env);
+  const adminSettings = await readRuntimeAdminSettings(env);
+  const matches = applyMatchOverrides(fixtures.map((fixture) => normalizeFixture(fixture, env, streamConfig, matchOverrides)), env, streamConfig, matchOverrides);
+  const visibleMatches = url.pathname === "/api/matches" ? sortMatches(applyMatchVisibility(matches.filter(isTopLeagueMatch), adminSettings)) : matches;
+  const responseTtl = visibleMatches.length ? ttl : 30;
+  return url.pathname === "/api/matches" ? jsonResponse({ matches: visibleMatches, total: visibleMatches.length }, 200, responseTtl) : jsonResponse(visibleMatches[0] ?? { error: "match_not_found" }, visibleMatches[0] ? 200 : 404, ttl);
+}
+__name(routeApiFootballRequest, "routeApiFootballRequest");
+async function routeFootballDataRequest(url, env, ttl, ctx = {}) {
+  const statsMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/stats$/);
+  const detailMatch = url.pathname.match(/^\/api\/matches\/(\d+)$/);
+  const splitDetailMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/(events|lineups|facts|odds)$/);
+  if (splitDetailMatch) {
+    return routeFootballDataSplitDetailRequest(url, env, ttl, ctx, Number(splitDetailMatch[1]), splitDetailMatch[2]);
+  }
+  if (detailMatch) {
+    const matchId = Number(detailMatch[1]);
+    const streamConfig2 = await readRuntimeStreamConfig(env);
+    const matchOverrides2 = await readRuntimeMatchOverrides(env);
+    const registered = await readRegisteredMatch(env.MATCH_REGISTRY, matchId);
+    if (registered) {
+      let match = registered.match;
+      let stale = Date.now() - registered.observed_at > 60000;
+      if (stale && !match.uefa_id && !match.pl_id && !match.laliga_id) {
+        try {
+          const fresh = await fetchCachedTheRundownScheduleJson(String(match.scheduled_at).slice(0,10),env,30,ctx);
+          const event = fresh.ok && fresh.body?.events?.find(e => String(e.event_id || e.event_uuid) === String(match.external_id));
+          if (event) { match = await registerMatch(env.MATCH_REGISTRY,normalizeTheRundownScheduleMatch(event,env,null),fresh.fetched_at || Date.now()); stale = Date.now()-(fresh.fetched_at || Date.now())>300000; }
+        } catch { /* Retain identity; explicitly mark unavailable fresh data. */ }
+      }
+      const streams = streamsForFootballDataMatch({id:match.id,homeTeam:{name:match.home_team?.name_en},awayTeam:{name:match.away_team?.name_en}},env,streamConfig2);
+      return jsonResponse({ ...applyMatchOverride({...match,streams},env,streamConfig2,matchOverrides2), ...(stale ? {schedule_stale:true} : {}) },200,30);
+    }
+    const fixturePayload = await fetchFootballDataJson(buildFootballDataMatchUrl(matchId), env);
+    let match = fixturePayload.ok ? normalizeFootballDataMatch(fixturePayload.body, env, streamConfig2, matchOverrides2) : footballDataFallbackMatch(matchId, env);
+    if (!match) {
+      const resolved = await resolveTheRundownMatchById(matchId, env, ttl, ctx);
+      if (resolved?.match) {
+        resolved.match = await registerMatch(env.MATCH_REGISTRY, resolved.match);
+        const streams = streamsForFootballDataMatch({
+          id: matchId,
+          homeTeam: { name: resolved.match.home_team?.name_en || resolved.match.home_team?.name || "" },
+          awayTeam: { name: resolved.match.away_team?.name_en || resolved.match.away_team?.name || "" }
+        }, env, streamConfig2);
+        match = applyMatchOverride({ ...resolved.match, streams }, env, streamConfig2, matchOverrides2);
+        if (!Array.isArray(match.streams)) match = { ...match, streams };
+      }
+    }
+    if (match && !Array.isArray(match.streams)) {
+      const streams = streamsForFootballDataMatch({
+        id: matchId,
+        homeTeam: { name: match.home_team?.name_en || match.home_team?.name || "" },
+        awayTeam: { name: match.away_team?.name_en || match.away_team?.name || "" }
+      }, env, streamConfig2);
+      match = { ...match, streams };
+    }
+    return match ? jsonResponse(match, 200, ttl) : jsonResponse({ error: "match_not_found" }, 404, Math.min(ttl, 30));
+  }
+  if (statsMatch) {
+    const matchId = Number(statsMatch[1]);
+    const registered = await readRegisteredMatch(env.MATCH_REGISTRY, matchId);
+    if (registered && env.PUBLIC_MATCH_DETAILS === 'true') {
+      try {
+        const details = await publicMatchDetails(registered.match, env);
+        if (details) return jsonResponse(details, 200, Math.min(ttl, 60));
+      } catch { /* Existing detail provider remains the fallback; streams are untouched. */ }
+    }
+    const fixturePayload = await fetchFootballDataJson(buildFootballDataApiUrl(url), env);
+    let match = fixturePayload.ok ? normalizeFootballDataMatch(fixturePayload.body, env) : footballDataFallbackMatch(matchId, env);
+    if (!match) {
+      const resolved = await resolveTheRundownMatchById(matchId, env, 300, ctx);
+      match = resolved?.match || null;
+    }
+    if (!match) return jsonResponse({ error: "football_data_error", status: fixturePayload.status }, 502, 30);
+    const externalOdds = await fetchPreferredExternalOddsForMatch(match, env, 300, ctx);
+    return jsonResponse(normalizeFootballDataMatchDetails(matchId, match, externalOdds), 200, ttl);
+  }
+  const streamConfig = await readRuntimeStreamConfig(env);
+  const matchOverrides = await readRuntimeMatchOverrides(env);
+  const adminSettings = await readRuntimeAdminSettings(env);
+  const requestedDate = footballDataRequestedDate(url);
+  // Historical tabs show results; today's hide-finished setting is unchanged.
+  if (requestedDate < new Date().toISOString().slice(0,10)) adminSettings.hide_finished_matches = false;
+  let officialUefa=null,officialPl=null,officialLaliga=null;
+  if(env.PUBLIC_MATCH_DETAILS === 'true' && url.pathname === '/api/matches') {
+    try { [officialUefa,officialPl,officialLaliga]=await Promise.all([uefaSchedule(requestedDate,env).catch(()=>null),plSchedule(requestedDate,env).catch(()=>null),laligaSchedule(requestedDate,env).catch(()=>null)]); }
+    catch { /* Preserve configured provider fallback on source failure. */ }
+  }
+  const scheduleProvider = resolveFootballScheduleProvider(env);
+  const primaryTheRundownPayload = scheduleProvider === "therundown" && url.pathname === "/api/matches" ? await fetchCachedTheRundownScheduleJson(requestedDate, env, 30, ctx) : null;
+  if (officialUefa===null && officialPl===null && officialLaliga===null && scheduleProvider === 'therundown' && url.pathname === '/api/matches' && (!primaryTheRundownPayload?.ok || !primaryTheRundownPayload.body?.events?.length)) {
+    const saved = await readRegisteredDay(env.MATCH_REGISTRY,requestedDate);
+    if (saved.length) {
+      const hydrated = saved.map(match => ({...match,streams:streamsForFootballDataMatch({id:match.id,homeTeam:{name:match.home_team?.name_en},awayTeam:{name:match.away_team?.name_en}},env,streamConfig)}));
+      const matches = sortMatches(applyMatchVisibility(applyMatchOverrides(hydrated,env,streamConfig,matchOverrides).filter(isTopLeagueMatch),adminSettings));
+      return jsonResponse({matches,total:matches.length,source:'therundown',schedule_stale:true},200,30);
+    }
+  }
+  if (officialUefa===null && officialPl===null && officialLaliga===null && scheduleProvider === 'therundown' && url.pathname === '/api/matches' && !primaryTheRundownPayload?.ok) {
+    return jsonResponse({error:'schedule_provider_unavailable',source:'therundown'},502,0);
+  }
+  const payload = primaryTheRundownPayload?.ok ? { ok: false, status: 0, body: null } : await fetchFootballDataJson(buildFootballDataApiUrl(url), env);
+  const footballDataMatches = payload.ok && !primaryTheRundownPayload?.ok ? (Array.isArray(payload.body?.matches) ? payload.body.matches : payload.body ? [payload.body] : []).filter((match) => footballDataMatchDate(match) === requestedDate) : [];
+  const shouldUseScheduleFallback = !primaryTheRundownPayload?.ok && (!payload.ok || url.pathname === "/api/matches" && footballDataMatches.length === 0);
+  const fallbackPayload = shouldUseScheduleFallback ? await fetchTheRundownScheduleJson(requestedDate, env) : null;
+  const schedulePayload = primaryTheRundownPayload?.ok ? primaryTheRundownPayload : fallbackPayload;
+  if (officialUefa===null && officialPl===null && officialLaliga===null && !payload.ok && !schedulePayload?.ok) return jsonResponse({ error: "football_data_error", status: payload.status }, 502, 30);
+  const sourceMatches = schedulePayload?.ok && (scheduleProvider === "therundown" || footballDataMatches.length === 0 || !payload.ok) ? Array.isArray(schedulePayload.body?.events) ? schedulePayload.body.events : [] : footballDataMatches;
+  const usingTheRundownSchedule = schedulePayload?.ok && sourceMatches !== footballDataMatches;
+  let normalizedMatches = await Promise.all(sourceMatches.map(async (match) => {
+    if (!usingTheRundownSchedule) return normalizeFootballDataMatch(match,env,streamConfig,matchOverrides);
+    const stable = await registerMatch(env.MATCH_REGISTRY,normalizeTheRundownScheduleMatch(match,env,null),schedulePayload.fetched_at || Date.now());
+    return {...stable,streams:streamsForFootballDataMatch({id:stable.id,homeTeam:{name:stable.home_team?.name_en},awayTeam:{name:stable.away_team?.name_en}},env,streamConfig)};
+  }));
+  let uefaApplied=false;
+  if(officialUefa!==null) {
+    try {
+      const registered=await registerUefaDay(officialUefa,env.MATCH_REGISTRY);
+      const hydrated=registered.map(m=>({...m,streams:streamsForFootballDataMatch({id:m.id,homeTeam:{name:m.home_team?.name_en},awayTeam:{name:m.away_team?.name_en}},env,streamConfig)}));
+      normalizedMatches=[...normalizedMatches.filter(m=>!/uefa champions league/i.test(m.league?.name||'')),...hydrated];
+      uefaApplied=true;
+    } catch { if(!normalizedMatches.length)return jsonResponse({error:'official_identity_unavailable'},502,0); }
+  }
+  let plApplied=false;
+  if(officialPl!==null) {
+    try {
+      const registered=await registerUefaDay(officialPl,env.MATCH_REGISTRY,'pl');
+      const hydrated=registered.map(m=>({...m,streams:streamsForFootballDataMatch({id:m.id,homeTeam:{name:m.home_team?.name_en},awayTeam:{name:m.away_team?.name_en}},env,streamConfig)}));
+      normalizedMatches=[...normalizedMatches.filter(m=>!/^premier league$/i.test(m.league?.name||'')),...hydrated];
+      plApplied=true;
+    } catch { if(!normalizedMatches.length)return jsonResponse({error:'pl_identity_unavailable'},502,0); }
+  }
+  let laligaApplied=false;
+  if(officialLaliga!==null) {
+    try {
+      const registered=await registerUefaDay(officialLaliga,env.MATCH_REGISTRY,'laliga');
+      const hydrated=registered.map(m=>({...m,streams:streamsForFootballDataMatch({id:m.id,homeTeam:{name:m.home_team?.name_en},awayTeam:{name:m.away_team?.name_en}},env,streamConfig)}));
+      normalizedMatches=[...normalizedMatches.filter(m=>!/^la ?liga$/i.test(m.league?.name||'')),...hydrated];
+      laligaApplied=true;
+    } catch { if(!normalizedMatches.length)return jsonResponse({error:'laliga_identity_unavailable'},502,0); }
+  }
+  const matches = applyMatchOverrides(
+    env.PUBLIC_MATCH_DETAILS === 'true' ? await publicMatchCards(normalizedMatches,env) : normalizedMatches,
+    env,
+    streamConfig,
+    matchOverrides
+  );
+  const visibleMatches = url.pathname === "/api/matches" ? sortMatches(applyMatchVisibility(matches.filter(isTopLeagueMatch), adminSettings)) : matches;
+  const responseTtl = visibleMatches.length ? ttl : 30;
+  return url.pathname === "/api/matches" ? jsonResponse({ matches: visibleMatches, total: visibleMatches.length, source: (plApplied||laligaApplied) ? 'official+fallback' : uefaApplied ? 'uefa+fallback' : usingTheRundownSchedule ? "therundown" : "football-data", ...((uefaApplied||plApplied||laligaApplied)?{league_sources:{...(uefaApplied?{champions_league:'uefa'}:{}),...(plApplied?{premier_league:'premierleague'}:{}),...(laligaApplied?{la_liga:'laliga'}:{})},fallback_available:!!schedulePayload?.ok}:{}) }, 200, responseTtl) : jsonResponse(visibleMatches[0] ?? { error: "match_not_found" }, visibleMatches[0] ? 200 : 404, ttl);
+}
+__name(routeFootballDataRequest, "routeFootballDataRequest");
+async function routeFootballDataSplitDetailRequest(url, env, ttl, ctx, matchId, section) {
+  if (section === "events") return jsonResponse({ match_id: matchId, events: [] }, 200, ttl);
+  if (section === "lineups") return jsonResponse({ match_id: matchId, lineups: [] }, 200, ttl);
+  if (section === "facts") return jsonResponse({ match_id: matchId, facts: [] }, 200, ttl);
+  if (section === "odds") {
+    const fixturePayload = await fetchFootballDataJson(buildFootballDataMatchUrl(matchId), env);
+    let match = fixturePayload.ok ? normalizeFootballDataMatch(fixturePayload.body, env) : footballDataFallbackMatch(matchId, env);
+    if (!match) {
+      const resolved = await resolveTheRundownMatchById(matchId, env, ttl, ctx);
+      match = resolved?.match || null;
+    }
+    const odds = match ? await fetchPreferredExternalOddsForMatch(match, env, ttl, ctx) : null;
+    if (!fixturePayload.ok && !odds) {
+      return jsonResponse({ error: "football_data_error", status: fixturePayload.status }, 502, 30);
+    }
+    return jsonResponse({ match_id: matchId, odds }, 200, ttl);
+  }
+  return jsonResponse({ error: "not_found" }, 404, 0);
+}
+__name(routeFootballDataSplitDetailRequest, "routeFootballDataSplitDetailRequest");
+async function fetchFootballDataJson(apiUrl, env = {}) {
+  return sharedUpstream(env.MATCH_REGISTRY,String(apiUrl),()=>fetchFootballDataUncached(apiUrl,env),{provider:'football-data',gap:6500,ttl:String(apiUrl).endsWith('/teams')?86400000:60000});
+}
+async function fetchFootballDataUncached(apiUrl, env = {}) {
+  await recordMetric(env, "upstream_calls");
+  const response = await fetch(apiUrl, {
+    signal: AbortSignal.timeout(10000),
+    headers: {
+      "X-Auth-Token": env.FOOTBALL_DATA_TOKEN,
+      Accept: "application/json"
+    }
+  });
+  if (!response.ok) return { ok: false, status: response.status, body: null };
+  try {
+    return { ok: true, status: response.status, body: await response.json() };
+  } catch {
+    return { ok: false, status: response.status, body: null };
+  }
+}
+__name(fetchFootballDataJson, "fetchFootballDataJson");
+async function routeSportmonksFootballRequest(url, env, ttl, ctx = {}) {
+  const statsMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/stats$/);
+  const splitDetailMatch = url.pathname.match(/^\/api\/matches\/(\d+)\/(events|lineups|facts|odds)$/);
+  if (splitDetailMatch) {
+    return routeSportmonksSplitDetailRequest(url, env, ttl, ctx, Number(splitDetailMatch[1]), splitDetailMatch[2]);
+  }
+  if (statsMatch) {
+    const matchId = Number(statsMatch[1]);
+    const liveTtl = isLiveStatsRequest(url) ? 30 : 1800;
+    const [statisticsPayload, eventsPayload, lineupsPayload, factsPayload, oddsPayload, externalOddsPayload] = await Promise.all([
+      fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, SPORTMONKS_STATS_INCLUDES), env, liveTtl, ctx),
+      fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, SPORTMONKS_EVENTS_INCLUDES), env, liveTtl, ctx),
+      fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, SPORTMONKS_LINEUPS_INCLUDES), env, 1800, ctx),
+      fetchCachedSportmonksJson(buildSportmonksMatchFactsUrl(matchId, url), env, 1800, ctx),
+      fetchCachedSportmonksJson(buildSportmonksOddsUrl(matchId, url), env, 300, ctx),
+      fetchCachedExternalMelbetOddsJson(env, 300, ctx)
+    ]);
+    if (!statisticsPayload.ok && !eventsPayload.ok && !lineupsPayload.ok) {
+      return jsonResponse({ error: "sportmonks_api_error", status: statisticsPayload.status || eventsPayload.status || lineupsPayload.status }, 502, 30);
+    }
+    const facts = factsPayload.ok ? sportmonksDataList(factsPayload.body) : [];
+    const odds = oddsPayload.ok ? sportmonksDataList(oddsPayload.body) : [];
+    const detailFixture = statisticsPayload.body?.data || eventsPayload.body?.data || lineupsPayload.body?.data;
+    const externalOdds = externalOddsPayload.ok ? normalizeExternalMelbetOddsForSportmonksFixture(externalOddsPayload.body, detailFixture) : null;
+    return jsonResponse(
+      normalizeSportmonksMatchDetails(matchId, detailFixture, facts, odds, {
+        statistics: statisticsPayload.ok ? statisticsPayload.body?.data : null,
+        events: eventsPayload.ok ? eventsPayload.body?.data : null,
+        lineups: lineupsPayload.ok ? lineupsPayload.body?.data : null,
+        externalOdds
+      }),
+      200,
+      ttl
+    );
+  }
+  const apiUrl = buildSportmonksApiUrl(url);
+  const fixturePayload = await fetchSportmonksJson(apiUrl, env);
+  if (!fixturePayload.ok) {
+    return jsonResponse({ error: "sportmonks_api_error", status: fixturePayload.status }, 502, 30);
+  }
+  const streamConfig = await readRuntimeStreamConfig(env);
+  const matchOverrides = await readRuntimeMatchOverrides(env);
+  const data = fixturePayload.body?.data;
+  const fixtures = Array.isArray(data) ? data : data ? [data] : [];
+  const matches = await applyDamiAutoStreams(
+    applyMatchOverrides(fixtures.map((fixture) => normalizeSportmonksFixture(fixture, env, streamConfig, matchOverrides)), env, streamConfig, matchOverrides),
+    env
+  );
+  const adminSettings = await readRuntimeAdminSettings(env);
+  const visibleMatches = url.pathname === "/api/matches" ? sortMatches(applyMatchVisibility(filterSportmonksWorldCupMatches(matches, env), adminSettings)) : matches;
+  const responseTtl = visibleMatches.length ? ttl : 30;
+  return url.pathname === "/api/matches" ? jsonResponse({ matches: visibleMatches, total: visibleMatches.length, source: "sportmonks" }, 200, responseTtl) : jsonResponse(visibleMatches[0] ?? { error: "match_not_found" }, visibleMatches[0] ? 200 : 404, ttl);
+}
+__name(routeSportmonksFootballRequest, "routeSportmonksFootballRequest");
+async function routeSportmonksSplitDetailRequest(url, env, ttl, ctx, matchId, section) {
+  if (section === "facts") {
+    const payload2 = await fetchCachedSportmonksJson(buildSportmonksMatchFactsUrl(matchId, url), env, ttl, ctx);
+    if (!payload2.ok) return jsonResponse({ error: "sportmonks_api_error", status: payload2.status }, 502, 30);
+    return jsonResponse({ match_id: matchId, facts: normalizeSportmonksFacts(sportmonksDataList(payload2.body)) }, 200, ttl);
+  }
+  if (section === "odds") {
+    const externalOddsSource = externalMelbetOddsSourceUrl(env);
+    const [payload2, fixturePayload, externalOddsPayload] = await Promise.all([
+      fetchCachedSportmonksJson(buildSportmonksOddsUrl(matchId, url), env, ttl, ctx),
+      externalOddsSource ? fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, "participants"), env, ttl, ctx) : Promise.resolve(null),
+      externalOddsSource ? fetchCachedExternalMelbetOddsJson(env, ttl, ctx) : Promise.resolve({ ok: false, body: null })
+    ]);
+    const sportmonksOdds = payload2.ok ? normalizeSportmonksOdds(sportmonksDataList(payload2.body)) : null;
+    const externalOdds = externalOddsPayload.ok ? normalizeExternalMelbetOddsForSportmonksFixture(externalOddsPayload.body, fixturePayload?.body?.data) : null;
+    if (!payload2.ok && !externalOdds) return jsonResponse({ error: "sportmonks_api_error", status: payload2.status }, 502, 30);
+    return jsonResponse({ match_id: matchId, odds: sportmonksOdds || externalOdds }, 200, ttl);
+  }
+  const include = section === "lineups" ? SPORTMONKS_LINEUPS_INCLUDES : SPORTMONKS_EVENTS_INCLUDES;
+  const payload = await fetchCachedSportmonksJson(buildSportmonksFixtureDetailUrl(matchId, url, include), env, ttl, ctx);
+  if (!payload.ok) return jsonResponse({ error: "sportmonks_api_error", status: payload.status }, 502, 30);
+  const fixture = payload.body?.data;
+  const teamSideById = sportmonksTeamSideById(fixture);
+  if (section === "lineups") {
+    return jsonResponse({ match_id: matchId, lineups: normalizeSportmonksLineups(matchId, fixture?.lineups, teamSideById) }, 200, ttl);
+  }
+  return jsonResponse({ match_id: matchId, events: normalizeSportmonksEvents(matchId, fixture?.events, teamSideById) }, 200, ttl);
+}
+__name(routeSportmonksSplitDetailRequest, "routeSportmonksSplitDetailRequest");
+async function fetchSportmonksJson(apiUrl, env = {}) {
+  const url = new URL(apiUrl);
+  url.searchParams.set("api_token", env.SPORTMONKS_TOKEN);
+  await recordMetric(env, "upstream_calls");
+  const response = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!response.ok) return { ok: false, status: response.status, body: null };
+  const body = await response.json();
+  if (body?.errors || body?.message && !("data" in body)) return { ok: false, status: 422, body };
+  await recordMetric(env, "last_sportmonks_update", (/* @__PURE__ */ new Date()).toISOString());
+  return { ok: true, status: response.status, body };
+}
+__name(fetchSportmonksJson, "fetchSportmonksJson");
+async function fetchCachedSportmonksJson(apiUrl, env = {}, ttl = 0, ctx = {}) {
+  const cache = globalThis.caches?.default;
+  const cacheVersion = await readCacheVersion(env);
+  const cacheKey = cache && ttl > 0 ? new Request(normalizeSportmonksSubrequestCacheUrl(apiUrl, cacheVersion).toString()) : null;
+  if (cacheKey) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      await recordMetric(env, "cache_hits");
+      try {
+        return await cached.json();
+      } catch {
+      }
+    }
+  }
+  const payload = await fetchSportmonksJson(apiUrl, env);
+  if (cache && cacheKey && payload.ok) {
+    const cacheable = jsonResponse(payload, 200, ttl);
+    if (ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, cacheable));
+    else await cache.put(cacheKey, cacheable);
+  }
+  return payload;
+}
+__name(fetchCachedSportmonksJson, "fetchCachedSportmonksJson");
+async function fetchCachedExternalMelbetOddsJson(env = {}, ttl = 0, ctx = {}) {
+  const apiUrl = externalMelbetOddsSourceUrl(env);
+  if (!apiUrl) return { ok: false, status: 0, body: null };
+  const cache = globalThis.caches?.default;
+  const cacheVersion = await readCacheVersion(env);
+  const cacheKey = cache && ttl > 0 ? new Request(normalizeExternalMelbetOddsCacheUrl(apiUrl, cacheVersion).toString()) : null;
+  if (cacheKey) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      await recordMetric(env, "cache_hits");
+      try {
+        return await cached.json();
+      } catch {
+      }
+    }
+  }
+  const payload = await fetchExternalMelbetOddsJson(apiUrl, env);
+  if (cache && cacheKey && payload.ok) {
+    const cacheable = jsonResponse(payload, 200, ttl);
+    if (ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, cacheable));
+    else await cache.put(cacheKey, cacheable);
+  }
+  return payload;
+}
+__name(fetchCachedExternalMelbetOddsJson, "fetchCachedExternalMelbetOddsJson");
+async function fetchPreferredExternalOddsForMatch(match = {}, env = {}, ttl = 0, ctx = {}) {
+  const [therundownPayload, melbetPayload] = await Promise.all([
+    fetchCachedTheRundownOddsJson(match, env, ttl, ctx),
+    fetchCachedExternalMelbetOddsJson(env, ttl, ctx)
+  ]);
+  if (therundownPayload.ok) {
+    const therundownOdds = normalizeTheRundownOddsForMatch(therundownPayload.body, match, env);
+    if (therundownOdds) return therundownOdds;
+  }
+  return melbetPayload.ok ? normalizeExternalMelbetOddsForMatch(melbetPayload.body, match) : null;
+}
+__name(fetchPreferredExternalOddsForMatch, "fetchPreferredExternalOddsForMatch");
+async function fetchCachedTheRundownOddsJson(match = {}, env = {}, ttl = 0, ctx = {}) {
+  const apiUrl = buildTheRundownOddsUrl(match, env);
+  if (!apiUrl) return { ok: false, status: 0, body: null };
+  return fetchCachedTheRundownJsonByUrl(apiUrl, env, ttl, ctx);
+}
+__name(fetchCachedTheRundownOddsJson, "fetchCachedTheRundownOddsJson");
+async function fetchCachedTheRundownScheduleJson(date, env = {}, ttl = 0, ctx = {}) {
+  const payloads = [];
+  for (const sportId of theRundownScheduleSportIds(env)) {
+      const apiUrl = buildTheRundownScheduleUrl(date, env, sportId);
+      if (!apiUrl) {payloads.push({ok:false,status:0,body:null});continue;}
+      try { payloads.push(await fetchCachedTheRundownJsonByUrl(apiUrl, env, ttl, ctx)); }
+      catch { payloads.push({ok:false,status:502,body:null}); }
+  }
+  return combineTheRundownSchedulePayloads(payloads);
+}
+__name(fetchCachedTheRundownScheduleJson, "fetchCachedTheRundownScheduleJson");
+async function fetchCachedTheRundownJsonByUrl(apiUrl, env = {}, ttl = 0, ctx = {}) {
+  const safeUrl = new URL(apiUrl);safeUrl.searchParams.delete('key');safeUrl.searchParams.sort();
+  return sharedUpstream(env.MATCH_REGISTRY,safeUrl.toString(),()=>fetchTheRundownJson(apiUrl,env));
+}
+__name(fetchCachedTheRundownJsonByUrl, "fetchCachedTheRundownJsonByUrl");
+async function resolveTheRundownMatchById(matchId, env = {}, ttl = 0, ctx = {}) {
+  const targetId = Number(matchId);
+  if (!Number.isFinite(targetId) || targetId <= 0 || !String(env.THERUNDOWN_KEY || "").trim()) return null;
+  const registered = await readRegisteredMatch(env.MATCH_REGISTRY, targetId);
+  if (registered) return {match:registered.match,payload:null};
+  for (const date of theRundownLookupDates(env)) {
+    const payload = await fetchCachedTheRundownScheduleJson(date, env, ttl, ctx);
+    if (!payload.ok) continue;
+    const events = Array.isArray(payload.body?.events) ? payload.body.events : [];
+    for (const event of events) {
+      const match = normalizeTheRundownScheduleMatch(event, env, null);
+      if (Number(match.id) === targetId) return { match, payload };
+    }
+  }
+  return null;
+}
+__name(resolveTheRundownMatchById, "resolveTheRundownMatchById");
+async function fetchTheRundownScheduleJson(date, env = {}) {
+  return fetchCachedTheRundownScheduleJson(date,env);
+}
+__name(fetchTheRundownScheduleJson, "fetchTheRundownScheduleJson");
+async function fetchTheRundownJson(apiUrl, env = {}) {
+  await recordMetric(env, "upstream_calls");
+  const response = await fetch(apiUrl, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(10000) });
+  if (!response.ok) {
+    console.log(JSON.stringify({event:'schedule_provider_failure',sport:new URL(apiUrl).pathname.split('/')[4],status:response.status}));
+    const retry=response.headers.get('retry-after');
+    const retryMs=Number.isFinite(Number(retry))?Number(retry)*1000:Date.parse(retry)-Date.now();
+    return { ok: false, status: response.status, body: null, retry_after_ms:Math.max(0,retryMs||0) };
+  }
+  try {
+    const body = await response.json();
+    console.log(JSON.stringify({event:'schedule_provider_response',sport:new URL(apiUrl).pathname.split('/')[4],status:response.status,keys:Object.keys(body || {}),events:Array.isArray(body?.events)?body.events.length:null}));
+    if (!Array.isArray(body?.events)) return {ok:false,status:502,body:null};
+    return { ok: true, status: response.status, body };
+  } catch {
+    return { ok: false, status: response.status, body: null };
+  }
+}
+__name(fetchTheRundownJson, "fetchTheRundownJson");
+function theRundownScheduleSportIds(env = {}) {
+  const configured = String(env.THERUNDOWN_SCHEDULE_SPORT_IDS || env.THERUNDOWN_SPORT_ID || "18");
+  return [...new Set(configured.split(",").map((value) => String(value).trim()).filter((value) => /^\d+$/.test(value)))];
+}
+__name(theRundownScheduleSportIds, "theRundownScheduleSportIds");
+function combineTheRundownSchedulePayloads(payloads = []) {
+  const successful = payloads.filter((payload) => payload?.ok);
+  if (successful.length !== payloads.length) return {ok:false,status:502,body:null};
+  if (!successful.length) return { ok: false, status: payloads.find((payload) => payload?.status)?.status || 0, body: null };
+  return {
+    ok: true,
+    status: 200,
+    fetched_at: Math.min(...successful.map(p=>p.fetched_at || Date.now())),
+    body: { events: successful.flatMap((payload) => Array.isArray(payload.body?.events) ? payload.body.events : []) }
+  };
+}
+__name(combineTheRundownSchedulePayloads, "combineTheRundownSchedulePayloads");
+function buildTheRundownScheduleUrl(date, env = {}, sportId = "") {
+  const key = String(env.THERUNDOWN_KEY || "").trim();
+  if (!key || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return null;
+  const resolvedSportId = String(sportId || env.THERUNDOWN_SPORT_ID || "18").trim() || "18";
+  const url = new URL(`/api/v1/sports/${encodeURIComponent(resolvedSportId)}/events/${encodeURIComponent(date)}`, THERUNDOWN_API_BASE);
+  url.searchParams.set("period_id", "full_game");
+  url.searchParams.set("include", "scores");
+  url.searchParams.set("key", key);
+  return url;
+}
+__name(buildTheRundownScheduleUrl, "buildTheRundownScheduleUrl");
+function buildTheRundownOddsUrl(match = {}, env = {}) {
+  const key = String(env.THERUNDOWN_KEY || "").trim();
+  if (!key) return null;
+  const date = theRundownMatchDate(match, env);
+  if (!date) return null;
+  return buildTheRundownScheduleUrl(date, env);
+}
+__name(buildTheRundownOddsUrl, "buildTheRundownOddsUrl");
+function normalizeTheRundownOddsCacheUrl(apiUrl, cacheVersion = "") {
+  const normalized = new URL(apiUrl);
+  normalized.searchParams.delete("key");
+  normalized.searchParams.set("__therundown_odds", THERUNDOWN_ODDS_CACHE_NAMESPACE);
+  normalized.searchParams.set("__cache_namespace", API_CACHE_NAMESPACE);
+  if (cacheVersion) normalized.searchParams.set("__cache_version", cacheVersion);
+  normalized.searchParams.sort();
+  return normalized;
+}
+__name(normalizeTheRundownOddsCacheUrl, "normalizeTheRundownOddsCacheUrl");
+async function fetchExternalMelbetOddsJson(apiUrl, env = {}) {
+  await recordMetric(env, "upstream_calls");
+  const response = await fetch(apiUrl, { headers: { Accept: "application/json" } });
+  if (!response.ok) return { ok: false, status: response.status, body: null };
+  try {
+    return { ok: true, status: response.status, body: await response.json() };
+  } catch {
+    return { ok: false, status: response.status, body: null };
+  }
+}
+__name(fetchExternalMelbetOddsJson, "fetchExternalMelbetOddsJson");
+function externalMelbetOddsSourceUrl(env = {}) {
+  const raw = String(env.MELBET_ODDS_URL || "").trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+__name(externalMelbetOddsSourceUrl, "externalMelbetOddsSourceUrl");
+function normalizeExternalMelbetOddsCacheUrl(apiUrl, cacheVersion = "") {
+  const normalized = new URL(apiUrl);
+  normalized.searchParams.set("__external_odds", EXTERNAL_MELBET_ODDS_CACHE_NAMESPACE);
+  if (cacheVersion) normalized.searchParams.set("__cache_version", cacheVersion);
+  normalized.searchParams.sort();
+  return normalized;
+}
+__name(normalizeExternalMelbetOddsCacheUrl, "normalizeExternalMelbetOddsCacheUrl");
+async function routeNewsRequest(request, env = {}, ctx = {}) {
+  const url = new URL(request.url);
+  const newsLang = resolveNewsLanguage(url.searchParams.get("lang"));
+  const ttl = resolveCacheTtl(url);
+  const cacheKey = new Request(normalizeCacheUrl(url).toString(), request);
+  const cache = globalThis.caches?.default;
+  const cached = cache ? await cache.match(cacheKey) : null;
+  if (cached) return cached;
+  const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 6, 1), 12);
+  if (env?.SPORTMONKS_TOKEN) {
+    const sportmonksNews = await fetchSportmonksNews(newsLang, env, limit);
+    if (sportmonksNews.ok && sportmonksNews.news.length) {
+      const body2 = {
+        source: "Sportmonks Football News",
+        feed_url: sportmonksNews.feed_url,
+        lang: newsLang,
+        news: applyNewsImagePolicy(sportmonksNews.news)
+      };
+      const newsResponse2 = jsonResponse(body2, 200, ttl);
+      if (cache && newsResponse2.ok) {
+        const cacheable = newsResponse2.clone();
+        if (ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, cacheable));
+        else await cache.put(cacheKey, cacheable);
+      }
+      return newsResponse2;
+    }
+  }
+  const feed = await fetchNewsFeed(newsLang);
+  if (!feed.ok) {
+    return jsonResponse({ error: "news_feed_error", status: feed.status, news: [] }, 502, 60);
+  }
+  const allNews = normalizeRssNews(feed.xml, 24, feed.itemSource);
+  let source = feed.source;
+  let feedUrl = feed.url;
+  let news = newsLang === "ar" ? allNews.filter((item) => isFootballNews(item, newsLang)).slice(0, limit) : allNews.slice(0, limit);
+  if (newsLang === "ar" && news.length === 0) {
+    const fallbackFeed = await fetchArabicFootballFallbackFeed();
+    if (fallbackFeed.ok) {
+      source = fallbackFeed.source;
+      feedUrl = fallbackFeed.url;
+      news = normalizeRssNews(fallbackFeed.xml, limit, fallbackFeed.itemSource);
+    }
+  }
+  news = applyNewsImagePolicy(news);
+  const body = {
+    source,
+    feed_url: feedUrl,
+    lang: newsLang,
+    news
+  };
+  const newsTtl = news.length ? ttl : 60;
+  const newsResponse = jsonResponse(body, 200, newsTtl);
+  if (cache && newsResponse.ok && news.length) {
+    const cacheable = newsResponse.clone();
+    if (ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, cacheable));
+    else await cache.put(cacheKey, cacheable);
+  }
+  return newsResponse;
+}
+__name(routeNewsRequest, "routeNewsRequest");
+async function routeAdminRequest(request, env = {}, ctx = {}) {
+  const url = new URL(request.url);
+  if (url.pathname === "/api/admin/login") {
+    if (request.method !== "POST") return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+    if (!isCloudflareAccessAllowed(request, env)) return jsonResponse({ error: "unauthorized" }, 401, 0);
+    return routeAdminLogin(request, env);
+  }
+  if (!isAuthorizedAdminRequest(request, env)) {
+    return jsonResponse({ error: "unauthorized" }, 401, 0);
+  }
+  if (url.pathname === "/api/admin/monitoring") {
+    if (request.method === "GET") return routeAdminMonitoring(env);
+    return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  }
+  if (url.pathname === "/api/admin/settings") {
+    if (request.method === "GET") return routeAdminSettingsGet(env);
+    if (request.method === "PUT") return routeAdminSettingsUpdate(request, env);
+    return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  }
+  if (url.pathname === "/api/admin/refresh") {
+    if (request.method === "POST") return routeAdminRefresh(request, env, ctx);
+    return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  }
+  if (url.pathname === "/api/admin/streams") {
+    if (request.method === "GET") return routeAdminStreamsList(env, ctx);
+    if (request.method === "POST") return routeAdminStreamsCreate(request, env);
+    return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  }
+  if (url.pathname === "/api/admin/overlays") {
+    if (request.method === "GET") return routeAdminOverlaysList(env);
+    if (request.method === "POST") return routeAdminOverlaysCreate(request, env);
+    return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  }
+  const overlayId = url.pathname.match(/^\/api\/admin\/overlays\/([^/]+)$/)?.[1];
+  if (overlayId) {
+    if (request.method === "DELETE") return routeAdminOverlaysDelete(env, decodeURIComponent(overlayId));
+    return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  }
+  const streamRestartMatch = url.pathname.match(/^\/api\/admin\/streams\/(\d+)\/restart$/);
+  if (streamRestartMatch) {
+    if (request.method === "POST") return routeAdminStreamsRestart(env, Number(streamRestartMatch[1]));
+    return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  }
+  if (url.pathname === "/api/admin/match-overrides") {
+    if (request.method === "GET") return routeAdminMatchOverridesList(env);
+    if (request.method === "POST") return routeAdminMatchOverridesUpsert(request, env);
+    return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  }
+  const adminChatMatch = Number(url.pathname.match(/^\/api\/admin\/chat\/(\d+)$/)?.[1]);
+  if (adminChatMatch > 0) {
+    if (request.method === "GET") return routeAdminChatList(env, adminChatMatch);
+    if (request.method === "DELETE") return routeAdminChatClear(env, adminChatMatch);
+    return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  }
+  const adminChatMessageMatch = url.pathname.match(/^\/api\/admin\/chat\/(\d+)\/messages\/([^/]+)$/);
+  if (adminChatMessageMatch) {
+    if (request.method === "DELETE") {
+      return routeAdminChatMessageDelete(env, Number(adminChatMessageMatch[1]), decodeURIComponent(adminChatMessageMatch[2]));
+    }
+    return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  }
+  const adminChatAuthorMatch = Number(url.pathname.match(/^\/api\/admin\/chat\/(\d+)\/authors$/)?.[1]);
+  if (adminChatAuthorMatch > 0) {
+    if (request.method === "POST") return routeAdminChatAuthorDelete(request, env, adminChatAuthorMatch);
+    return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  }
+  const overrideMatchId = Number(url.pathname.match(/^\/api\/admin\/match-overrides\/(\d+)$/)?.[1]);
+  if (overrideMatchId > 0) {
+    if (request.method === "DELETE") return routeAdminMatchOverridesDelete(env, overrideMatchId);
+    return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  }
+  const streamId = Number(url.pathname.match(/^\/api\/admin\/streams\/(\d+)$/)?.[1]);
+  if (streamId > 0) {
+    if (request.method === "PUT") return routeAdminStreamsUpdate(request, env, streamId);
+    if (request.method === "DELETE") return routeAdminStreamsDelete(env, streamId);
+    return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  }
+  return jsonResponse({ error: "not_found" }, 404, 0);
+}
+__name(routeAdminRequest, "routeAdminRequest");
+async function routeAdminRefresh(request, env = {}, ctx = {}) {
+  const body = await readJsonBody(request);
+  const scope = normalizeRefreshScope(body?.scope);
+  if (!scope) return jsonResponse({ error: "invalid_refresh_scope" }, 400, 0);
+  const matchId = Number(body?.match_id);
+  const date = normalizeRefreshDate(body?.date) || (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  const cacheVersion = await bumpCacheVersion(env);
+  if (scope === "all" || scope === "dami") {
+    await deleteKvKey(env, DAMI_STREAMS_KV_KEY);
+  }
+  const preview = await refreshPreview(scope, { matchId, date }, env, ctx);
+  const metrics = await readTodayMetrics(env);
+  return jsonResponse(
+    {
+      ok: true,
+      scope,
+      match_id: Number.isFinite(matchId) && matchId > 0 ? matchId : null,
+      date,
+      cache_version: cacheVersion,
+      metrics: {
+        upstream_calls: metrics.upstream_calls || 0,
+        cache_hits: metrics.cache_hits || 0,
+        dami_cache_hits: metrics.dami_cache_hits || 0,
+        last_sportmonks_update: metrics.last_sportmonks_update || "",
+        last_dami_update: metrics.last_dami_update || ""
+      },
+      preview
+    },
+    200,
+    0
+  );
+}
+__name(routeAdminRefresh, "routeAdminRefresh");
+function normalizeRefreshScope(value) {
+  const scope = String(value || "all").trim().toLowerCase();
+  return ["all", "matches", "match", "stats", "dami"].includes(scope) ? scope : "";
+}
+__name(normalizeRefreshScope, "normalizeRefreshScope");
+function normalizeRefreshDate(value) {
+  const text = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
+}
+__name(normalizeRefreshDate, "normalizeRefreshDate");
+async function refreshPreview(scope, options = {}, env = {}, ctx = {}) {
+  const provider = env.SPORTMONKS_TOKEN || env.API_FOOTBALL_KEY || env.FOOTBALL_DATA_TOKEN ? resolveFootballProvider(env) : "";
+  if (scope === "dami") {
+    const streams = await fetchDamiStreams(env, { force: true });
+    return { provider: "dami", total_streams: streams.length };
+  }
+  if (!provider) return { provider: "not_configured" };
+  let path = `/api/matches?date=${encodeURIComponent(options.date)}`;
+  if ((scope === "match" || scope === "stats") && (!Number.isFinite(options.matchId) || options.matchId <= 0)) {
+    return { provider, error: "match_id_required" };
+  }
+  if (scope === "match") path = `/api/matches/${options.matchId}?live=1`;
+  if (scope === "stats") path = `/api/matches/${options.matchId}/stats?live=1`;
+  const url = new URL(path, "https://kinglive.admin");
+  const ttl = resolveCacheTtl(url);
+  const response = provider === "sportmonks" ? await routeSportmonksFootballRequest(url, env, ttl, ctx) : provider === "football-data" ? await routeFootballDataRequest(url, env, ttl, ctx) : await routeApiFootballRequest(url, env, ttl);
+  const payload = await response.clone().json().catch(() => null);
+  return summarizeRefreshPayload(provider, response.status, payload);
+}
+__name(refreshPreview, "refreshPreview");
+function summarizeRefreshPayload(provider, status, payload) {
+  const matches = Array.isArray(payload?.matches) ? payload.matches : payload?.id ? [payload] : [];
+  const streams = matches.flatMap((match) => Array.isArray(match?.streams) ? match.streams : []);
+  const damiMatchedMatches = matches.filter((match) => {
+    const matchStreams = Array.isArray(match?.streams) ? match.streams : [];
+    return matchStreams.some((stream) => isDamiStreamUrl(stream?.url));
+  }).length;
+  return {
+    provider,
+    status,
+    total_matches: matches.length,
+    total_streams: streams.length,
+    dami_matched_matches: damiMatchedMatches,
+    dami_unmatched_matches: Math.max(0, matches.length - damiMatchedMatches),
+    match_ids: matches.map((match) => match.id).filter(Boolean).slice(0, 20),
+    stats_events: Array.isArray(payload?.events) ? payload.events.length : void 0,
+    stats_team_rows: Array.isArray(payload?.team_stats) ? payload.team_stats.length : void 0
+  };
+}
+__name(summarizeRefreshPayload, "summarizeRefreshPayload");
+async function routeViewerHeartbeatRequest(request, env = {}, matchId) {
+  if (request.method !== "POST") return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  if (!Number.isFinite(matchId) || matchId <= 0) return jsonResponse({ error: "invalid_match_id" }, 400, 0);
+  if (!env.STREAM_CONFIG_KV?.put) return jsonResponse({ error: "viewer_kv_not_configured" }, 503, 0);
+  const body = await readJsonBody(request);
+  const clientId = safeKeyPart(body?.client_id || viewerFingerprint(request));
+  const page = safeKeyPart(body?.page || "player");
+  const now = Date.now();
+  const record = {
+    match_id: matchId,
+    client_id: clientId,
+    page,
+    updated_at: new Date(now).toISOString(),
+    updated_at_ms: now,
+    expires_at_ms: now + VIEWER_HEARTBEAT_TTL_SECONDS * 1e3
+  };
+  await env.STREAM_CONFIG_KV.put(viewerKey(matchId, clientId), JSON.stringify(record), {
+    expirationTtl: VIEWER_HEARTBEAT_TTL_SECONDS
+  });
+  const viewers = await countActiveViewers(env, matchId, now);
+  return jsonResponse({ ok: true, match_id: matchId, viewers, ttl: VIEWER_HEARTBEAT_TTL_SECONDS }, 200, 0);
+}
+__name(routeViewerHeartbeatRequest, "routeViewerHeartbeatRequest");
+async function routeAdminMonitoring(env = {}) {
+  const config = await readRuntimeStreamConfig(env);
+  const streams = flattenStreamConfig(config).filter((stream) => isStreamActiveNow(stream));
+  const byMatch = {};
+  streams.forEach((stream) => {
+    const key = String(stream.match_id);
+    if (!byMatch[key]) byMatch[key] = 0;
+    byMatch[key] += 1;
+  });
+  const activeViewers = await readActiveViewerSnapshot(env);
+  const metrics = await readTodayMetrics(env);
+  return jsonResponse(
+    {
+      generated_at: (/* @__PURE__ */ new Date()).toISOString(),
+      active_streams: {
+        total: streams.length,
+        by_match: byMatch,
+        streams
+      },
+      active_viewers: activeViewers,
+      metrics
+    },
+    200,
+    0
+  );
+}
+__name(routeAdminMonitoring, "routeAdminMonitoring");
+async function routeAdminSettingsGet(env = {}) {
+  const settings = await readRuntimeAdminSettings(env);
+  return jsonResponse({ settings }, 200, 0);
+}
+__name(routeAdminSettingsGet, "routeAdminSettingsGet");
+async function routeAdminSettingsUpdate(request, env = {}) {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: "settings_kv_not_configured" }, 503, 0);
+  }
+  const body = await readJsonBody(request);
+  const settings = normalizeAdminSettings(body?.settings || body || {});
+  await writeRuntimeAdminSettings(env, settings);
+  const cacheVersion = await bumpCacheVersion(env);
+  return jsonResponse({ ok: true, settings, cache_version: cacheVersion }, 200, 0);
+}
+__name(routeAdminSettingsUpdate, "routeAdminSettingsUpdate");
+async function routeAdminLogin(request, env) {
+  const adminToken = String(env.ADMIN_BEARER_TOKEN || "").trim();
+  const adminUsername = String(env.ADMIN_USERNAME || "admin").trim();
+  const adminPassword = String(env.ADMIN_PASSWORD || "").trim();
+  if (!adminToken || !adminPassword) {
+    return jsonResponse({ error: "admin_credentials_not_configured" }, 503, 0);
+  }
+  const body = await readJsonBody(request);
+  const username = String(body?.username || "").trim();
+  const password = String(body?.password || "").trim();
+  if (username !== adminUsername || password !== adminPassword) {
+    return jsonResponse({ error: "invalid_credentials" }, 401, 0);
+  }
+  return jsonResponse({ token: adminToken }, 200, 0);
+}
+__name(routeAdminLogin, "routeAdminLogin");
+async function routeAdminStreamsList(env, ctx = {}) {
+  const config = await readRuntimeStreamConfig(env);
+  const streams = flattenStreamConfig(config).map((stream) => ({
+    ...stream,
+    origin: "manual",
+    editable: true,
+    is_live_now: isStreamActiveNow(stream)
+  }));
+  const autoStreams = await readAdminAutoStreams(env, ctx);
+  const allStreams = [...streams, ...autoStreams];
+  return jsonResponse({ streams: allStreams, total: allStreams.length, manual_total: streams.length, auto_total: autoStreams.length }, 200, 0);
+}
+__name(routeAdminStreamsList, "routeAdminStreamsList");
+async function routeAdminOverlaysList(env = {}) {
+  const uploaded = await readOverlayAssetIndex(env);
+  const uploadedWithData = [];
+  for (const entry of uploaded) {
+    if (!entry?.id || !isCustomOverlayImage(entry.id)) continue;
+    const dataBase64 = await env.STREAM_CONFIG_KV?.get(`${OVERLAY_ASSET_KV_PREFIX}${entry.id}`);
+    uploadedWithData.push({
+      ...entry,
+      ...dataBase64 ? { data_url: `data:image/png;base64,${dataBase64}` } : {}
+    });
+  }
+  return jsonResponse({
+    overlays: [...BUILTIN_RESTREAM_OVERLAYS, ...uploadedWithData],
+    builtin: BUILTIN_RESTREAM_OVERLAYS,
+    uploaded: uploadedWithData
+  }, 200, 0);
+}
+__name(routeAdminOverlaysList, "routeAdminOverlaysList");
+async function routeAdminOverlaysCreate(request, env = {}) {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: "stream_kv_not_configured" }, 503, 0);
+  }
+  const body = await readJsonBody(request);
+  const parsed = parseOverlayUploadPayload(body);
+  if (!parsed.ok) return jsonResponse({ error: parsed.error }, parsed.status || 400, 0);
+  const uploaded = await readOverlayAssetIndex(env);
+  const id = uniqueOverlayAssetId(parsed.slug, uploaded);
+  const entry = {
+    id,
+    name: parsed.name,
+    builtin: false,
+    mime: "image/png",
+    size: parsed.size,
+    created_at: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  uploaded.push(entry);
+  await env.STREAM_CONFIG_KV.put(`${OVERLAY_ASSET_KV_PREFIX}${id}`, parsed.base64);
+  await writeOverlayAssetIndex(env, uploaded);
+  return jsonResponse({ ok: true, overlay: entry, overlays: [...BUILTIN_RESTREAM_OVERLAYS, ...uploaded] }, 200, 0);
+}
+__name(routeAdminOverlaysCreate, "routeAdminOverlaysCreate");
+async function routeAdminOverlaysDelete(env = {}, overlayId = "") {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: "stream_kv_not_configured" }, 503, 0);
+  }
+  const id = normalizeOverlayImage(overlayId);
+  if (!id || !isCustomOverlayImage(id)) return jsonResponse({ error: "overlay_not_found" }, 404, 0);
+  const config = await readRuntimeStreamConfig(env);
+  const inUse = flattenStreamConfig(config).some((stream) => {
+    const overlays = normalizeRestreamOverlays(stream?.restream?.overlays || stream?.restream?.overlay);
+    return overlays.some((overlay) => overlay.image === id);
+  });
+  if (inUse) return jsonResponse({ error: "overlay_in_use" }, 409, 0);
+  const uploaded = await readOverlayAssetIndex(env);
+  const next = uploaded.filter((item) => item.id !== id);
+  if (next.length === uploaded.length) return jsonResponse({ error: "overlay_not_found" }, 404, 0);
+  await writeOverlayAssetIndex(env, next);
+  await deleteKvKey(env, `${OVERLAY_ASSET_KV_PREFIX}${id}`);
+  return jsonResponse({ ok: true, overlays: [...BUILTIN_RESTREAM_OVERLAYS, ...next] }, 200, 0);
+}
+__name(routeAdminOverlaysDelete, "routeAdminOverlaysDelete");
+async function routeAdminMatchOverridesList(env) {
+  const overrides = await readRuntimeMatchOverrides(env);
+  return jsonResponse({ overrides: Object.values(overrides), total: Object.keys(overrides).length }, 200, 0);
+}
+__name(routeAdminMatchOverridesList, "routeAdminMatchOverridesList");
+async function routeAdminChatList(env, matchId) {
+  if (!env.STREAM_CONFIG_KV?.get) {
+    return jsonResponse({ error: "chat_kv_not_configured" }, 503, 0);
+  }
+  const room = await readChatRoom(env, matchId);
+  return jsonResponse({ match_id: matchId, messages: room.messages, total: room.messages.length }, 200, 0);
+}
+__name(routeAdminChatList, "routeAdminChatList");
+async function routeAdminChatMessageDelete(env, matchId, messageId) {
+  if (!env.STREAM_CONFIG_KV?.get || !env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: "chat_kv_not_configured" }, 503, 0);
+  }
+  const id = String(messageId || "").trim();
+  if (!id) return jsonResponse({ error: "invalid_message_id" }, 400, 0);
+  const room = await readChatRoom(env, matchId);
+  const messages = room.messages.filter((message) => String(message.id) !== id);
+  if (messages.length === room.messages.length) return jsonResponse({ error: "message_not_found" }, 404, 0);
+  await writeChatRoom(env, matchId, messages);
+  return jsonResponse({ ok: true, match_id: matchId, deleted: room.messages.length - messages.length, total: messages.length }, 200, 0);
+}
+__name(routeAdminChatMessageDelete, "routeAdminChatMessageDelete");
+async function routeAdminChatClear(env, matchId) {
+  if (!env.STREAM_CONFIG_KV?.get || !env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: "chat_kv_not_configured" }, 503, 0);
+  }
+  const room = await readChatRoom(env, matchId);
+  await writeChatRoom(env, matchId, []);
+  return jsonResponse({ ok: true, match_id: matchId, deleted: room.messages.length, total: 0 }, 200, 0);
+}
+__name(routeAdminChatClear, "routeAdminChatClear");
+async function routeAdminChatAuthorDelete(request, env, matchId) {
+  if (!env.STREAM_CONFIG_KV?.get || !env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: "chat_kv_not_configured" }, 503, 0);
+  }
+  const body = await readJsonBody(request);
+  const author = normalizeChatText(body?.author, CHAT_MAX_AUTHOR_LENGTH);
+  if (!author) return jsonResponse({ error: "invalid_author" }, 400, 0);
+  const room = await readChatRoom(env, matchId);
+  const authorKey = author.toLowerCase();
+  const messages = room.messages.filter((message) => normalizeChatText(message.author, CHAT_MAX_AUTHOR_LENGTH).toLowerCase() !== authorKey);
+  const deleted = room.messages.length - messages.length;
+  if (!deleted) return jsonResponse({ error: "author_not_found" }, 404, 0);
+  await writeChatRoom(env, matchId, messages);
+  return jsonResponse({ ok: true, match_id: matchId, author, deleted, total: messages.length }, 200, 0);
+}
+__name(routeAdminChatAuthorDelete, "routeAdminChatAuthorDelete");
+async function routeAdminMatchOverridesUpsert(request, env) {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: "match_override_kv_not_configured" }, 503, 0);
+  }
+  const body = await readJsonBody(request);
+  const override = normalizeAdminMatchOverridePayload(body);
+  if (!override) return jsonResponse({ error: "invalid_match_override_payload" }, 400, 0);
+  const overrides = await readRuntimeMatchOverrides(env);
+  overrides[String(override.match_id)] = override;
+  await writeRuntimeMatchOverrides(env, overrides);
+  const cacheVersion = await bumpCacheVersion(env);
+  return jsonResponse({ ok: true, override, cache_version: cacheVersion }, 200, 0);
+}
+__name(routeAdminMatchOverridesUpsert, "routeAdminMatchOverridesUpsert");
+async function routeAdminMatchOverridesDelete(env, matchId) {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: "match_override_kv_not_configured" }, 503, 0);
+  }
+  const overrides = await readRuntimeMatchOverrides(env);
+  delete overrides[String(matchId)];
+  await writeRuntimeMatchOverrides(env, overrides);
+  const cacheVersion = await bumpCacheVersion(env);
+  return jsonResponse({ ok: true, match_id: matchId, cache_version: cacheVersion }, 200, 0);
+}
+__name(routeAdminMatchOverridesDelete, "routeAdminMatchOverridesDelete");
+async function readAdminAutoStreams(env = {}, ctx = {}) {
+  if (!env.SPORTMONKS_TOKEN && !env.API_FOOTBALL_KEY && !env.FOOTBALL_DATA_TOKEN) return [];
+  const date = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  const url = new URL(`/api/matches?date=${date}`, "https://kinglive.admin");
+  const ttl = resolveCacheTtl(url);
+  const provider = resolveFootballProvider(env);
+  const response = provider === "sportmonks" ? await routeSportmonksFootballRequest(url, env, ttl, ctx) : provider === "football-data" ? await routeFootballDataRequest(url, env, ttl, ctx) : await routeApiFootballRequest(url, env, ttl);
+  if (!response.ok) return [];
+  const payload = await response.json().catch(() => null);
+  const matches = Array.isArray(payload?.matches) ? payload.matches : [];
+  return matches.flatMap((match) => {
+    const streams = Array.isArray(match?.streams) ? match.streams : [];
+    return streams.filter((stream) => isDamiStreamUrl(stream?.url)).map((stream, index) => ({
+      ...stream,
+      id: `dami-${match.id}-${stream.id || index}`,
+      match_id: Number(match.id),
+      origin: "dami",
+      editable: false,
+      is_live_now: isStreamActiveNow(stream)
+    }));
+  });
+}
+__name(readAdminAutoStreams, "readAdminAutoStreams");
+function isDamiStreamUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.hostname === "dami-tv.pro" || url.hostname.endsWith(".dami-tv.pro");
+  } catch {
+    return false;
+  }
+}
+__name(isDamiStreamUrl, "isDamiStreamUrl");
+async function routePublicStreamsRequest(env) {
+  const config = await readRuntimeStreamConfig(env);
+  const streams = flattenStreamConfig(config).filter((stream) => isStreamActiveNow(stream)).map(stripPrivateStreamFields);
+  const byMatch = {};
+  streams.forEach((stream) => {
+    const key = String(stream.match_id);
+    if (!byMatch[key]) byMatch[key] = [];
+    byMatch[key].push(stream);
+  });
+  return jsonResponse(
+    {
+      match_ids: Object.keys(byMatch),
+      streams: byMatch,
+      total_matches: Object.keys(byMatch).length,
+      total_streams: streams.length,
+      generated_at: (/* @__PURE__ */ new Date()).toISOString()
+    },
+    200,
+    30
+  );
+}
+__name(routePublicStreamsRequest, "routePublicStreamsRequest");
+async function routeChatRequest(request, env = {}, matchId) {
+  if (!Number.isFinite(matchId) || matchId <= 0) {
+    return jsonResponse({ error: "invalid_match_id" }, 400, 0);
+  }
+  if (!env.STREAM_CONFIG_KV?.get || !env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: "chat_kv_not_configured" }, 503, 0);
+  }
+  if (request.method === "GET") {
+    const url = new URL(request.url);
+    const since = Number(url.searchParams.get("since")) || 0;
+    const room2 = await readChatRoom(env, matchId);
+    const messages2 = since > 0 ? room2.messages.filter((message2) => Number(message2.created_at_ms) > since) : room2.messages;
+    return jsonResponse(
+      {
+        match_id: matchId,
+        messages: messages2,
+        server_time: Date.now()
+      },
+      200,
+      0
+    );
+  }
+  if (request.method !== "POST") return jsonResponse({ error: "method_not_allowed" }, 405, 0);
+  const body = await readJsonBody(request);
+  const messageText = normalizeChatText(body?.message, CHAT_MAX_MESSAGE_LENGTH);
+  if (!messageText) return jsonResponse({ error: "empty_message" }, 400, 0);
+  const fingerprint = chatFingerprint(request, body?.client_id);
+  const rateKey = chatRateKey(matchId, fingerprint);
+  const rateLimited = await env.STREAM_CONFIG_KV.get(rateKey);
+  if (rateLimited) return jsonResponse({ error: "rate_limited", retry_after: CHAT_RATE_LIMIT_SECONDS }, 429, 0);
+  const author = normalizeChatText(body?.author, CHAT_MAX_AUTHOR_LENGTH) || "Guest";
+  const now = Date.now();
+  const message = {
+    id: crypto.randomUUID(),
+    match_id: matchId,
+    author,
+    message: messageText,
+    created_at: new Date(now).toISOString(),
+    created_at_ms: now
+  };
+  const room = await readChatRoom(env, matchId);
+  const messages = [...room.messages, message].slice(-CHAT_MAX_MESSAGES);
+  await writeChatRoom(env, matchId, messages, message.created_at);
+  await env.STREAM_CONFIG_KV.put(rateKey, "1", { expirationTtl: CHAT_RATE_LIMIT_SECONDS });
+  return jsonResponse({ ok: true, message, server_time: now }, 200, 0);
+}
+__name(routeChatRequest, "routeChatRequest");
+async function routeAdminStreamsCreate(request, env) {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: "stream_kv_not_configured" }, 503, 0);
+  }
+  const body = await readJsonBody(request);
+  const nextStream = normalizeAdminStreamPayload(body, 0, env);
+  if (!nextStream) return jsonResponse({ error: "invalid_stream_payload" }, 400, 0);
+  const config = await readRuntimeStreamConfig(env);
+  const streams = flattenStreamConfig(config);
+  const nextId = streams.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
+  streams.push({ ...nextStream, id: nextId });
+  await writeRuntimeStreamConfig(env, expandStreamConfig(streams));
+  return jsonResponse({ id: nextId }, 200, 0);
+}
+__name(routeAdminStreamsCreate, "routeAdminStreamsCreate");
+async function routeAdminStreamsUpdate(request, env, streamId) {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: "stream_kv_not_configured" }, 503, 0);
+  }
+  const config = await readRuntimeStreamConfig(env);
+  const streams = flattenStreamConfig(config);
+  const index = streams.findIndex((item) => Number(item.id) === streamId);
+  if (index < 0) return jsonResponse({ error: "stream_not_found" }, 404, 0);
+  const body = await readJsonBody(request);
+  const updated = normalizeAdminStreamPayload(body, streamId, env, streams[index]);
+  if (!updated) return jsonResponse({ error: "invalid_stream_payload" }, 400, 0);
+  streams[index] = updated;
+  await writeRuntimeStreamConfig(env, expandStreamConfig(streams));
+  return jsonResponse({ ok: true }, 200, 0);
+}
+__name(routeAdminStreamsUpdate, "routeAdminStreamsUpdate");
+async function routeAdminStreamsDelete(env, streamId) {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: "stream_kv_not_configured" }, 503, 0);
+  }
+  const config = await readRuntimeStreamConfig(env);
+  const streams = flattenStreamConfig(config);
+  const filtered = streams.filter((item) => Number(item.id) !== streamId);
+  if (filtered.length === streams.length) {
+    return jsonResponse({ error: "stream_not_found" }, 404, 0);
+  }
+  await writeRuntimeStreamConfig(env, expandStreamConfig(filtered));
+  return jsonResponse({ ok: true }, 200, 0);
+}
+__name(routeAdminStreamsDelete, "routeAdminStreamsDelete");
+async function routeAdminStreamsRestart(env, streamId) {
+  if (!env.STREAM_CONFIG_KV?.put) {
+    return jsonResponse({ error: "stream_kv_not_configured" }, 503, 0);
+  }
+  const config = await readRuntimeStreamConfig(env);
+  const streams = flattenStreamConfig(config);
+  const index = streams.findIndex((item) => Number(item.id) === streamId);
+  if (index < 0) return jsonResponse({ error: "stream_not_found" }, 404, 0);
+  const stream = streams[index];
+  const restream = stream?.restream && typeof stream.restream === "object" ? stream.restream : null;
+  if (!restream?.enabled) return jsonResponse({ error: "stream_has_no_restream" }, 400, 0);
+  if (stream.is_active === false || restream.desired_state === "stopped") {
+    return jsonResponse({ error: "stream_not_active" }, 409, 0);
+  }
+  const slug = normalizeSlug(restream.slug || `${stream.match_id}-${streamId}`);
+  const restartRequestedAt = (/* @__PURE__ */ new Date()).toISOString();
+  streams[index] = {
+    ...stream,
+    restream: {
+      ...restream,
+      restart_requested_at: restartRequestedAt
+    }
+  };
+  await writeRuntimeStreamConfig(env, expandStreamConfig(streams));
+  return jsonResponse({ ok: true, id: streamId, slug, restart_requested_at: restartRequestedAt }, 200, 0);
+}
+__name(routeAdminStreamsRestart, "routeAdminStreamsRestart");
+async function routeRestreamSyncList(request, env = {}) {
+  const requestUrl = new URL(request.url);
+  const requestedOriginId = normalizeRestreamOriginId(
+    requestUrl.searchParams.get("origin_id") || request.headers.get("X-Restream-Origin") || DEFAULT_RESTREAM_ORIGIN_ID
+  );
+  const expected = restreamSyncTokenForOrigin(requestedOriginId, env);
+  if (!expected) return jsonResponse({ error: "restream_sync_not_configured" }, 503, 0);
+  const auth = request.headers.get("Authorization") || "";
+  if (auth !== `Bearer ${expected}`) return jsonResponse({ error: "unauthorized" }, 401, 0);
+  const config = await readRuntimeStreamConfig(env);
+  const restreams = [];
+  for (const [matchKey, rawValue] of Object.entries(config || {})) {
+    const matchId = Number(matchKey);
+    if (!Number.isFinite(matchId) || matchId <= 0) continue;
+    const list = Array.isArray(rawValue) ? rawValue : [rawValue];
+    list.forEach((entry, index) => {
+      const restream = entry?.restream;
+      if (!restream?.enabled || !isHttpUrl(restream.donor_url)) return;
+      const originId = normalizeRestreamOriginId(restream.origin_id || DEFAULT_RESTREAM_ORIGIN_ID);
+      if (originId !== requestedOriginId) return;
+      const slug = normalizeSlug(restream.slug || `${matchId}-${index + 1}`);
+      if (!slug) return;
+      const overlays = normalizeRestreamOverlays(restream.overlays || restream.overlay);
+      restreams.push({
+        id: slug,
+        slug,
+        origin_id: originId,
+        match_id: matchId,
+        label: String(entry?.label || slug),
+        donor_url: String(restream.donor_url),
+        output_url: publicRestreamUrl(restream.output_url || entry?.url || `${restreamPublicBaseUrl(originId, env)}/${slug}/index.m3u8`),
+        desired_state: scheduledRestreamState(entry),
+        is_active: entry?.is_active !== false,
+        channel_name: String(restream.channel_name || ""),
+        transcode_profile: normalizeRestreamTranscodeProfile(restream.transcode_profile, restream.donor_url),
+        overlay: overlays[0] || null,
+        overlays,
+        restart_requested_at: String(restream.restart_requested_at || "")
+      });
+    });
+  }
+  return jsonResponse({ restreams, total: restreams.length, generated_at: (/* @__PURE__ */ new Date()).toISOString() }, 200, 0);
+}
+__name(routeRestreamSyncList, "routeRestreamSyncList");
+function scheduledRestreamState(entry, now = Date.now()) {
+  const r = entry?.restream || {};
+  if (entry?.is_active === false || r.desired_state === "stopped") return "stopped";
+  if (r.automation_start_at || r.automation_stop_at) {
+    const start = Date.parse(r.automation_start_at), stop = Date.parse(r.automation_stop_at);
+    if (!Number.isFinite(start) || !Number.isFinite(stop) || stop <= start || stop-start > 4*3600000) return "stopped";
+    if (now < start || now >= stop) return "stopped";
+  }
+  return String(r.desired_state || "running");
+}
+async function routeRestreamOverlayAssetsList(request, env = {}) {
+  const expected = restreamOverlaySyncTokens(env);
+  if (!expected.length) return jsonResponse({ error: "restream_sync_not_configured" }, 503, 0);
+  const auth = request.headers.get("Authorization") || "";
+  if (!expected.some((token) => auth === `Bearer ${token}`)) return jsonResponse({ error: "unauthorized" }, 401, 0);
+  const uploaded = await readOverlayAssetIndex(env);
+  const overlays = [];
+  for (const entry of uploaded) {
+    if (!entry?.id || !isCustomOverlayImage(entry.id)) continue;
+    const dataBase64 = await env.STREAM_CONFIG_KV?.get(`${OVERLAY_ASSET_KV_PREFIX}${entry.id}`);
+    if (!dataBase64) continue;
+    overlays.push({
+      ...entry,
+      data_base64: dataBase64
+    });
+  }
+  return jsonResponse({ overlays, total: overlays.length, generated_at: (/* @__PURE__ */ new Date()).toISOString() }, 200, 0);
+}
+__name(routeRestreamOverlayAssetsList, "routeRestreamOverlayAssetsList");
+function isAuthorizedAdminRequest(request, env = {}) {
+  if (!isCloudflareAccessAllowed(request, env)) return false;
+  const expected = String(env.ADMIN_BEARER_TOKEN || "").trim();
+  if (!expected) return false;
+  const auth = request.headers.get("Authorization") || "";
+  return auth === `Bearer ${expected}`;
+}
+__name(isAuthorizedAdminRequest, "isAuthorizedAdminRequest");
+function isCloudflareAccessAllowed(request, env = {}) {
+  const requireAccess = String(env.ADMIN_REQUIRE_ACCESS || "").toLowerCase() === "true";
+  if (!requireAccess) return true;
+  const authenticatedEmail = request.headers.get("Cf-Access-Authenticated-User-Email") || request.headers.get("cf-access-authenticated-user-email") || "";
+  if (!authenticatedEmail) return false;
+  const rawAllowed = String(env.ADMIN_ACCESS_EMAILS || "").trim();
+  if (!rawAllowed) return true;
+  const allowlist = rawAllowed.split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
+  if (!allowlist.length) return true;
+  return allowlist.includes(String(authenticatedEmail).trim().toLowerCase());
+}
+__name(isCloudflareAccessAllowed, "isCloudflareAccessAllowed");
+async function readJsonBody(request) {
+  try {
+    return await request.json();
+  } catch {
+    return null;
+  }
+}
+__name(readJsonBody, "readJsonBody");
+async function readRuntimeStreamConfig(env = {}) {
+  let config;
+  if (env.STREAM_CONFIG_KV?.get) {
+    const raw = await env.STREAM_CONFIG_KV.get(STREAM_CONFIG_KV_KEY);
+    config = readStreamConfig(raw || env.MATCH_STREAMS_JSON);
+  } else {
+    config = readStreamConfig(env.MATCH_STREAMS_JSON);
+  }
+  return applyStreamOverride(config, env);
+}
+__name(readRuntimeStreamConfig, "readRuntimeStreamConfig");
+async function writeRuntimeStreamConfig(env = {}, config = {}) {
+  if (!env.STREAM_CONFIG_KV?.put) return false;
+  await env.STREAM_CONFIG_KV.put(STREAM_CONFIG_KV_KEY, JSON.stringify(config));
+  return true;
+}
+__name(writeRuntimeStreamConfig, "writeRuntimeStreamConfig");
+async function readOverlayAssetIndex(env = {}) {
+  if (!env.STREAM_CONFIG_KV?.get) return [];
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(OVERLAY_ASSETS_INDEX_KV_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return (Array.isArray(parsed) ? parsed : []).map(normalizeOverlayAssetEntry).filter(Boolean).sort((left, right) => String(left.created_at || "").localeCompare(String(right.created_at || "")));
+  } catch {
+    return [];
+  }
+}
+__name(readOverlayAssetIndex, "readOverlayAssetIndex");
+async function writeOverlayAssetIndex(env = {}, entries = []) {
+  if (!env.STREAM_CONFIG_KV?.put) return false;
+  const normalized = entries.map(normalizeOverlayAssetEntry).filter(Boolean);
+  await env.STREAM_CONFIG_KV.put(OVERLAY_ASSETS_INDEX_KV_KEY, JSON.stringify(normalized));
+  return true;
+}
+__name(writeOverlayAssetIndex, "writeOverlayAssetIndex");
+function normalizeOverlayAssetEntry(value = {}) {
+  const id = normalizeOverlayImage(value.id);
+  if (!id || !isCustomOverlayImage(id)) return null;
+  const name = String(value.name || id).trim().slice(0, 80) || id;
+  const size = Number(value.size);
+  return {
+    id,
+    name,
+    builtin: false,
+    mime: "image/png",
+    size: Number.isFinite(size) && size > 0 ? Math.round(size) : 0,
+    created_at: normalizeOptionalDateTime(value.created_at) || ""
+  };
+}
+__name(normalizeOverlayAssetEntry, "normalizeOverlayAssetEntry");
+function parseOverlayUploadPayload(payload = {}) {
+  const dataUrl = String(payload?.data_url || payload?.dataUrl || "").trim();
+  const match = dataUrl.match(/^data:image\/png;base64,([A-Za-z0-9+/=\s]+)$/);
+  if (!match) return { ok: false, error: "overlay_png_required", status: 400 };
+  const base64 = match[1].replace(/\s+/g, "");
+  const size = base64DecodedSize(base64);
+  if (!size) return { ok: false, error: "overlay_empty", status: 400 };
+  if (size > MAX_OVERLAY_ASSET_BYTES) return { ok: false, error: "overlay_too_large", status: 413 };
+  if (!looksLikePngBase64(base64)) return { ok: false, error: "overlay_png_required", status: 400 };
+  return {
+    ok: true,
+    base64,
+    size,
+    name: normalizeOverlayUploadDisplayName(payload?.name || payload?.filename || "Custom banner"),
+    slug: normalizeOverlayUploadSlug(payload?.name || payload?.filename || "custom-banner.png")
+  };
+}
+__name(parseOverlayUploadPayload, "parseOverlayUploadPayload");
+function normalizeOverlayUploadDisplayName(value) {
+  return String(value || "Custom banner").trim().replace(/\.[^.]+$/, "").replace(/\s+/g, " ").slice(0, 80) || "Custom banner";
+}
+__name(normalizeOverlayUploadDisplayName, "normalizeOverlayUploadDisplayName");
+function normalizeOverlayUploadSlug(value) {
+  const base = String(value || "custom-banner.png").trim().replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase().slice(0, 42);
+  return base || "custom-banner";
+}
+__name(normalizeOverlayUploadSlug, "normalizeOverlayUploadSlug");
+function uniqueOverlayAssetId(name, entries = []) {
+  const existing = new Set(entries.map((entry) => entry.id));
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const id = `custom-${name}-${Date.now().toString(36)}-${randomOverlaySuffix()}.png`;
+    if (!existing.has(id)) return id;
+  }
+  return `custom-${name}-${Date.now().toString(36)}.png`;
+}
+__name(uniqueOverlayAssetId, "uniqueOverlayAssetId");
+function randomOverlaySuffix() {
+  try {
+    const bytes = new Uint8Array(4);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return Date.now().toString(16).slice(-8).padStart(8, "0");
+  }
+}
+__name(randomOverlaySuffix, "randomOverlaySuffix");
+function base64DecodedSize(value) {
+  const text = String(value || "").trim();
+  if (!text) return 0;
+  const padding = text.endsWith("==") ? 2 : text.endsWith("=") ? 1 : 0;
+  return Math.floor(text.length * 3 / 4) - padding;
+}
+__name(base64DecodedSize, "base64DecodedSize");
+function looksLikePngBase64(value) {
+  try {
+    const bytes = atob(value.slice(0, 16));
+    return bytes.charCodeAt(0) === 137 && bytes.charCodeAt(1) === 80 && bytes.charCodeAt(2) === 78 && bytes.charCodeAt(3) === 71;
+  } catch {
+    return false;
+  }
+}
+__name(looksLikePngBase64, "looksLikePngBase64");
+async function readRuntimeMatchOverrides(env = {}) {
+  if (!env.STREAM_CONFIG_KV?.get) return {};
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(MATCH_OVERRIDES_KV_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed).map(([key, value]) => [key, normalizeAdminMatchOverridePayload(value)]).filter(([, value]) => value)
+    );
+  } catch {
+    return {};
+  }
+}
+__name(readRuntimeMatchOverrides, "readRuntimeMatchOverrides");
+async function writeRuntimeMatchOverrides(env = {}, overrides = {}) {
+  if (!env.STREAM_CONFIG_KV?.put) return false;
+  await env.STREAM_CONFIG_KV.put(MATCH_OVERRIDES_KV_KEY, JSON.stringify(overrides));
+  return true;
+}
+__name(writeRuntimeMatchOverrides, "writeRuntimeMatchOverrides");
+async function readRuntimeAdminSettings(env = {}) {
+  const envSettings = {
+    hide_finished_matches: String(env.HIDE_FINISHED_MATCHES || "").toLowerCase() === "true"
+  };
+  if (!env.STREAM_CONFIG_KV?.get) return normalizeAdminSettings(envSettings);
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(ADMIN_SETTINGS_KV_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return normalizeAdminSettings({ ...envSettings, ...parsed && typeof parsed === "object" ? parsed : {} });
+  } catch {
+    return normalizeAdminSettings(envSettings);
+  }
+}
+__name(readRuntimeAdminSettings, "readRuntimeAdminSettings");
+async function writeRuntimeAdminSettings(env = {}, settings = {}) {
+  if (!env.STREAM_CONFIG_KV?.put) return false;
+  await env.STREAM_CONFIG_KV.put(ADMIN_SETTINGS_KV_KEY, JSON.stringify(normalizeAdminSettings(settings)));
+  return true;
+}
+__name(writeRuntimeAdminSettings, "writeRuntimeAdminSettings");
+function normalizeAdminSettings(value = {}) {
+  return {
+    hide_finished_matches: value?.hide_finished_matches === true
+  };
+}
+__name(normalizeAdminSettings, "normalizeAdminSettings");
+function applyMatchVisibility(matches = [], settings = {}) {
+  if (!settings?.hide_finished_matches) return matches;
+  return matches.filter((match) => match?.status !== "finished");
+}
+__name(applyMatchVisibility, "applyMatchVisibility");
+function applyStreamOverride(config = {}, env = {}) {
+  const matchId = Number(env.STREAM_OVERRIDE_MATCH_ID);
+  const url = String(env.STREAM_OVERRIDE_URL || "").trim();
+  if (!Number.isFinite(matchId) || matchId <= 0 || !url) return config;
+  const key = String(matchId);
+  const current = Array.isArray(config[key]) ? config[key][0] : config[key];
+  return {
+    ...config,
+    [key]: {
+      id: Number(current?.id) || 1,
+      url,
+      source_type: env.STREAM_OVERRIDE_SOURCE_TYPE || current?.source_type || inferStreamType(url),
+      label: env.STREAM_OVERRIDE_LABEL || current?.label || "Live stream",
+      language_code: env.STREAM_OVERRIDE_LANGUAGE || current?.language_code || "en",
+      region: env.STREAM_OVERRIDE_REGION || current?.region || "global",
+      priority: Number.isFinite(Number(current?.priority)) ? Number(current.priority) : 100,
+      commentary_type: current?.commentary_type || "full",
+      quality: env.STREAM_OVERRIDE_QUALITY || current?.quality || "720p",
+      is_active: true,
+      starts_at: current?.starts_at || null,
+      ends_at: current?.ends_at || null
+    }
+  };
+}
+__name(applyStreamOverride, "applyStreamOverride");
+function flattenStreamConfig(config = {}) {
+  const streams = [];
+  for (const [matchKey, rawValue] of Object.entries(config)) {
+    const matchId = Number(matchKey);
+    if (!Number.isFinite(matchId) || matchId <= 0) continue;
+    const list = Array.isArray(rawValue) ? rawValue : [rawValue];
+    list.forEach((entry, index) => {
+      const normalized = normalizeStream(entry, matchId, index);
+      if (!normalized) return;
+      const id = Number(normalized.id);
+      streams.push({
+        id: Number.isFinite(id) && id > 0 ? id : hashToPositiveInt(`${matchId}:${index}:${normalized.url}`),
+        match_id: matchId,
+        label: normalized.label || "Live stream",
+        source_type: normalized.source_type || inferStreamType(normalized.url),
+        quality: normalized.quality || "720p",
+        language_code: normalized.language_code || "en",
+        url: normalized.url,
+        priority: Number.isFinite(Number(normalized.priority)) ? Number(normalized.priority) : 100 - index,
+        region: normalized.region || "global",
+        commentary_type: normalized.commentary_type || normalized.commentaryType || "full",
+        is_active: normalized.is_active !== false,
+        starts_at: normalized.starts_at || normalized.startsAt || null,
+        ends_at: normalized.ends_at || normalized.endsAt || null,
+        ...normalized.restream ? { restream: normalized.restream } : {}
+      });
+    });
+  }
+  return streams.sort((a, b) => Number(b.priority) - Number(a.priority));
+}
+__name(flattenStreamConfig, "flattenStreamConfig");
+function expandStreamConfig(streams = []) {
+  const byMatch = {};
+  streams.forEach((stream, index) => {
+    const matchId = Number(stream?.match_id);
+    if (!Number.isFinite(matchId) || matchId <= 0) return;
+    const key = String(matchId);
+    if (!byMatch[key]) byMatch[key] = [];
+    const expanded = {
+      id: Number(stream.id) || index + 1,
+      url: String(stream.url || ""),
+      source_type: stream.source_type || inferStreamType(stream.url || ""),
+      label: stream.label || "Live stream",
+      language_code: stream.language_code || "en",
+      region: stream.region || "global",
+      priority: Number.isFinite(Number(stream.priority)) ? Number(stream.priority) : 100 - index,
+      commentary_type: stream.commentary_type || "full",
+      quality: stream.quality || "720p",
+      is_active: stream.is_active !== false,
+      starts_at: stream.starts_at || null,
+      ends_at: stream.ends_at || null
+    };
+    if (stream.restream) expanded.restream = stream.restream;
+    byMatch[key].push(expanded);
+  });
+  return byMatch;
+}
+__name(expandStreamConfig, "expandStreamConfig");
+function normalizeAdminStreamPayload(payload, streamId, env = {}, existingStream = null) {
+  const matchId = Number(payload?.match_id);
+  const url = String(payload?.url || "").trim();
+  if (!Number.isFinite(matchId) || matchId <= 0 || !url) return null;
+  const sourceType = ["hls", "iframe", "videojs"].includes(payload?.source_type) ? payload.source_type : inferStreamType(url);
+  const restream = normalizeRestreamFromAdminPayload(payload, {
+    matchId,
+    label: String(payload?.label || "Live stream").trim(),
+    languageCode: String(payload?.language_code || "en").trim(),
+    sourceType,
+    url,
+    env
+  }, existingStream);
+  return {
+    id: streamId,
+    match_id: matchId,
+    label: String(payload?.label || "Live stream").trim(),
+    source_type: sourceType,
+    quality: String(payload?.quality || "720p").trim(),
+    language_code: String(payload?.language_code || "en").trim(),
+    url: publicRestreamUrl(restream?.output_url || url),
+    priority: Number.isFinite(Number(payload?.priority)) ? Number(payload.priority) : 100,
+    region: String(payload?.region || "global").trim(),
+    commentary_type: String(payload?.commentary_type || "full").trim(),
+    is_active: payload?.is_active !== false,
+    starts_at: normalizeOptionalDateTime(payload?.starts_at),
+    ends_at: normalizeOptionalDateTime(payload?.ends_at),
+    ...restream ? { restream } : {}
+  };
+}
+__name(normalizeAdminStreamPayload, "normalizeAdminStreamPayload");
+function normalizeRestreamFromAdminPayload(payload = {}, options = {}, existingStream = null) {
+  const explicit = payload?.restream && typeof payload.restream === "object" ? payload.restream : null;
+  const donorUrl = String(explicit?.donor_url || payload?.donor_url || options.url || "").trim();
+  const originId = normalizeRestreamOriginId(
+    explicit?.origin_id || payload?.restream_origin_id || payload?.origin_id || existingStream?.restream?.origin_id
+  );
+  const existingRestream = existingStream?.restream && typeof existingStream.restream === "object" ? existingStream.restream : null;
+  const overlayInputProvided = hasOwn(explicit || {}, "overlays") || hasOwn(explicit || {}, "overlay") || hasOwn(payload || {}, "overlays") || hasOwn(payload || {}, "overlay");
+  const overlayInput = hasOwn(explicit || {}, "overlays") ? explicit.overlays : hasOwn(explicit || {}, "overlay") ? explicit.overlay : hasOwn(payload || {}, "overlays") ? payload.overlays : payload?.overlay;
+  if (existingRestream?.enabled && options.sourceType === "videojs" && isPublicRestreamUrl(options.url) && String(existingRestream.output_url || "") === String(options.url || "").trim() && !explicit?.donor_url && !payload?.donor_url) {
+    const nextRestream = {
+      ...existingRestream,
+      origin_id: originId,
+      desired_state: payload?.is_active === false ? "stopped" : String(existingRestream.desired_state || "running"),
+      restart_requested_at: String(explicit?.restart_requested_at || payload?.restart_requested_at || existingRestream.restart_requested_at || ""),
+      channel_name: String(explicit?.channel_name || payload?.channel_name || existingRestream.channel_name || ""),
+      transcode_profile: normalizeRestreamTranscodeProfile(
+        explicit?.transcode_profile || payload?.transcode_profile || existingRestream.transcode_profile,
+        existingRestream.donor_url
+      )
+    };
+    const overlays2 = normalizeRestreamOverlays(overlayInputProvided ? overlayInput : existingRestream.overlays || existingRestream.overlay);
+    if (overlays2.length) {
+      nextRestream.overlay = overlays2[0];
+      nextRestream.overlays = overlays2;
+    } else {
+      delete nextRestream.overlay;
+      delete nextRestream.overlays;
+    }
+    return nextRestream;
+  }
+  const enabled = explicit?.enabled === true || payload?.restream_enabled === true || options.sourceType === "videojs" && isIptvDonorUrl(donorUrl);
+  if (!enabled || !isHttpUrl(donorUrl) || isPublicRestreamUrl(donorUrl)) return null;
+  const slug = normalizeSlug(
+    explicit?.slug || payload?.restream_slug || `${options.matchId}-${options.languageCode}-${options.label || "stream"}`
+  );
+  if (!slug) return null;
+  const publicBase = restreamPublicBaseUrl(originId, options.env);
+  const restream = {
+    enabled: true,
+    origin_id: originId,
+    slug,
+    donor_url: donorUrl,
+    output_url: publicRestreamUrl(`${publicBase}/${slug}/index.m3u8`),
+    desired_state: payload?.is_active === false ? "stopped" : String(explicit?.desired_state || payload?.desired_state || "running"),
+    restart_requested_at: String(explicit?.restart_requested_at || payload?.restart_requested_at || ""),
+    channel_name: String(explicit?.channel_name || payload?.channel_name || ""),
+    transcode_profile: normalizeRestreamTranscodeProfile(explicit?.transcode_profile || payload?.transcode_profile, donorUrl)
+  };
+  const overlays = normalizeRestreamOverlays(overlayInputProvided ? overlayInput : explicit?.overlays || explicit?.overlay);
+  if (overlays.length) {
+    restream.overlay = overlays[0];
+    restream.overlays = overlays;
+  }
+  return restream;
+}
+__name(normalizeRestreamFromAdminPayload, "normalizeRestreamFromAdminPayload");
+function normalizeRestreamTranscodeProfile(value, donorUrl = "") {
+  const profile = String(value || "").trim();
+  if ((!profile || profile === "auto") && isXtreamStyleDonorUrlString(donorUrl)) return "h264_720p25";
+  return ["auto", "h264_720p25", "h264_1080p25", "h264_1080p50"].includes(profile) ? profile : "";
+}
+__name(normalizeRestreamTranscodeProfile, "normalizeRestreamTranscodeProfile");
+function normalizeRestreamOverlay(value) {
+  if (!value || typeof value !== "object") return null;
+  const enabled = value.enabled === true || String(value.enabled || "").toLowerCase() === "true";
+  if (!enabled) return null;
+  const image = normalizeOverlayImage(value.image);
+  if (!image) return null;
+  return {
+    enabled: true,
+    image,
+    position: normalizeOverlayPosition(value.position),
+    width: clampInteger(value.width, 80, 1e3, 420),
+    ...clampOptionalInteger(value.height, 20, 1e3) !== null ? { height: clampOptionalInteger(value.height, 20, 1e3) } : {},
+    margin: clampInteger(value.margin, 0, 200, 24),
+    ...clampOptionalInteger(value.x_percent, 0, 100) !== null ? { x_percent: clampOptionalInteger(value.x_percent, 0, 100) } : {},
+    ...clampOptionalInteger(value.y_percent, 0, 100) !== null ? { y_percent: clampOptionalInteger(value.y_percent, 0, 100) } : {}
+  };
+}
+__name(normalizeRestreamOverlay, "normalizeRestreamOverlay");
+function normalizeRestreamOverlays(value) {
+  const list = Array.isArray(value) ? value : [value];
+  const overlays = [];
+  for (const entry of list) {
+    const overlay = normalizeRestreamOverlay(entry);
+    if (overlay) overlays.push(overlay);
+    if (overlays.length >= 3) break;
+  }
+  return overlays;
+}
+__name(normalizeRestreamOverlays, "normalizeRestreamOverlays");
+function normalizeOverlayImage(value) {
+  const image = String(value || "").trim();
+  const allowed = new Set(BUILTIN_RESTREAM_OVERLAYS.map((overlay) => overlay.id));
+  return allowed.has(image) || isCustomOverlayImage(image) ? image : "";
+}
+__name(normalizeOverlayImage, "normalizeOverlayImage");
+function isCustomOverlayImage(value) {
+  return /^custom-[a-z0-9][a-z0-9-]{0,70}\.png$/.test(String(value || ""));
+}
+__name(isCustomOverlayImage, "isCustomOverlayImage");
+function normalizeOverlayPosition(value) {
+  const position = String(value || "").trim();
+  return [
+    "top-left",
+    "top-center",
+    "top-right",
+    "center",
+    "bottom-left",
+    "bottom-center",
+    "bottom-right"
+  ].includes(position) ? position : "top-right";
+}
+__name(normalizeOverlayPosition, "normalizeOverlayPosition");
+function clampInteger(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(number)));
+}
+__name(clampInteger, "clampInteger");
+function clampOptionalInteger(value, min, max) {
+  if (value === null || value === void 0 || value === "") return null;
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  return Math.min(max, Math.max(min, Math.round(number)));
+}
+__name(clampOptionalInteger, "clampOptionalInteger");
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object, key);
+}
+__name(hasOwn, "hasOwn");
+function normalizeRestreamOriginId(value) {
+  const id = String(value || DEFAULT_RESTREAM_ORIGIN_ID).trim();
+  return RESTREAM_ORIGINS[id] ? id : DEFAULT_RESTREAM_ORIGIN_ID;
+}
+__name(normalizeRestreamOriginId, "normalizeRestreamOriginId");
+function restreamPublicBaseUrl(originId, env = {}) {
+  const origin = RESTREAM_ORIGINS[normalizeRestreamOriginId(originId)] || RESTREAM_ORIGINS[DEFAULT_RESTREAM_ORIGIN_ID];
+  return String(env?.[origin.envKey] || origin.defaultPublicBaseUrl).replace(/\/+$/, "");
+}
+__name(restreamPublicBaseUrl, "restreamPublicBaseUrl");
+function restreamSyncTokenForOrigin(originId, env = {}) {
+  const normalizedOriginId = normalizeRestreamOriginId(originId);
+  if (normalizedOriginId === "aws-us-1") {
+    return String(env?.AWS_RESTREAM_SYNC_TOKEN || env?.RESTREAM_SYNC_TOKEN || "").trim();
+  }
+  return String(env?.RESTREAM_SYNC_TOKEN || "").trim();
+}
+__name(restreamSyncTokenForOrigin, "restreamSyncTokenForOrigin");
+function restreamOverlaySyncTokens(env = {}) {
+  return [
+    String(env?.RESTREAM_SYNC_TOKEN || "").trim(),
+    String(env?.AWS_RESTREAM_SYNC_TOKEN || "").trim()
+  ].filter(Boolean);
+}
+__name(restreamOverlaySyncTokens, "restreamOverlaySyncTokens");
+function isKnownRestreamPublicUrl(url) {
+  if (url.hostname === RESTREAM_ORIGIN_HOST || url.hostname === RESTREAM_CDN_HOST) return true;
+  return Object.values(RESTREAM_ORIGINS).some((origin) => {
+    try {
+      const base = new URL(origin.defaultPublicBaseUrl);
+      const basePath = base.pathname.replace(/\/+$/, "");
+      return url.hostname === base.hostname && url.pathname.startsWith(`${basePath}/`);
+    } catch {
+      return false;
+    }
+  });
+}
+__name(isKnownRestreamPublicUrl, "isKnownRestreamPublicUrl");
+function isIptvDonorUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    const host = url.hostname.toLowerCase();
+    if (isPublicRestreamUrl(url.toString())) return false;
+    const path = `${url.pathname}${url.search}`;
+    return /\.m3u8($|\?)/i.test(path) || host.includes("plinkspile.cc") || host.includes("hls.gd") || host.includes("sharavoz") || host.includes("rv77.pw") || isXtreamStyleDonorUrl(url);
+  } catch {
+    return false;
+  }
+}
+__name(isIptvDonorUrl, "isIptvDonorUrl");
+function isXtreamStyleDonorUrl(url) {
+  const parts = String(url.pathname || "").split("/").filter(Boolean);
+  if (parts.length < 3 || !url.port) return false;
+  const streamId = parts[parts.length - 1] || "";
+  return /^\d+$/.test(streamId) || !streamId.includes(".") && parts.length >= 3;
+}
+__name(isXtreamStyleDonorUrl, "isXtreamStyleDonorUrl");
+function isXtreamStyleDonorUrlString(value) {
+  try {
+    return isXtreamStyleDonorUrl(new URL(String(value || "")));
+  } catch {
+    return false;
+  }
+}
+__name(isXtreamStyleDonorUrlString, "isXtreamStyleDonorUrlString");
+function isPublicRestreamUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return isKnownRestreamPublicUrl(url);
+  } catch {
+    return false;
+  }
+}
+__name(isPublicRestreamUrl, "isPublicRestreamUrl");
+function publicRestreamUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    if (url.hostname === RESTREAM_ORIGIN_HOST) {
+      url.hostname = RESTREAM_CDN_HOST;
+      return url.toString();
+    }
+    return String(value || "");
+  } catch {
+    return String(value || "");
+  }
+}
+__name(publicRestreamUrl, "publicRestreamUrl");
+function isHttpUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+__name(isHttpUrl, "isHttpUrl");
+function normalizeSlug(value) {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
+}
+__name(normalizeSlug, "normalizeSlug");
+function normalizeAdminMatchOverridePayload(payload) {
+  const matchId = Number(payload?.match_id);
+  if (!Number.isFinite(matchId) || matchId <= 0) return null;
+  const status = String(payload?.status || "").trim().toLowerCase();
+  if (!["scheduled", "live", "half_time", "finished", "postponed"].includes(status)) return null;
+  const hasMinute = payload?.minute !== null && payload?.minute !== void 0 && payload?.minute !== "";
+  const hasHomeScore = payload?.home_score !== null && payload?.home_score !== void 0 && payload?.home_score !== "";
+  const hasAwayScore = payload?.away_score !== null && payload?.away_score !== void 0 && payload?.away_score !== "";
+  const minute = Number(payload?.minute);
+  const homeScore = Number(payload?.home_score);
+  const awayScore = Number(payload?.away_score);
+  return {
+    match_id: matchId,
+    status,
+    minute: hasMinute && Number.isFinite(minute) && minute >= 0 ? Math.floor(minute) : null,
+    home_score: hasHomeScore && Number.isFinite(homeScore) && homeScore >= 0 ? Math.floor(homeScore) : null,
+    away_score: hasAwayScore && Number.isFinite(awayScore) && awayScore >= 0 ? Math.floor(awayScore) : null,
+    scheduled_at: normalizeOptionalDateTime(payload?.scheduled_at),
+    note: String(payload?.note || "").trim().slice(0, 200),
+    updated_at: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+__name(normalizeAdminMatchOverridePayload, "normalizeAdminMatchOverridePayload");
+function normalizeOptionalDateTime(value) {
+  if (!value) return null;
+  const asString = String(value).trim();
+  if (!asString) return null;
+  const parsed = Date.parse(asString);
+  if (Number.isNaN(parsed)) return null;
+  return new Date(parsed).toISOString();
+}
+__name(normalizeOptionalDateTime, "normalizeOptionalDateTime");
+async function readChatRoom(env = {}, matchId) {
+  const raw = await env.STREAM_CONFIG_KV.get(chatRoomKey(matchId));
+  if (!raw) return { messages: [] };
+  try {
+    const parsed = JSON.parse(raw);
+    const messages = Array.isArray(parsed?.messages) ? parsed.messages.map(normalizeStoredChatMessage).filter(Boolean) : [];
+    return { messages: messages.slice(-CHAT_MAX_MESSAGES) };
+  } catch {
+    return { messages: [] };
+  }
+}
+__name(readChatRoom, "readChatRoom");
+async function writeChatRoom(env = {}, matchId, messages = [], updatedAt = null) {
+  const normalized = Array.isArray(messages) ? messages.map(normalizeStoredChatMessage).filter(Boolean).slice(-CHAT_MAX_MESSAGES) : [];
+  const timestamp = updatedAt || (/* @__PURE__ */ new Date()).toISOString();
+  await env.STREAM_CONFIG_KV.put(chatRoomKey(matchId), JSON.stringify({ messages: normalized, updated_at: timestamp }));
+}
+__name(writeChatRoom, "writeChatRoom");
+function normalizeStoredChatMessage(message) {
+  const matchId = Number(message?.match_id);
+  const text = normalizeChatText(message?.message, CHAT_MAX_MESSAGE_LENGTH);
+  if (!Number.isFinite(matchId) || matchId <= 0 || !text) return null;
+  const createdAtMs = Number(message?.created_at_ms) || Date.parse(message?.created_at || "") || Date.now();
+  return {
+    id: String(message?.id || crypto.randomUUID()),
+    match_id: matchId,
+    author: normalizeChatText(message?.author, CHAT_MAX_AUTHOR_LENGTH) || "Guest",
+    message: text,
+    created_at: new Date(createdAtMs).toISOString(),
+    created_at_ms: createdAtMs
+  };
+}
+__name(normalizeStoredChatMessage, "normalizeStoredChatMessage");
+function normalizeChatText(value, maxLength) {
+  return String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+__name(normalizeChatText, "normalizeChatText");
+function chatRoomKey(matchId) {
+  return `chat:${matchId}`;
+}
+__name(chatRoomKey, "chatRoomKey");
+function chatRateKey(matchId, fingerprint) {
+  return `chat_rate:${matchId}:${fingerprint}`;
+}
+__name(chatRateKey, "chatRateKey");
+function chatFingerprint(request, clientId) {
+  const ip = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For")?.split(",")[0] || "unknown";
+  return safeKeyPart(`${ip}:${clientId || ""}`);
+}
+__name(chatFingerprint, "chatFingerprint");
+function viewerFingerprint(request) {
+  const ip = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For")?.split(",")[0] || "unknown";
+  const ua = request.headers.get("User-Agent") || "";
+  return `${ip}:${ua}`;
+}
+__name(viewerFingerprint, "viewerFingerprint");
+function viewerKey(matchId, clientId) {
+  return `viewer:${matchId}:${safeKeyPart(clientId)}`;
+}
+__name(viewerKey, "viewerKey");
+async function countActiveViewers(env = {}, matchId, now = Date.now()) {
+  const snapshot = await readActiveViewerSnapshot(env, now, `viewer:${matchId}:`);
+  return snapshot.by_match[String(matchId)] || 0;
+}
+__name(countActiveViewers, "countActiveViewers");
+async function readActiveViewerSnapshot(env = {}, now = Date.now(), prefix = "viewer:") {
+  const byMatchSets = /* @__PURE__ */ new Map();
+  const expiredKeys = [];
+  const keys = await listKvKeys(env, prefix);
+  await Promise.all(keys.map(async (key) => {
+    const raw = await env.STREAM_CONFIG_KV?.get?.(key);
+    if (!raw) return;
+    let record;
+    try {
+      record = JSON.parse(raw);
+    } catch {
+      expiredKeys.push(key);
+      return;
+    }
+    const expiresAt = Number(record.expires_at_ms) || 0;
+    if (expiresAt && expiresAt <= now) {
+      expiredKeys.push(key);
+      return;
+    }
+    const matchId = String(record.match_id || key.split(":")[1] || "");
+    if (!matchId) return;
+    if (!byMatchSets.has(matchId)) byMatchSets.set(matchId, /* @__PURE__ */ new Set());
+    byMatchSets.get(matchId).add(String(record.client_id || key));
+  }));
+  await Promise.all(expiredKeys.map((key) => env.STREAM_CONFIG_KV?.delete?.(key)));
+  const byMatch = {};
+  let total = 0;
+  byMatchSets.forEach((viewers, matchId) => {
+    byMatch[matchId] = viewers.size;
+    total += viewers.size;
+  });
+  return { total, by_match: byMatch };
+}
+__name(readActiveViewerSnapshot, "readActiveViewerSnapshot");
+async function listKvKeys(env = {}, prefix = "") {
+  if (!env.STREAM_CONFIG_KV?.list) return [];
+  const keys = [];
+  let cursor;
+  do {
+    const page = await env.STREAM_CONFIG_KV.list({ prefix, cursor });
+    keys.push(...Array.isArray(page?.keys) ? page.keys.map((item) => item.name).filter(Boolean) : []);
+    cursor = page?.cursor;
+    if (page?.list_complete !== false) break;
+  } while (cursor);
+  return keys;
+}
+__name(listKvKeys, "listKvKeys");
+async function recordMetric(env = {}, key, value = 1) {
+  if (!env.STREAM_CONFIG_KV?.get || !env.STREAM_CONFIG_KV?.put) return false;
+  try {
+    const metricsKey = todayMetricsKey();
+    const current = await readTodayMetrics(env);
+    if (typeof value === "number") current[key] = Number(current[key] || 0) + value;
+    else current[key] = value;
+    await env.STREAM_CONFIG_KV.put(metricsKey, JSON.stringify(current), { expirationTtl: 3 * 24 * 60 * 60 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+__name(recordMetric, "recordMetric");
+async function readTodayMetrics(env = {}) {
+  const defaults = {
+    api_calls: 0,
+    cache_hits: 0,
+    upstream_calls: 0,
+    dami_cache_hits: 0,
+    last_sportmonks_update: "",
+    last_dami_update: ""
+  };
+  if (!env.STREAM_CONFIG_KV?.get) return defaults;
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(todayMetricsKey());
+    const parsed = raw ? JSON.parse(raw) : {};
+    return { ...defaults, ...parsed && typeof parsed === "object" ? parsed : {} };
+  } catch {
+    return defaults;
+  }
+}
+__name(readTodayMetrics, "readTodayMetrics");
+function todayMetricsKey() {
+  return `metrics:${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}`;
+}
+__name(todayMetricsKey, "todayMetricsKey");
+async function readCacheVersion(env = {}) {
+  if (!env.STREAM_CONFIG_KV?.get) return "0";
+  try {
+    return String(await env.STREAM_CONFIG_KV.get(CACHE_VERSION_KV_KEY) || "0");
+  } catch {
+    return "0";
+  }
+}
+__name(readCacheVersion, "readCacheVersion");
+async function bumpCacheVersion(env = {}) {
+  const version = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  if (!env.STREAM_CONFIG_KV?.put) return version;
+  try {
+    await env.STREAM_CONFIG_KV.put(CACHE_VERSION_KV_KEY, version);
+  } catch {
+  }
+  return version;
+}
+__name(bumpCacheVersion, "bumpCacheVersion");
+async function deleteKvKey(env = {}, key) {
+  if (!env.STREAM_CONFIG_KV?.delete) return false;
+  try {
+    await env.STREAM_CONFIG_KV.delete(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+__name(deleteKvKey, "deleteKvKey");
+function safeKeyPart(value) {
+  return String(value || "unknown").replace(/[^a-zA-Z0-9_.:-]/g, "_").slice(0, 120) || "unknown";
+}
+__name(safeKeyPart, "safeKeyPart");
+function hashToPositiveInt(value = "") {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash) + 1;
+}
+__name(hashToPositiveInt, "hashToPositiveInt");
+async function fetchNewsFeed(newsLang) {
+  if (newsLang === "ar") {
+    const primary2 = await fetchFeedUrl(NEWS_FEED_AR_URL);
+    if (primary2.ok) {
+      return {
+        ...primary2,
+        source: "\u0627\u0644\u0634\u0631\u0642 \u0627\u0644\u0623\u0648\u0633\u0637",
+        itemSource: "\u0627\u0644\u0634\u0631\u0642 \u0627\u0644\u0623\u0648\u0633\u0637",
+        url: NEWS_FEED_AR_URL
+      };
+    }
+    return fetchArabicFootballFallbackFeed();
+  }
+  if (GOOGLE_NEWS_FEEDS[newsLang]) {
+    const response = await fetchFeedUrl(GOOGLE_NEWS_FEEDS[newsLang]);
+    return {
+      ...response,
+      source: "Google News Football",
+      itemSource: "Google News",
+      url: GOOGLE_NEWS_FEEDS[newsLang]
+    };
+  }
+  const primary = await fetchFeedUrl(NEWS_FEED_PROXY_URL);
+  if (primary.ok) {
+    return {
+      ...primary,
+      source: "BBC Sport Football",
+      itemSource: "BBC Sport",
+      url: NEWS_FEED_URL
+    };
+  }
+  const fallback = await fetchFeedUrl(NEWS_FEED_URL);
+  return {
+    ...fallback,
+    source: "BBC Sport Football",
+    itemSource: "BBC Sport",
+    url: NEWS_FEED_URL
+  };
+}
+__name(fetchNewsFeed, "fetchNewsFeed");
+async function fetchArabicFootballFallbackFeed() {
+  const response = await fetchFeedUrl(NEWS_FEED_AR_FOOTBALL_URL);
+  return {
+    ...response,
+    source: "Google News Arabic Football",
+    itemSource: "Google News",
+    url: NEWS_FEED_AR_FOOTBALL_URL
+  };
+}
+__name(fetchArabicFootballFallbackFeed, "fetchArabicFootballFallbackFeed");
+async function fetchSportmonksNews(lang, env = {}, limit = 6) {
+  const requested = Math.min(Math.max(limit * 2, 6), 50);
+  const urls = [
+    buildSportmonksNewsUrl("post", lang, env, false, requested),
+    buildSportmonksNewsUrl("pre", lang, env, false, requested)
+  ];
+  const payloads = await Promise.all(urls.map((url, index) => fetchSportmonksNewsWithAlias(url, index === 0 ? "post" : "pre", lang, env, requested)));
+  const okPayloads = payloads.filter((payload) => payload.ok);
+  if (!okPayloads.length) return { ok: false, status: payloads[0]?.status || 502, news: [], feed_url: "" };
+  const news = dedupeNews(okPayloads.flatMap((payload) => normalizeSportmonksNews(payload.body, payload.type))).slice(0, limit);
+  return {
+    ok: true,
+    status: 200,
+    news,
+    feed_url: urls.map((url) => normalizeSportmonksSubrequestCacheUrl(url).toString()).join(",")
+  };
+}
+__name(fetchSportmonksNews, "fetchSportmonksNews");
+async function fetchSportmonksNewsWithAlias(url, type, lang, env, limit) {
+  const primary = await fetchSportmonksJson(url, env);
+  if (primary.ok) return { ...primary, type };
+  const alias = await fetchSportmonksJson(buildSportmonksNewsUrl(type, lang, env, true, limit), env);
+  return { ...alias, type };
+}
+__name(fetchSportmonksNewsWithAlias, "fetchSportmonksNewsWithAlias");
+async function fetchFeedUrl(url) {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/rss+xml, application/xml, text/xml",
+        "User-Agent": "KingLive Football News/1.0"
+      }
+    });
+    if (!response.ok) return { ok: false, status: response.status, xml: "" };
+    return { ok: true, status: response.status, xml: await response.text() };
+  } catch {
+    return { ok: false, status: 502, xml: "" };
+  }
+}
+__name(fetchFeedUrl, "fetchFeedUrl");
+function buildFootballApiUrl(siteUrl) {
+  const statsMatch = siteUrl.pathname.match(/^\/api\/matches\/(\d+)\/stats$/)?.[1];
+  if (statsMatch) {
+    const apiUrl2 = new URL("/fixtures/statistics", API_BASE);
+    apiUrl2.searchParams.set("fixture", statsMatch);
+    return apiUrl2;
+  }
+  const prematchMatch = siteUrl.pathname.match(/^\/api\/matches\/(\d+)\/prematch$/)?.[1];
+  if (prematchMatch) {
+    const apiUrl2 = new URL("/fixtures/headtohead", API_BASE);
+    apiUrl2.searchParams.set("h2h", `${siteUrl.searchParams.get("home")}-${siteUrl.searchParams.get("away")}`);
+    return apiUrl2;
+  }
+  const apiUrl = new URL("/fixtures", API_BASE);
+  const matchId = siteUrl.pathname.match(/^\/api\/matches\/(\d+)$/)?.[1];
+  if (matchId) {
+    apiUrl.searchParams.set("id", matchId);
+    return apiUrl;
+  }
+  const status = siteUrl.searchParams.get("status") || "";
+  const date = siteUrl.searchParams.get("date") || "";
+  if (status === "live" || status === "half_time") {
+    apiUrl.searchParams.set("live", "all");
+  } else if (date) {
+    apiUrl.searchParams.set("date", date);
+  } else if (status === "scheduled") {
+    apiUrl.searchParams.set("date", todayDate());
+  } else {
+    apiUrl.searchParams.set("date", todayDate());
+  }
+  return apiUrl;
+}
+__name(buildFootballApiUrl, "buildFootballApiUrl");
+function buildFootballDataApiUrl(siteUrl) {
+  const statsMatch = siteUrl.pathname.match(/^\/api\/matches\/(\d+)\/stats$/)?.[1];
+  const matchId = siteUrl.pathname.match(/^\/api\/matches\/(\d+)$/)?.[1];
+  if (statsMatch) return buildFootballDataMatchUrl(statsMatch);
+  if (matchId) return buildFootballDataMatchUrl(matchId);
+  const apiUrl = new URL("/v4/competitions/WC/matches", FOOTBALL_DATA_API_BASE);
+  const status = siteUrl.searchParams.get("status") || "";
+  const date = siteUrl.searchParams.get("date") || todayDate();
+  apiUrl.searchParams.set("dateFrom", date);
+  apiUrl.searchParams.set("dateTo", nextIsoDate(date));
+  if (status === "live" || status === "half_time") {
+    apiUrl.searchParams.set("status", "IN_PLAY,PAUSED");
+  } else if (status === "scheduled") {
+    apiUrl.searchParams.set("status", "SCHEDULED,TIMED");
+  }
+  return apiUrl;
+}
+__name(buildFootballDataApiUrl, "buildFootballDataApiUrl");
+function buildFootballDataMatchUrl(matchId) {
+  return new URL(`/v4/matches/${encodeURIComponent(String(matchId))}`, FOOTBALL_DATA_API_BASE);
+}
+__name(buildFootballDataMatchUrl, "buildFootballDataMatchUrl");
+function buildSportmonksApiUrl(siteUrl) {
+  const statsMatch = siteUrl.pathname.match(/^\/api\/matches\/(\d+)\/stats$/)?.[1];
+  const matchId = siteUrl.pathname.match(/^\/api\/matches\/(\d+)$/)?.[1];
+  const status = siteUrl.searchParams.get("status") || "";
+  const date = siteUrl.searchParams.get("date") || "";
+  let apiUrl;
+  if (statsMatch) {
+    apiUrl = new URL(`${SPORTMONKS_API_BASE}/fixtures/${statsMatch}`);
+    apiUrl.searchParams.set("include", SPORTMONKS_DETAIL_INCLUDES);
+    applySportmonksLocale(apiUrl, siteUrl);
+    return apiUrl;
+  }
+  if (matchId) {
+    apiUrl = new URL(`${SPORTMONKS_API_BASE}/fixtures/${matchId}`);
+    apiUrl.searchParams.set("include", SPORTMONKS_MATCH_INCLUDES);
+    applySportmonksLocale(apiUrl, siteUrl);
+    return apiUrl;
+  }
+  if (status === "live" || status === "half_time") {
+    apiUrl = new URL(`${SPORTMONKS_API_BASE}/livescores/inplay`);
+  } else {
+    apiUrl = new URL(`${SPORTMONKS_API_BASE}/fixtures/date/${date || todayDate()}`);
+  }
+  apiUrl.searchParams.set("include", SPORTMONKS_MATCH_INCLUDES);
+  applySportmonksLocale(apiUrl, siteUrl);
+  return apiUrl;
+}
+__name(buildSportmonksApiUrl, "buildSportmonksApiUrl");
+function buildSportmonksMatchFactsUrl(matchId, siteUrl = null) {
+  const url = new URL(`${SPORTMONKS_API_BASE}/match-facts/${matchId}`);
+  url.searchParams.set("include", "type");
+  if (siteUrl) applySportmonksLocale(url, siteUrl);
+  return url;
+}
+__name(buildSportmonksMatchFactsUrl, "buildSportmonksMatchFactsUrl");
+function buildSportmonksFixtureDetailUrl(matchId, siteUrl = null, include = SPORTMONKS_DETAIL_INCLUDES) {
+  const url = new URL(`${SPORTMONKS_API_BASE}/fixtures/${matchId}`);
+  url.searchParams.set("include", include);
+  if (siteUrl) applySportmonksLocale(url, siteUrl);
+  return url;
+}
+__name(buildSportmonksFixtureDetailUrl, "buildSportmonksFixtureDetailUrl");
+function buildSportmonksOddsUrl(matchId, siteUrl = null) {
+  const url = new URL(`${SPORTMONKS_API_BASE}/odds/pre-match/fixtures/${matchId}`);
+  url.searchParams.set("include", "bookmaker;market");
+  if (siteUrl) applySportmonksLocale(url, siteUrl);
+  return url;
+}
+__name(buildSportmonksOddsUrl, "buildSportmonksOddsUrl");
+function buildSportmonksNewsUrl(type, lang, env = {}, alias = false, limit = 12) {
+  const slug = type === "post" ? alias ? "postmatch" : "post-match" : alias ? "prematch" : "pre-match";
+  const url = new URL(`${SPORTMONKS_API_BASE}/news/${slug}`);
+  url.searchParams.set("include", SPORTMONKS_NEWS_INCLUDES);
+  url.searchParams.set("order", "desc");
+  url.searchParams.set("per_page", String(Math.min(Math.max(limit, 1), 50)));
+  const locale = resolveSportmonksLocale({ searchParams: new URLSearchParams({ lang }) });
+  if (locale) url.searchParams.set("locale", locale);
+  const leagueIds = sportmonksConfiguredLeagueIds(env);
+  if (leagueIds.length) url.searchParams.set("filters", `newsitemLeagues:${leagueIds.join(",")}`);
+  return url;
+}
+__name(buildSportmonksNewsUrl, "buildSportmonksNewsUrl");
+function applySportmonksLocale(apiUrl, siteUrl) {
+  const locale = resolveSportmonksLocale(siteUrl);
+  if (locale) apiUrl.searchParams.set("locale", locale);
+}
+__name(applySportmonksLocale, "applySportmonksLocale");
+function todayDate() {
+  return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+}
+__name(todayDate, "todayDate");
+function footballDataRequestedDate(url) {
+  return url.searchParams.get("date") || todayDate();
+}
+__name(footballDataRequestedDate, "footballDataRequestedDate");
+function footballDataMatchDate(match = {}) {
+  return String(match?.utcDate || "").slice(0, 10);
+}
+__name(footballDataMatchDate, "footballDataMatchDate");
+function footballDataFallbackMatch(matchId, env = {}) {
+  const teamPair = footballDataFallbackTeamPair(matchId, env);
+  if (!teamPair) return null;
+  return {
+    id: matchId,
+    external_id: matchId,
+    scheduled_at: teamPair.date ? `${teamPair.date}T00:00:00Z` : "",
+    home_team: { name_en: teamPair.home, name_ru: teamPair.home },
+    away_team: { name_en: teamPair.away, name_ru: teamPair.away }
+  };
+}
+__name(footballDataFallbackMatch, "footballDataFallbackMatch");
+function footballDataFallbackTeamPair(matchId, env = {}) {
+  const raw = String(env.FOOTBALL_DATA_ODDS_ALIASES || "").trim();
+  if (!raw) return null;
+  for (const entry of raw.split(",")) {
+    const [id, ...rest] = entry.split(":").map((part) => String(part || "").trim());
+    if (String(matchId) !== id) continue;
+    const value = rest.join(":");
+    const [maybeDate, ...teamParts] = value.split("|").map((part) => String(part || "").trim());
+    const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(maybeDate);
+    const teams = hasDate ? teamParts.join("|") : value;
+    const pair = footballDataAliasPairKey(teams);
+    if (!pair) return null;
+    const [home, away] = teams.split(/\s+v(?:s)?\s+|\|/i).map((part) => String(part || "").trim());
+    return home && away ? { home, away, date: hasDate ? maybeDate : "" } : null;
+  }
+  return null;
+}
+__name(footballDataFallbackTeamPair, "footballDataFallbackTeamPair");
+function theRundownMatchDate(match = {}, env = {}) {
+  const directDate = String(match?.scheduled_at || "").slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(directDate)) return directDate;
+  const teamPair = footballDataFallbackTeamPair(match?.id || match?.external_id, env);
+  return teamPair?.date || "";
+}
+__name(theRundownMatchDate, "theRundownMatchDate");
+function nextIsoDate(date) {
+  const parsed = Date.parse(`${date}T00:00:00Z`);
+  if (!Number.isFinite(parsed)) return date;
+  return new Date(parsed + 864e5).toISOString().slice(0, 10);
+}
+__name(nextIsoDate, "nextIsoDate");
+function offsetIsoDate(date, offsetDays) {
+  const parsed = Date.parse(`${date}T00:00:00Z`);
+  if (!Number.isFinite(parsed)) return date;
+  return new Date(parsed + offsetDays * 864e5).toISOString().slice(0, 10);
+}
+__name(offsetIsoDate, "offsetIsoDate");
+function theRundownLookupDates(env = {}) {
+  const forwardDays = Math.min(Math.max(Number(env.THERUNDOWN_LOOKUP_DAYS) || 14, 0), 31);
+  const backDays = Math.min(Math.max(Number(env.THERUNDOWN_LOOKUP_BACK_DAYS) || 1, 0), 7);
+  const configuredBaseDate = String(env.THERUNDOWN_LOOKUP_BASE_DATE || "").trim();
+  const today = /^\d{4}-\d{2}-\d{2}$/.test(configuredBaseDate) ? configuredBaseDate : todayDate();
+  const dates = [];
+  for (let offset = -backDays; offset <= forwardDays; offset += 1) {
+    dates.push(offsetIsoDate(today, offset));
+  }
+  return dates;
+}
+__name(theRundownLookupDates, "theRundownLookupDates");
+function hasFootballApiErrors(errors) {
+  if (!errors) return false;
+  if (Array.isArray(errors)) return errors.length > 0;
+  if (typeof errors === "object") return Object.keys(errors).length > 0;
+  return Boolean(errors);
+}
+__name(hasFootballApiErrors, "hasFootballApiErrors");
+function normalizeFixture(item, env = {}, streamConfig = null, matchOverrides = {}) {
+  const fixture = item.fixture ?? {};
+  const league = item.league ?? {};
+  const teams = item.teams ?? {};
+  const goals = item.goals ?? {};
+  const status = fixture.status ?? {};
+  const normalizedStatus = keepScheduledBeforeKickoff(normalizeStatus(status.short), fixture.date);
+  return applyMatchOverride({
+    id: fixture.id,
+    external_id: fixture.id,
+    league: {
+      id: league.id,
+      name: league.name || "Football",
+      country: league.country || ""
+    },
+    stage: league.round || league.name || "Football",
+    venue: fixture.venue?.name || "",
+    city: fixture.venue?.city || "",
+    scheduled_at: fixture.date,
+    status: normalizedStatus,
+    home_score: goals.home ?? 0,
+    away_score: goals.away ?? 0,
+    minute: isMatchInProgress(normalizedStatus) && typeof status.elapsed === "number" ? status.elapsed : void 0,
+    home_team: normalizeTeam(teams.home),
+    away_team: normalizeTeam(teams.away),
+    streams: streamsForMatch(fixture.id, env, streamConfig)
+  }, env, streamConfig, matchOverrides);
+}
+__name(normalizeFixture, "normalizeFixture");
+function normalizeFootballDataMatch(item, env = {}, streamConfig = null, matchOverrides = {}) {
+  const competition = item?.competition ?? {};
+  const score = item?.score ?? {};
+  const normalizedStatus = keepScheduledBeforeKickoff(normalizeFootballDataStatus(item?.status), item?.utcDate);
+  const homeScore = score.fullTime?.home ?? score.regularTime?.home ?? 0;
+  const awayScore = score.fullTime?.away ?? score.regularTime?.away ?? 0;
+  return applyMatchOverride({
+    id: item?.id,
+    external_id: item?.id,
+    league: {
+      id: footballDataLeagueId(competition),
+      external_id: competition.id,
+      name: competition.name || "Football",
+      country: item?.area?.name || ""
+    },
+    stage: normalizeFootballDataStage(item?.stage, competition.name),
+    venue: item?.venue || "",
+    city: "",
+    scheduled_at: item?.utcDate || "",
+    status: normalizedStatus,
+    home_score: homeScore == null ? 0 : homeScore,
+    away_score: awayScore == null ? 0 : awayScore,
+    minute: void 0,
+    home_team: normalizeFootballDataTeam(item?.homeTeam),
+    away_team: normalizeFootballDataTeam(item?.awayTeam),
+    streams: streamsForFootballDataMatch(item, env, streamConfig)
+  }, env, streamConfig, matchOverrides);
+}
+__name(normalizeFootballDataMatch, "normalizeFootballDataMatch");
+function normalizeTheRundownScheduleMatch(item, env = {}, streamConfig = null) {
+  const teams = Array.isArray(item?.teams_normalized) && item.teams_normalized.length ? item.teams_normalized : Array.isArray(item?.teams) ? item.teams : [];
+  const homeTeam = teams.find((team) => team?.is_home) || {};
+  const awayTeam = teams.find((team) => team?.is_away) || {};
+  const scheduledAt = String(item?.event_date || "");
+  const score = item?.score || {};
+  const id = theRundownMappedMatchId(item, env) || theRundownStableMatchId(item);
+  const syntheticFootballDataItem = {
+    id,
+    homeTeam: { name: homeTeam.name },
+    awayTeam: { name: awayTeam.name }
+  };
+  return {
+    id,
+    external_id: item?.event_id || item?.event_uuid || id,
+    league: theRundownLeague(item),
+    stage: item?.schedule?.season_type || "FIFA",
+    venue: score.venue_name || "",
+    city: score.venue_location || "",
+    scheduled_at: scheduledAt,
+    status: normalizeTheRundownStatus(score.event_status),
+    home_score: Number(score.score_home) || 0,
+    away_score: Number(score.score_away) || 0,
+    minute: Number(score.game_clock) || void 0,
+    home_team: normalizeTheRundownTeam(homeTeam),
+    away_team: normalizeTheRundownTeam(awayTeam),
+    streams: streamsForFootballDataMatch(syntheticFootballDataItem, env, streamConfig)
+  };
+}
+__name(normalizeTheRundownScheduleMatch, "normalizeTheRundownScheduleMatch");
+function theRundownLeague(item = {}) {
+  const sportId = Number(item?.sport_id);
+  const known = {
+    11: { id: 39, name: "Premier League", country: "England" },
+    14: { id: 140, name: "La Liga", country: "Spain" },
+    16: { id: 2, name: "UEFA Champions League", country: "Europe" },
+    18: { id: 1, name: "FIFA World Cup", country: "World" }
+  };
+  if (known[sportId]) return { ...known[sportId], external_id: sportId };
+  return { id: sportId || 1, external_id: sportId || 18, name: "Football", country: "World" };
+}
+__name(theRundownLeague, "theRundownLeague");
+function theRundownStableMatchId(item = {}) {
+  const numericId = Number(item?.event_id || item?.event_uuid);
+  if (Number.isFinite(numericId) && numericId > 0) return numericId;
+  return hashToPositiveInt(`${item?.event_id || item?.event_uuid || ""}:${item?.event_date || ""}`) + 9e8;
+}
+__name(theRundownStableMatchId, "theRundownStableMatchId");
+function theRundownMappedMatchId(item = {}, env = {}) {
+  const teams = Array.isArray(item?.teams_normalized) && item.teams_normalized.length ? item.teams_normalized : Array.isArray(item?.teams) ? item.teams : [];
+  const homeTeam = teams.find((team) => team?.is_home) || {};
+  const awayTeam = teams.find((team) => team?.is_away) || {};
+  const teamKey = `${normalizeExternalOddsTeamKey(homeTeam.name || "")}|${normalizeExternalOddsTeamKey(awayTeam.name || "")}`;
+  if (!teamKey || teamKey === "|") return 0;
+  const raw = String(env.FOOTBALL_DATA_ODDS_ALIASES || "").trim();
+  for (const entry of raw.split(",")) {
+    const [id, ...rest] = entry.split(":").map((part) => String(part || "").trim());
+    const value = rest.join(":");
+    const [maybeDate, ...teamParts] = value.split("|").map((part) => String(part || "").trim());
+    const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(maybeDate);
+    if (hasDate && maybeDate !== String(item.event_date || '').slice(0,10)) continue;
+    const teamsValue = hasDate ? teamParts.join("|") : value;
+    if (footballDataAliasPairKey(teamsValue) === teamKey) return Number(id) || 0;
+  }
+  return 0;
+}
+__name(theRundownMappedMatchId, "theRundownMappedMatchId");
+function normalizeTheRundownTeam(team = {}) {
+  const name = team?.name || "TBD";
+  return {
+    id: team?.team_normalized_id || team?.team_id || void 0,
+    external_id: team?.team_id || team?.team_normalized_id || void 0,
+    code: team?.abbreviation || shortCode(name),
+    name_en: name,
+    name_ru: name,
+    flag_url: ""
+  };
+}
+__name(normalizeTheRundownTeam, "normalizeTheRundownTeam");
+function normalizeTheRundownStatus(status = "") {
+  const raw = String(status || "").toUpperCase();
+  if (raw.includes("FINAL") || raw.includes("COMPLETE") || raw.includes("CLOSED")) return "finished";
+  if (raw.includes("IN_PROGRESS") || raw.includes("LIVE") || raw.includes("HALF")) return "live";
+  if (raw.includes("POSTPONED") || raw.includes("CANCEL")) return "postponed";
+  return "scheduled";
+}
+__name(normalizeTheRundownStatus, "normalizeTheRundownStatus");
+function normalizeSportmonksFixture(item, env = {}, streamConfig = null, matchOverrides = {}) {
+  const participants = Array.isArray(item?.participants) ? item.participants : [];
+  const homeTeam = participants.find((team) => team?.meta?.location === "home") || participants[0] || {};
+  const awayTeam = participants.find((team) => team?.meta?.location === "away") || participants[1] || {};
+  const league = item?.league ?? {};
+  const stage = item?.stage ?? {};
+  const venue = item?.venue ?? {};
+  const scores = extractSportmonksScore(item?.scores);
+  const scheduledAt = normalizeSportmonksDate(item?.starting_at);
+  const normalizedStatus = keepScheduledBeforeKickoff(normalizeSportmonksStatus(item?.state), scheduledAt);
+  return applyMatchOverride({
+    id: item?.id,
+    external_id: item?.id,
+    league: {
+      id: league.id,
+      name: league.name || "Football",
+      country: league.country?.name || league.country || ""
+    },
+    stage: stage.name || item?.round?.name || league.name || "Football",
+    venue: venue.name || "",
+    city: venue.city_name || venue.city || "",
+    scheduled_at: scheduledAt,
+    status: normalizedStatus,
+    home_score: scores.home,
+    away_score: scores.away,
+    minute: isMatchInProgress(normalizedStatus) ? extractSportmonksMinute(item) : void 0,
+    home_team: normalizeSportmonksTeam(homeTeam),
+    away_team: normalizeSportmonksTeam(awayTeam),
+    streams: streamsForMatch(item?.id, env, streamConfig)
+  }, env, streamConfig, matchOverrides);
+}
+__name(normalizeSportmonksFixture, "normalizeSportmonksFixture");
+function normalizeFootballDataMatchDetails(matchId, match = {}, externalOdds = null) {
+  return {
+    match_id: matchId,
+    home_score: match?.home_score ?? 0,
+    away_score: match?.away_score ?? 0,
+    events: [],
+    lineups: [],
+    h2h: emptyH2H(),
+    home_form: [],
+    away_form: [],
+    team_stats: [],
+    facts: [],
+    odds: externalOdds
+  };
+}
+__name(normalizeFootballDataMatchDetails, "normalizeFootballDataMatchDetails");
+function normalizeSportmonksMatchDetails(matchId, fixture = {}, facts = [], odds = [], detailFixtures = {}) {
+  const statisticsFixture = detailFixtures.statistics || fixture;
+  const eventsFixture = detailFixtures.events || fixture;
+  const lineupsFixture = detailFixtures.lineups || fixture;
+  const participantFixture = [fixture, statisticsFixture, eventsFixture, lineupsFixture].find((item) => Array.isArray(item?.participants) && item.participants.length) || {};
+  const scoreFixture = [fixture, statisticsFixture, eventsFixture, lineupsFixture].find((item) => Array.isArray(item?.scores) && item.scores.length) || {};
+  const participants = Array.isArray(participantFixture?.participants) ? participantFixture.participants : [];
+  const homeTeam = participants.find((team) => team?.meta?.location === "home") || participants[0] || {};
+  const awayTeam = participants.find((team) => team?.meta?.location === "away") || participants[1] || {};
+  const teamSideById = sportmonksTeamSideById(participantFixture);
+  const scoreFromEvents = extractSportmonksScoreFromEvents(eventsFixture?.events);
+  const scores = scoreFromEvents || extractSportmonksScore(scoreFixture?.scores);
+  const events = normalizeSportmonksEvents(matchId, eventsFixture?.events, teamSideById);
+  const lineups = normalizeSportmonksLineups(matchId, lineupsFixture?.lineups, teamSideById);
+  const teamStats = normalizeSportmonksTeamStatistics(statisticsFixture?.statistics, teamSideById, { homeTeam, awayTeam });
+  const oddsPanel = normalizeSportmonksOdds(odds) || detailFixtures.externalOdds || null;
+  return {
+    match_id: matchId,
+    home_score: scores.home,
+    away_score: scores.away,
+    events,
+    lineups,
+    h2h: emptyH2H(),
+    home_form: [],
+    away_form: [],
+    team_stats: teamStats,
+    facts: normalizeSportmonksFacts(facts),
+    odds: oddsPanel
+  };
+}
+__name(normalizeSportmonksMatchDetails, "normalizeSportmonksMatchDetails");
+function sportmonksTeamSideById(fixture = {}) {
+  const participants = Array.isArray(fixture?.participants) ? fixture.participants : [];
+  const homeTeam = participants.find((team) => team?.meta?.location === "home") || participants[0] || {};
+  const awayTeam = participants.find((team) => team?.meta?.location === "away") || participants[1] || {};
+  return /* @__PURE__ */ new Map([
+    [Number(homeTeam.id), "home"],
+    [Number(awayTeam.id), "away"]
+  ]);
+}
+__name(sportmonksTeamSideById, "sportmonksTeamSideById");
+function applyMatchOverrides(matches = [], env = {}, streamConfig = null, matchOverrides = {}) {
+  const override = createOverrideMatch(env, streamConfig, matchOverrides);
+  if (!override) return matches;
+  const next = [];
+  let replaced = false;
+  matches.forEach((match) => {
+    if (String(match?.id) === String(override.id)) {
+      next.push(applyMatchOverride(match, env, streamConfig, matchOverrides));
+      replaced = true;
+      return;
+    }
+    next.push(match);
+  });
+  if (!replaced) next.unshift(override);
+  return next;
+}
+__name(applyMatchOverrides, "applyMatchOverrides");
+function applyMatchOverride(match = {}, env = {}, streamConfig = null, matchOverrides = {}) {
+  const override = createOverrideMatch(env, streamConfig, matchOverrides);
+  const storedOverride = matchOverrides?.[String(match?.id)] || null;
+  if ((!override || String(match?.id) !== String(override.id)) && !storedOverride) return match;
+  const envOverrideApplies = override && String(match?.id) === String(override.id);
+  const scheduledAt = storedOverride?.scheduled_at || (envOverrideApplies ? env.MATCH_OVERRIDE_SCHEDULED_AT : "") || match.scheduled_at || override?.scheduled_at;
+  const status = keepScheduledBeforeKickoff(storedOverride?.status || (envOverrideApplies ? env.MATCH_OVERRIDE_STATUS : "") || match.status, scheduledAt);
+  return {
+    ...match,
+    stage: env.MATCH_OVERRIDE_STAGE || match.stage,
+    venue: env.MATCH_OVERRIDE_VENUE || match.venue,
+    city: env.MATCH_OVERRIDE_CITY || match.city,
+    scheduled_at: scheduledAt,
+    status,
+    home_score: storedOverride?.home_score != null && Number.isFinite(Number(storedOverride.home_score)) ? Number(storedOverride.home_score) : match.home_score,
+    away_score: storedOverride?.away_score != null && Number.isFinite(Number(storedOverride.away_score)) ? Number(storedOverride.away_score) : match.away_score,
+    minute: isMatchInProgress(status) && storedOverride?.minute != null && Number.isFinite(Number(storedOverride.minute)) ? Number(storedOverride.minute) : isMatchInProgress(status) && envOverrideApplies && Number.isFinite(Number(env.MATCH_OVERRIDE_MINUTE)) ? Number(env.MATCH_OVERRIDE_MINUTE) : isMatchInProgress(status) ? match.minute : void 0,
+    home_team: envOverrideApplies ? override.home_team : match.home_team,
+    away_team: envOverrideApplies ? override.away_team : match.away_team,
+    streams: envOverrideApplies ? streamsForMatch(override.id, env, streamConfig) : match.streams
+  };
+}
+__name(applyMatchOverride, "applyMatchOverride");
+function createOverrideMatch(env = {}, streamConfig = null) {
+  const matchId = Number(env.MATCH_OVERRIDE_ID || env.STREAM_OVERRIDE_MATCH_ID);
+  if (!Number.isFinite(matchId) || matchId <= 0) return null;
+  const home = env.MATCH_OVERRIDE_HOME || "VALENCIA";
+  const away = env.MATCH_OVERRIDE_AWAY || "BARCELONA";
+  const scheduledAt = env.MATCH_OVERRIDE_SCHEDULED_AT || (/* @__PURE__ */ new Date()).toISOString();
+  const status = keepScheduledBeforeKickoff(env.MATCH_OVERRIDE_STATUS || "scheduled", scheduledAt);
+  return {
+    id: matchId,
+    external_id: matchId,
+    league: {
+      id: Number(env.MATCH_OVERRIDE_LEAGUE_ID) || 140,
+      name: env.MATCH_OVERRIDE_LEAGUE_NAME || "La Liga",
+      country: env.MATCH_OVERRIDE_LEAGUE_COUNTRY || "Spain"
+    },
+    stage: env.MATCH_OVERRIDE_STAGE || "Live match",
+    venue: env.MATCH_OVERRIDE_VENUE || "",
+    city: env.MATCH_OVERRIDE_CITY || "",
+    scheduled_at: scheduledAt,
+    status,
+    home_score: Number.isFinite(Number(env.MATCH_OVERRIDE_HOME_SCORE)) ? Number(env.MATCH_OVERRIDE_HOME_SCORE) : 0,
+    away_score: Number.isFinite(Number(env.MATCH_OVERRIDE_AWAY_SCORE)) ? Number(env.MATCH_OVERRIDE_AWAY_SCORE) : 0,
+    minute: isMatchInProgress(status) && Number.isFinite(Number(env.MATCH_OVERRIDE_MINUTE)) ? Number(env.MATCH_OVERRIDE_MINUTE) : void 0,
+    home_team: makeOverrideTeam(home, env.MATCH_OVERRIDE_HOME_ID, env.MATCH_OVERRIDE_HOME_LOGO),
+    away_team: makeOverrideTeam(away, env.MATCH_OVERRIDE_AWAY_ID, env.MATCH_OVERRIDE_AWAY_LOGO),
+    streams: streamsForMatch(matchId, env, streamConfig)
+  };
+}
+__name(createOverrideMatch, "createOverrideMatch");
+function makeOverrideTeam(name, id, logo) {
+  return {
+    id: Number.isFinite(Number(id)) ? Number(id) : void 0,
+    external_id: Number.isFinite(Number(id)) ? Number(id) : void 0,
+    code: shortCode(name),
+    name_en: name,
+    name_ru: name,
+    flag_url: logo || ""
+  };
+}
+__name(makeOverrideTeam, "makeOverrideTeam");
+function isTopLeagueMatch(match) {
+  const id = Number(match?.league?.id);
+  if (TOP_LEAGUE_PRIORITY.has(id)) return true;
+  const name = String(match?.league?.name || "").toLowerCase();
+  return name.includes("world cup") || name.includes("uefa champions league") || name.includes("uefa europa league") || name.includes("uefa europa conference league") || name.includes("conmebol libertadores") || name.includes("conmebol sudamericana");
+}
+__name(isTopLeagueMatch, "isTopLeagueMatch");
+function sortMatches(matches) {
+  return [...matches].sort((a, b) => {
+    const statusDelta = statusPriority(a) - statusPriority(b);
+    if (statusDelta !== 0) return statusDelta;
+    const leagueDelta = leaguePriority(a) - leaguePriority(b);
+    if (leagueDelta !== 0) return leagueDelta;
+    return Date.parse(a.scheduled_at || "") - Date.parse(b.scheduled_at || "");
+  });
+}
+__name(sortMatches, "sortMatches");
+function statusPriority(match) {
+  return STATUS_PRIORITY[match?.status] ?? 4;
+}
+__name(statusPriority, "statusPriority");
+function leaguePriority(match) {
+  return TOP_LEAGUE_PRIORITY.get(Number(match?.league?.id)) ?? 999;
+}
+__name(leaguePriority, "leaguePriority");
+function streamsForMatch(matchId, env = {}, streamConfig = null) {
+  const config = streamConfig || readStreamConfig(env.MATCH_STREAMS_JSON);
+  const configured = config[String(matchId)];
+  if (!configured) return [];
+  const streams = Array.isArray(configured) ? configured : [configured];
+  return streams.map((stream, index) => normalizeStream(stream, matchId, index)).filter((stream) => isStreamActiveNow(stream)).map(stripPrivateStreamFields);
+}
+__name(streamsForMatch, "streamsForMatch");
+function streamsForFootballDataMatch(item = {}, env = {}, streamConfig = null) {
+  const direct = streamsForMatch(item?.id, env, streamConfig);
+  if (direct.length) return direct;
+  const aliasId = footballDataStreamAliasForMatch(item, env);
+  if (!aliasId || String(aliasId) === String(item?.id)) return [];
+  return streamsForMatch(aliasId, env, streamConfig);
+}
+__name(streamsForFootballDataMatch, "streamsForFootballDataMatch");
+function footballDataStreamAliasForMatch(item = {}, env = {}) {
+  const aliases = readFootballDataMatchAliases(env);
+  const idAlias = aliases.byId.get(String(item?.id));
+  if (idAlias) return idAlias;
+  const teamKey = footballDataAliasTeamKey(item);
+  return aliases.byTeams.get(teamKey) || "";
+}
+__name(footballDataStreamAliasForMatch, "footballDataStreamAliasForMatch");
+function readFootballDataMatchAliases(env = {}) {
+  const byId = /* @__PURE__ */ new Map();
+  const byTeams = /* @__PURE__ */ new Map();
+  const raw = String(env.FOOTBALL_DATA_MATCH_ALIASES || "").trim();
+  if (!raw) return { byId, byTeams };
+  raw.split(",").forEach((entry) => {
+    const [left, right] = entry.split(":").map((part) => String(part || "").trim());
+    if (!left || !right) return;
+    if (/^\d+$/.test(left)) byId.set(left, right);
+    else {
+      const teamKey = footballDataAliasPairKey(left);
+      if (teamKey) byTeams.set(teamKey, right);
+    }
+  });
+  return { byId, byTeams };
+}
+__name(readFootballDataMatchAliases, "readFootballDataMatchAliases");
+function footballDataAliasPairKey(value = "") {
+  const parts = String(value || "").split(/\s+v(?:s)?\s+|\|/i);
+  if (parts.length < 2) return "";
+  const home = normalizeExternalOddsTeamKey(parts[0]);
+  const away = normalizeExternalOddsTeamKey(parts.slice(1).join(" "));
+  return home && away ? `${home}|${away}` : "";
+}
+__name(footballDataAliasPairKey, "footballDataAliasPairKey");
+function footballDataAliasTeamKey(item = {}) {
+  const home = normalizeExternalOddsTeamKey(item?.homeTeam?.name || item?.homeTeam?.shortName || "");
+  const away = normalizeExternalOddsTeamKey(item?.awayTeam?.name || item?.awayTeam?.shortName || "");
+  return home && away ? `${home}|${away}` : "";
+}
+__name(footballDataAliasTeamKey, "footballDataAliasTeamKey");
+function stripPrivateStreamFields(stream) {
+  if (!stream || typeof stream !== "object") return stream;
+  const { restream, ...publicStream } = stream;
+  return publicStream;
+}
+__name(stripPrivateStreamFields, "stripPrivateStreamFields");
+async function applyDamiAutoStreams(matches = [], env = {}) {
+  if (env.DAMI_AUTO_STREAMS === "false") return matches;
+  if (!Array.isArray(matches) || !matches.length) return matches;
+  let damiStreams = [];
+  try {
+    damiStreams = await fetchDamiStreams(env);
+  } catch {
+    return matches;
+  }
+  if (!damiStreams.length) return matches;
+  return matches.map((match) => {
+    if (match?.status === "finished") return match;
+    const manualStreams = Array.isArray(match?.streams) ? match.streams : [];
+    const autoStreams = damiStreamsForMatch(match, damiStreams, env);
+    const mergedStreams = mergeStreamsByLanguageAndUrl(manualStreams, autoStreams);
+    return mergedStreams.length ? { ...match, streams: mergedStreams } : match;
+  });
+}
+__name(applyDamiAutoStreams, "applyDamiAutoStreams");
+async function fetchDamiStreams(env = {}, options = {}) {
+  if (!options.force) {
+    const cached = await readCachedDamiStreams(env);
+    if (cached) {
+      await recordMetric(env, "dami_cache_hits");
+      return cached;
+    }
+  }
+  const configuredUrl = String(env.DAMI_STREAMS_API_URL || "").trim();
+  const urls = [configuredUrl, DAMI_STREAMS_API_URL, DAMI_STREAMS_FALLBACK_API_URL].filter(Boolean);
+  const uniqueUrls = [...new Set(urls)];
+  for (const url of uniqueUrls) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "KingLive/1.0 (+https://kinglive.live)"
+        }
+      });
+      if (!response.ok) continue;
+      const payload = await response.json();
+      const categories = Array.isArray(payload?.streams) ? payload.streams : [];
+      const streams = categories.flatMap((category) => Array.isArray(category?.streams) ? category.streams : []);
+      await writeCachedDamiStreams(env, streams);
+      await recordMetric(env, "last_dami_update", (/* @__PURE__ */ new Date()).toISOString());
+      return streams;
+    } catch {
+    }
+  }
+  return [];
+}
+__name(fetchDamiStreams, "fetchDamiStreams");
+async function readCachedDamiStreams(env = {}) {
+  if (!env.STREAM_CONFIG_KV?.get) return null;
+  try {
+    const raw = await env.STREAM_CONFIG_KV.get(DAMI_STREAMS_KV_KEY);
+    if (!raw) return null;
+    const payload = JSON.parse(raw);
+    const fetchedAt = Date.parse(payload?.fetched_at || "");
+    if (!Number.isFinite(fetchedAt) || Date.now() - fetchedAt > DAMI_STREAMS_TTL_SECONDS * 1e3) return null;
+    return Array.isArray(payload?.streams) ? payload.streams : null;
+  } catch {
+    return null;
+  }
+}
+__name(readCachedDamiStreams, "readCachedDamiStreams");
+async function writeCachedDamiStreams(env = {}, streams = []) {
+  if (!env.STREAM_CONFIG_KV?.put) return false;
+  try {
+    await env.STREAM_CONFIG_KV.put(
+      DAMI_STREAMS_KV_KEY,
+      JSON.stringify({ fetched_at: (/* @__PURE__ */ new Date()).toISOString(), streams: Array.isArray(streams) ? streams : [] }),
+      { expirationTtl: DAMI_STREAMS_TTL_SECONDS }
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+__name(writeCachedDamiStreams, "writeCachedDamiStreams");
+function damiStreamsForMatch(match = {}, damiStreams = [], env = {}) {
+  const damiMatch = damiStreams.find((stream) => isDamiMatchForFixture(stream, match));
+  if (!damiMatch) return [];
+  const streams = [];
+  const sources = Array.isArray(damiMatch.sources) ? damiMatch.sources : [];
+  const window = damiStreamWindow(damiMatch);
+  sources.forEach((source, index) => {
+    if (isBlockedDamiSource(source)) return;
+    const url = String(source?.embed || "").trim();
+    if (!url) return;
+    const channel = damiChannelFromUrl(url);
+    const language = damiLanguageForSource(source, channel, env) || "und";
+    streams.push({
+      id: hashToPositiveInt(`${match.id}:dami:${index}:${url}`),
+      url,
+      source_type: "iframe",
+      label: damiSourceLabel(source, index, language),
+      language_code: language,
+      region: "global",
+      quality: "720p",
+      priority: 90 - index,
+      commentary_type: "full",
+      is_active: true,
+      starts_at: window.starts_at,
+      ends_at: window.ends_at
+    });
+  });
+  parseDamiExtraLanguageChannels(env.DAMI_EXTRA_LANGUAGE_CHANNELS).forEach((extra, index) => {
+    const url = damiEmbedUrlForChannel(damiMatch, extra.channel);
+    if (!url || streams.some((stream) => stream.url === url)) return;
+    streams.push({
+      id: hashToPositiveInt(`${match.id}:dami:${extra.language}:${extra.channel}`),
+      url,
+      source_type: "iframe",
+      label: damiLanguageLabel(extra.language),
+      language_code: extra.language,
+      region: "global",
+      quality: "720p",
+      priority: 80 - index,
+      commentary_type: "full",
+      is_active: true,
+      starts_at: window.starts_at,
+      ends_at: window.ends_at
+    });
+  });
+  if (!streams.length && damiMatch.iframe) {
+    streams.push({
+      id: hashToPositiveInt(`${match.id}:dami:iframe`),
+      url: String(damiMatch.iframe),
+      source_type: "iframe",
+      label: "DAMI stream",
+      language_code: "en",
+      region: "global",
+      quality: "720p",
+      priority: 50,
+      commentary_type: "full",
+      is_active: true,
+      starts_at: window.starts_at,
+      ends_at: window.ends_at
+    });
+  }
+  return streams;
+}
+__name(damiStreamsForMatch, "damiStreamsForMatch");
+function isBlockedDamiSource(source = {}) {
+  return String(source.id || "").trim().toLowerCase() === "s1";
+}
+__name(isBlockedDamiSource, "isBlockedDamiSource");
+function damiStreamWindow(damiMatch = {}) {
+  return {
+    starts_at: unixSecondsToIso(damiMatch.starts_at),
+    ends_at: unixSecondsToIso(damiMatch.ends_at)
+  };
+}
+__name(damiStreamWindow, "damiStreamWindow");
+function unixSecondsToIso(value) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return new Date(seconds * 1e3).toISOString();
+}
+__name(unixSecondsToIso, "unixSecondsToIso");
+function damiSourceLabel(source = {}, index = 0, language = "") {
+  const sourceId = String(source.id || "").trim();
+  if (sourceId) return sourceId.toUpperCase();
+  const sourceName = String(source.source || source.name || source.channelName || source.label || "").trim();
+  if (sourceName) return sourceName.toUpperCase();
+  if (language && language !== "und") return damiLanguageLabel(language);
+  return `S${index + 1}`;
+}
+__name(damiSourceLabel, "damiSourceLabel");
+function damiEmbedUrlForChannel(damiMatch = {}, channel = "") {
+  if (!/^\d+$/.test(String(channel || ""))) return "";
+  const base = String(damiMatch.embed || damiMatch.iframe || "").trim();
+  if (!base) return "";
+  try {
+    const url = new URL(base);
+    url.searchParams.set("ch", String(channel));
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+__name(damiEmbedUrlForChannel, "damiEmbedUrlForChannel");
+function routeDamiEmbedProxyRequest(url) {
+  const channel = url.searchParams.get("ch") || url.searchParams.get("channel") || "";
+  if (!/^\d{1,8}$/.test(channel)) {
+    return htmlResponse(damiEmbedErrorHtml("Invalid DAMI channel"), 400, 0);
+  }
+  return htmlResponse(damiEmbedWrapperHtml(channel), 200, 60);
+}
+__name(routeDamiEmbedProxyRequest, "routeDamiEmbedProxyRequest");
+function damiEmbedWrapperHtml(channel) {
+  const safeChannel = escapeHtml(channel);
+  const damiUrl = `https://dami-tv.pro/hls-player/?ch=${encodeURIComponent(channel)}`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DAMI stream</title>
+  <style>
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}
+    iframe{display:block;width:100%;height:100%;border:0;background:#000}
+  </style>
+</head>
+<body>
+  <iframe id="dami-frame" src="${escapeHtml(damiUrl)}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+  <script>
+    (() => {
+      const fakePopup = {
+        closed: false,
+        close() { this.closed = true; },
+        focus() {},
+        blur() {},
+        postMessage() {},
+        location: { href: 'about:blank', replace() {}, assign() {}, reload() {} },
+        document: { write() {}, writeln() {}, open() {}, close() {} }
+      };
+      try {
+        Object.defineProperty(window, 'open', {
+          configurable: true,
+          writable: true,
+          value: () => fakePopup
+        });
+      } catch {
+        window.open = () => fakePopup;
+      }
+      window.__DAMI_CHANNEL__ = '${safeChannel}';
+    })();
+  <\/script>
+</body>
+</html>`;
+}
+__name(damiEmbedWrapperHtml, "damiEmbedWrapperHtml");
+function damiEmbedErrorHtml(message) {
+  return `<!doctype html><meta charset="utf-8"><title>DAMI stream</title><body style="margin:0;background:#000;color:#fff;font:14px system-ui;display:grid;place-items:center;height:100vh">${escapeHtml(message)}</body>`;
+}
+__name(damiEmbedErrorHtml, "damiEmbedErrorHtml");
+function escapeHtml(value = "") {
+  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+__name(escapeHtml, "escapeHtml");
+function isDamiMatchForFixture(damiStream = {}, match = {}) {
+  if (!isDamiTimeCompatible(damiStream, match)) return false;
+  const home = normalizeMatchToken(teamNameForDami(match.home_team));
+  const away = normalizeMatchToken(teamNameForDami(match.away_team));
+  const haystack = normalizeMatchToken([
+    damiStream.name,
+    damiStream.id,
+    damiStream.teams?.home?.name,
+    damiStream.teams?.away?.name
+  ].filter(Boolean).join(" "));
+  return Boolean(home && away && haystack.includes(home) && haystack.includes(away));
+}
+__name(isDamiMatchForFixture, "isDamiMatchForFixture");
+function isDamiTimeCompatible(damiStream = {}, match = {}) {
+  const kickoff = Date.parse(match?.scheduled_at || "");
+  const startsAt = Number(damiStream.starts_at) * 1e3;
+  const endsAt = Number(damiStream.ends_at) * 1e3;
+  if (!Number.isFinite(kickoff)) return true;
+  if (!Number.isFinite(startsAt) || startsAt <= 0 || !Number.isFinite(endsAt) || endsAt <= 0) return true;
+  const toleranceMs = 2 * 60 * 60 * 1e3;
+  return kickoff >= startsAt - toleranceMs && kickoff <= endsAt + toleranceMs;
+}
+__name(isDamiTimeCompatible, "isDamiTimeCompatible");
+function teamNameForDami(team = {}) {
+  const code = String(team?.code || "").trim().toUpperCase();
+  return DAMI_TEAM_CODE_ALIASES[code] || team?.name_en || team?.name || code || "";
+}
+__name(teamNameForDami, "teamNameForDami");
+function normalizeMatchToken(value = "") {
+  return String(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\brepublic\b/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+}
+__name(normalizeMatchToken, "normalizeMatchToken");
+function damiChannelFromUrl(url = "") {
+  try {
+    const parsed = new URL(url);
+    const channel = parsed.searchParams.get("ch") || parsed.searchParams.get("channel");
+    return /^\d+$/.test(channel || "") ? channel : "";
+  } catch {
+    return "";
+  }
+}
+__name(damiChannelFromUrl, "damiChannelFromUrl");
+function damiLanguageForSource(source = {}, channel = "", env = {}) {
+  const configured = parseDamiLanguageChannels(env.DAMI_LANGUAGE_CHANNELS);
+  if (configured[channel]) return configured[channel];
+  const name = String(source.name || source.channelName || source.label || "").toLowerCase();
+  if (/(arab|arabic|عرب|bein|ssc|alkass|الكاس)/i.test(name) || ["966", "967"].includes(channel)) return "ar";
+  if (/(spanish|espanol|español|tudn|azteca|univision|telemundo)/i.test(name) || ["935", "844"].includes(channel)) return "es";
+  if (/(english|uk|usa|fox|itv|tsn|rte)/i.test(name) || ["350", "54", "39", "111", "113", "114", "365"].includes(channel)) return "en";
+  return "";
+}
+__name(damiLanguageForSource, "damiLanguageForSource");
+function parseDamiLanguageChannels(raw = "") {
+  return String(raw || "").split(",").reduce((map, item) => {
+    const [language, channel] = item.split(":").map((part) => String(part || "").trim().toLowerCase());
+    if (language && /^\d+$/.test(channel || "")) map[channel] = language;
+    return map;
+  }, {});
+}
+__name(parseDamiLanguageChannels, "parseDamiLanguageChannels");
+function parseDamiExtraLanguageChannels(raw = "") {
+  return String(raw || "").split(",").reduce((items, item) => {
+    const [language, channel] = item.split(":").map((part) => String(part || "").trim().toLowerCase());
+    if (language && /^\d+$/.test(channel || "")) items.push({ language, channel });
+    return items;
+  }, []);
+}
+__name(parseDamiExtraLanguageChannels, "parseDamiExtraLanguageChannels");
+function damiLanguageLabel(language = "") {
+  const labels = {
+    ar: "Arabic stream",
+    en: "English stream",
+    es: "Spanish stream",
+    fr: "French stream",
+    mn: "Mongolian stream"
+  };
+  return labels[language] || "DAMI stream";
+}
+__name(damiLanguageLabel, "damiLanguageLabel");
+function mergeStreamsByLanguageAndUrl(manualStreams = [], autoStreams = []) {
+  const seen = /* @__PURE__ */ new Set();
+  return [...manualStreams, ...autoStreams].filter((stream) => {
+    const key = `${stream.language_code || ""}:${stream.url || ""}`;
+    if (!stream?.url || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+__name(mergeStreamsByLanguageAndUrl, "mergeStreamsByLanguageAndUrl");
+function readStreamConfig(raw) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+__name(readStreamConfig, "readStreamConfig");
+function normalizeStream(stream, matchId, index) {
+  if (typeof stream === "string") {
+    if (!stream) return null;
+    return {
+      id: `env-${matchId}-${index}`,
+      url: publicRestreamUrl(stream),
+      source_type: inferStreamType(stream),
+      label: "Live stream",
+      language_code: "en",
+      region: "global",
+      priority: 100 - index,
+      is_active: true,
+      starts_at: null,
+      ends_at: null
+    };
+  }
+  if (!stream || !stream.url) return null;
+  return {
+    id: stream.id || `env-${matchId}-${index}`,
+    url: publicRestreamUrl(stream.url),
+    source_type: stream.source_type || stream.sourceType || inferStreamType(stream.url),
+    label: stream.label || "Live stream",
+    language_code: stream.language_code || stream.languageCode || "en",
+    region: stream.region || "global",
+    priority: typeof stream.priority === "number" ? stream.priority : 100 - index,
+    is_active: stream.is_active !== false && stream.isActive !== false,
+    title: stream.title || "",
+    starts_at: normalizeOptionalDateTime(stream.starts_at || stream.startsAt),
+    ends_at: normalizeOptionalDateTime(stream.ends_at || stream.endsAt),
+    ...stream.restream ? { restream: stream.restream } : {}
+  };
+}
+__name(normalizeStream, "normalizeStream");
+function isStreamActiveNow(stream, now = Date.now()) {
+  if (!stream || stream.is_active === false || stream.isActive === false) return false;
+  const startsAt = Date.parse(stream.starts_at || stream.startsAt || "");
+  const endsAt = Date.parse(stream.ends_at || stream.endsAt || "");
+  if (!Number.isNaN(startsAt) && now < startsAt) return false;
+  if (!Number.isNaN(endsAt) && now > endsAt) return false;
+  return true;
+}
+__name(isStreamActiveNow, "isStreamActiveNow");
+function inferStreamType(url) {
+  return /\.m3u8(\?|$)/i.test(url) ? "hls" : "iframe";
+}
+__name(inferStreamType, "inferStreamType");
+function normalizeStatistics(matchId, response) {
+  const teams = Array.isArray(response) ? response : [];
+  const teamStats = teams.map((item) => ({
+    team: {
+      id: item.team?.id,
+      name: item.team?.name || "TBD",
+      logo: item.team?.logo || ""
+    },
+    stats: normalizeTeamStats(item.statistics)
+  }));
+  return {
+    match_id: matchId,
+    events: [],
+    lineups: [],
+    h2h: emptyH2H(),
+    home_form: [],
+    away_form: [],
+    team_stats: teamStats,
+    teams: teamStats,
+    facts: []
+  };
+}
+__name(normalizeStatistics, "normalizeStatistics");
+function normalizePrematch(matchId, homeId, awayId, response) {
+  const fixtures = Array.isArray(response) ? response : [];
+  const finishedFixtures = fixtures.filter((item) => FINISHED_STATUSES.has(item.fixture?.status?.short));
+  const totals = {
+    match_id: matchId,
+    sample_size: finishedFixtures.length,
+    home: { team_id: homeId, wins: 0, goals: 0 },
+    away: { team_id: awayId, wins: 0, goals: 0 },
+    draws: 0,
+    label: `Head-to-head last ${finishedFixtures.length} matches`
+  };
+  for (const item of finishedFixtures) {
+    const fixtureHomeId = Number(item.teams?.home?.id);
+    const homeGoals = Number(item.goals?.home ?? 0);
+    const awayGoals = Number(item.goals?.away ?? 0);
+    if (fixtureHomeId === homeId) {
+      totals.home.goals += homeGoals;
+      totals.away.goals += awayGoals;
+      if (homeGoals > awayGoals) totals.home.wins += 1;
+      else if (awayGoals > homeGoals) totals.away.wins += 1;
+      else totals.draws += 1;
+    } else {
+      totals.home.goals += awayGoals;
+      totals.away.goals += homeGoals;
+      if (awayGoals > homeGoals) totals.home.wins += 1;
+      else if (homeGoals > awayGoals) totals.away.wins += 1;
+      else totals.draws += 1;
+    }
+  }
+  return totals;
+}
+__name(normalizePrematch, "normalizePrematch");
+function normalizeRssNews(xml, limit = 6, itemSource = "BBC Sport") {
+  const items = String(xml || "").match(/<item\b[\s\S]*?<\/item>/gi) || [];
+  return items.slice(0, limit).map((item, index) => {
+    const descriptionHtml = textFromXml(item, "description");
+    const contentHtml = textFromXml(item, "content:encoded");
+    const summary = summaryFromDescription(descriptionHtml);
+    const fullText = contentHtml ? htmlToStoryText(contentHtml) : summary;
+    return {
+      id: textFromXml(item, "guid") || textFromXml(item, "link") || `news-${index}`,
+      title: textFromXml(item, "title") || "Football news",
+      summary: summary || fullText.split("\n")[0] || "",
+      full_text: fullText,
+      has_full_text: Boolean(contentHtml),
+      url: textFromXml(item, "link"),
+      published_at: textFromXml(item, "pubDate"),
+      image_url: normalizeNewsImageUrl(attributeFromXml(item, "media:thumbnail", "url")),
+      source: itemSource
+    };
+  });
+}
+__name(normalizeRssNews, "normalizeRssNews");
+function normalizeSportmonksNews(payload = {}, fallbackType = "prematch") {
+  return sportmonksDataList(payload).map((item, index) => {
+    const lines = sportmonksNewsLines(item);
+    const fullText = lines.join("\n\n").trim();
+    const summary = cleanSentence(item.summary || item.description || lines[0] || item.title || "");
+    const type = String(item.type || fallbackType || "").trim();
+    return {
+      id: String(item.id || item.uuid || `${type || "news"}-${item.fixture_id || index}`),
+      title: cleanSentence(item.title || item.name || "Football news"),
+      summary,
+      full_text: fullText || summary,
+      has_full_text: Boolean(fullText),
+      url: String(item.url || item.link || ""),
+      published_at: item.published_at || item.updated_at || item.created_at || "",
+      image_url: normalizeNewsImageUrl(sportmonksNewsImage(item)),
+      source: "Sportmonks",
+      fixture_id: Number(item.fixture_id || item.fixture?.id) || null,
+      league_id: Number(item.league_id || item.league?.id) || null,
+      type
+    };
+  }).filter((item) => item.title && item.title !== "Football news");
+}
+__name(normalizeSportmonksNews, "normalizeSportmonksNews");
+function sportmonksNewsLines(item = {}) {
+  const rawLines = Array.isArray(item.lines) ? item.lines : [];
+  const lines = rawLines.map((line) => cleanSentence(line.text || line.line || line.value || line.content || line.title || "")).filter(Boolean);
+  if (lines.length) return lines;
+  const body = item.body || item.content || item.article || item.preview || item.description || "";
+  if (!body) return [];
+  return htmlToStoryText(String(body)).split(/\n{2,}/).map(cleanSentence).filter(Boolean);
+}
+__name(sportmonksNewsLines, "sportmonksNewsLines");
+function sportmonksNewsImage(item = {}) {
+  return item.image_url || item.image_path || item.image || item.league?.image_path || item.fixture?.league?.image_path || item.fixture?.participants?.find?.((participant) => participant?.image_path)?.image_path || "";
+}
+__name(sportmonksNewsImage, "sportmonksNewsImage");
+function dedupeNews(items = []) {
+  const seen = /* @__PURE__ */ new Set();
+  const unique = [];
+  items.forEach((item) => {
+    const titleKey = `title:${String(item.title || "").toLowerCase().replace(/\s+/g, " ").trim()}`;
+    const fixtureTitleKey = `${titleKey}:${item.fixture_id || ""}`;
+    const urlKey = item.url ? `url:${String(item.url).toLowerCase().trim()}` : "";
+    const idKey = item.id ? `id:${item.id}` : "";
+    if (idKey && seen.has(idKey) || urlKey && seen.has(urlKey) || fixtureTitleKey && seen.has(fixtureTitleKey)) return;
+    if (idKey) seen.add(idKey);
+    if (urlKey) seen.add(urlKey);
+    if (fixtureTitleKey) seen.add(fixtureTitleKey);
+    unique.push(item);
+  });
+  return unique.sort((a, b) => {
+    const dateDelta = Date.parse(b.published_at || "") - Date.parse(a.published_at || "");
+    if (Number.isFinite(dateDelta) && dateDelta !== 0) return dateDelta;
+    return Number(b.id) - Number(a.id);
+  });
+}
+__name(dedupeNews, "dedupeNews");
+function cleanSentence(value = "") {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+__name(cleanSentence, "cleanSentence");
+function isFootballNews(item, lang) {
+  const title = String(item?.title || "").toLowerCase();
+  const summary = String(item?.summary || "").toLowerCase();
+  const url = String(item?.url || "").toLowerCase();
+  const value = `${title}
+${summary}
+${url}`;
+  if (!value.trim()) return false;
+  if (lang === "ar") {
+    const strongKeywords = [
+      "\u0643\u0631\u0629 \u0627\u0644\u0642\u062F\u0645",
+      "\u0643\u0631\u0629 \u0642\u062F\u0645",
+      "\u0627\u0644\u062F\u0648\u0631\u064A",
+      "\u062F\u0648\u0631\u064A \u0623\u0628\u0637\u0627\u0644",
+      "\u0643\u0623\u0633 \u0627\u0644\u0639\u0627\u0644\u0645",
+      "\u0643\u0623\u0633 \u0622\u0633\u064A\u0627",
+      "\u0643\u0623\u0633 \u0623\u0645\u0645",
+      "\u0645\u0646\u062A\u062E\u0628",
+      "\u0631\u0648\u0646\u0627\u0644\u062F\u0648",
+      "\u0645\u064A\u0633\u064A",
+      "\u0631\u064A\u0627\u0644 \u0645\u062F\u0631\u064A\u062F",
+      "\u0628\u0631\u0634\u0644\u0648\u0646\u0629",
+      "\u0644\u064A\u0641\u0631\u0628\u0648\u0644",
+      "\u0645\u0627\u0646\u0634\u0633\u062A\u0631",
+      "\u0628\u0627\u064A\u0631\u0646",
+      "\u0623\u0631\u0633\u0646\u0627\u0644",
+      "\u062A\u0634\u064A\u0644\u0633\u064A",
+      "\u0628\u0627\u0631\u064A\u0633 \u0633\u0627\u0646 \u062C\u064A\u0631\u0645\u0627\u0646",
+      "uefa",
+      "fifa",
+      "/sport/"
+    ];
+    const hasStrongSignal = strongKeywords.some((keyword) => value.includes(keyword));
+    if (!hasStrongSignal) return false;
+    if (url.includes("/arabic/live/") && !title.includes("\u0643\u0631\u0629") && !summary.includes("\u0643\u0631\u0629")) {
+      return false;
+    }
+    const keywords = [
+      "\u0645\u0628\u0627\u0631\u0627\u0629",
+      "\u0645\u0628\u0627\u0631\u064A\u0627\u062A",
+      "\u0645\u062F\u0631\u0628"
+    ];
+    return keywords.some((keyword) => value.includes(keyword)) || hasStrongSignal;
+  }
+  return true;
+}
+__name(isFootballNews, "isFootballNews");
+function normalizeNewsImageUrl(value) {
+  const image = String(value || "").trim();
+  if (!image) return "";
+  try {
+    const url = new URL(image);
+    if (!/bbci\.co\.uk$/i.test(url.hostname)) return image;
+    url.pathname = url.pathname.replace(/\/ace\/standard\/\d+\//i, "/ace/standard/1024/");
+    return url.toString();
+  } catch {
+    return image;
+  }
+}
+__name(normalizeNewsImageUrl, "normalizeNewsImageUrl");
+function applyNewsImagePolicy(items = []) {
+  return items.map((item) => ({ ...item, image_url: "" }));
+}
+__name(applyNewsImagePolicy, "applyNewsImagePolicy");
+function textFromXml(xml, tagName) {
+  const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = new RegExp(`<${escapedTag}\\b[^>]*>([\\s\\S]*?)<\\/${escapedTag}>`, "i").exec(xml);
+  if (!match) return "";
+  return decodeXml(stripCdata(match[1]).trim());
+}
+__name(textFromXml, "textFromXml");
+function attributeFromXml(xml, tagName, attributeName) {
+  const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedAttribute = attributeName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const tag = new RegExp(`<${escapedTag}\\b[^>]*>`, "i").exec(xml)?.[0] || "";
+  const match = new RegExp(`${escapedAttribute}=["']([^"']+)["']`, "i").exec(tag);
+  return match ? decodeXml(match[1]) : "";
+}
+__name(attributeFromXml, "attributeFromXml");
+function stripCdata(value) {
+  return value.replace(/^<!\[CDATA\[/, "").replace(/\]\]>$/, "");
+}
+__name(stripCdata, "stripCdata");
+function decodeXml(value) {
+  return value.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'").replace(/&nbsp;/g, " ");
+}
+__name(decodeXml, "decodeXml");
+function plainText(html) {
+  return String(html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+__name(plainText, "plainText");
+function summaryFromDescription(html) {
+  const value = String(html || "");
+  if (!value) return "";
+  const linked = /<a\b[^>]*>([\s\S]*?)<\/a>/i.exec(value)?.[1];
+  return plainText(linked || value);
+}
+__name(summaryFromDescription, "summaryFromDescription");
+function htmlToStoryText(html) {
+  const value = String(html || "");
+  if (!value) return "";
+  const normalized = value.replace(/<\s*br\s*\/?>/gi, "\n").replace(/<\s*li\b[^>]*>/gi, "- ").replace(/<\/\s*(p|div|li|h[1-6]|blockquote|tr)\s*>/gi, "\n\n").replace(/<[^>]+>/g, " ").replace(/\u00a0/g, " ");
+  const paragraphs = normalized.split(/\n+/).map(
+    (part) => part.replace(/\s+/g, " ").replace(/\s+([.,!?;:])/g, "$1").trim()
+  ).filter(Boolean);
+  return paragraphs.join("\n\n").trim();
+}
+__name(htmlToStoryText, "htmlToStoryText");
+function normalizeTeamStats(statistics = []) {
+  const lookup = new Map(
+    statistics.map((stat) => [String(stat.type || "").toLowerCase(), stat.value ?? null])
+  );
+  return {
+    possession: lookup.get("ball possession") ?? null,
+    shots_on_goal: lookup.get("shots on goal") ?? null,
+    total_shots: lookup.get("total shots") ?? null,
+    corners: lookup.get("corner kicks") ?? null,
+    fouls: lookup.get("fouls") ?? null,
+    yellow_cards: lookup.get("yellow cards") ?? null,
+    red_cards: lookup.get("red cards") ?? null
+  };
+}
+__name(normalizeTeamStats, "normalizeTeamStats");
+function normalizeSportmonksEvents(matchId, events = [], teamSideById = /* @__PURE__ */ new Map()) {
+  if (!Array.isArray(events)) return [];
+  return events.map((event, index) => {
+    const type = normalizeSportmonksEventType(event?.type?.code || event?.type?.name || event?.type);
+    if (!type) return null;
+    const participantId = Number(event.participant_id ?? event.team_id);
+    const detailParts = [
+      event.info,
+      event.related_player_name ? `Assist: ${event.related_player_name}` : "",
+      event.result ? `Score: ${event.result}` : ""
+    ].filter(Boolean);
+    return {
+      id: Number(event.id) || hashToPositiveInt(`${matchId}:event:${index}`),
+      match_id: Number(event.fixture_id) || matchId,
+      minute: Number(event.minute) || 0,
+      extra_minute: Number.isFinite(Number(event.extra_minute)) ? Number(event.extra_minute) : null,
+      type,
+      team: teamSideById.get(participantId) || "home",
+      player_name: event.player_name || event.player?.display_name || event.player?.name || "",
+      detail: detailParts.join(" | "),
+      sort_order: Number.isFinite(Number(event.sort_order)) ? Number(event.sort_order) : index
+    };
+  }).filter(Boolean).sort((a, b) => Number(a.sort_order) - Number(b.sort_order));
+}
+__name(normalizeSportmonksEvents, "normalizeSportmonksEvents");
+function normalizeSportmonksLineups(matchId, lineups = [], teamSideById = /* @__PURE__ */ new Map()) {
+  if (!Array.isArray(lineups)) return [];
+  return lineups.map((lineup, index) => {
+    const participantId = Number(lineup.participant_id ?? lineup.team_id);
+    return {
+      id: Number(lineup.id) || hashToPositiveInt(`${matchId}:lineup:${index}`),
+      match_id: matchId,
+      team: teamSideById.get(participantId) || "home",
+      player_name: lineup.player?.display_name || lineup.player?.name || lineup.player_name || "",
+      image_url: lineup.player?.image_path || "",
+      number: Number(lineup.jersey_number ?? lineup.number) || 0,
+      position: normalizeSportmonksPosition(lineup),
+      formation_position: Number(lineup.formation_position) || null,
+      is_starter: lineup.type_id !== 12 && String(lineup.type?.developer_name || lineup.type?.name || "").toLowerCase() !== "bench"
+    };
+  });
+}
+__name(normalizeSportmonksLineups, "normalizeSportmonksLineups");
+function normalizeSportmonksTeamStatistics(statistics = [], teamSideById = /* @__PURE__ */ new Map(), teams = {}) {
+  const bySide = {
+    home: {
+      team: sportmonksStatsTeam(teams.homeTeam),
+      stats: emptyTeamStats()
+    },
+    away: {
+      team: sportmonksStatsTeam(teams.awayTeam),
+      stats: emptyTeamStats()
+    }
+  };
+  if (!Array.isArray(statistics)) return Object.values(bySide);
+  statistics.forEach((stat) => {
+    const side = teamSideById.get(Number(stat.participant_id ?? stat.team_id));
+    if (!side || !bySide[side]) return;
+    const key = normalizeSportmonksStatKey(stat.type?.name || stat.type?.code || stat.type);
+    if (!key) return;
+    bySide[side].stats[key] = sportmonksStatValue(stat);
+  });
+  return [bySide.home, bySide.away];
+}
+__name(normalizeSportmonksTeamStatistics, "normalizeSportmonksTeamStatistics");
+function normalizeSportmonksFacts(facts = []) {
+  return sportmonksDataList({ data: facts }).map((fact, index) => {
+    const text = normalizeSportmonksFactText(fact);
+    if (!text) return null;
+    return {
+      id: Number(fact.id) || hashToPositiveInt(`fact:${index}:${text}`),
+      title: String(fact.type?.name || fact.type?.code || "Fact").trim(),
+      text
+    };
+  }).filter(Boolean);
+}
+__name(normalizeSportmonksFacts, "normalizeSportmonksFacts");
+function normalizeSportmonksFactText(fact = {}) {
+  const direct = String(fact.natural_language || fact.name || fact.value || fact.fact || fact.description || "").trim();
+  if (direct) return direct;
+  const type = String(fact.type?.developer_name || fact.type?.code || fact.type?.name || "").toLowerCase();
+  const participant = String(fact.participant || "").trim();
+  const scope = String(fact.scope || "").replace(/_/g, " ");
+  const data = fact.data && typeof fact.data === "object" ? fact.data : {};
+  if (type.includes("total_h2h_matches") || type.includes("total-h2h-matches")) {
+    const count = Number(data.count) || 0;
+    return `Head-to-head sample: ${count} match${count === 1 ? "" : "es"}${scope ? ` (${scope})` : ""}`;
+  }
+  if (type.includes("historic_outcomes") || type.includes("historic-outcomes")) {
+    const outcomes = Object.entries(data).map(([score, count]) => `${score} x${count}`).join(", ");
+    return outcomes ? `Historic outcomes: ${outcomes}${scope ? ` (${scope})` : ""}` : "";
+  }
+  if (type.includes("goals_conceded") || type.includes("goals-conceded")) {
+    const average = data.all?.average ?? data.average;
+    const count = data.all?.count ?? data.count;
+    if (average == null && count == null) return "";
+    return `${participantLabel(participant)} goals conceded: ${average ?? count} avg${scope ? ` (${scope})` : ""}`;
+  }
+  if (type.includes("first_to_score") || type.includes("first-to-score")) {
+    const streak = data.streak ?? data.matches ?? data.count;
+    if (streak == null) return "";
+    return `${participantLabel(participant)} first-to-score trend: ${streak} match${Number(streak) === 1 ? "" : "es"}${scope ? ` (${scope})` : ""}`;
+  }
+  if (type.includes("win_streak") || type.includes("unbeaten_streak") || type.includes("draw_streak")) {
+    const streak = data.streak ?? data.matches ?? data.count;
+    if (streak == null) return "";
+    return `${participantLabel(participant)} ${String(fact.type?.name || "streak").replace(/^Match Facts?\s*/i, "")}: ${streak}${scope ? ` (${scope})` : ""}`;
+  }
+  const summary = Object.entries(data).filter(([, value]) => value == null || typeof value !== "object").map(([key, value]) => `${String(key).replace(/_/g, " ")} ${value}`).join(", ");
+  return summary ? `${participantLabel(participant)} ${summary}${scope ? ` (${scope})` : ""}` : "";
+}
+__name(normalizeSportmonksFactText, "normalizeSportmonksFactText");
+function participantLabel(participant = "") {
+  if (participant === "home") return "Home";
+  if (participant === "away") return "Away";
+  if (participant === "both") return "Both teams";
+  return "Team";
+}
+__name(participantLabel, "participantLabel");
+function normalizeSportmonksOdds(odds = []) {
+  const rows = sportmonksDataList({ data: odds }).filter((odd) => {
+    const bookmaker = String(odd.bookmaker?.name || "").trim().toLowerCase();
+    const market = String(odd.market?.developer_name || odd.market?.name || odd.market_description || "").trim().toLowerCase();
+    return bookmaker === "melbet" && ["fulltime_result", "fulltime result", "goal_line", "goal line", "asian_handicap", "asian handicap"].includes(market);
+  });
+  if (!rows.length) return null;
+  const fulltime = { home: null, draw: null, away: null };
+  const goalLine = { over: null, under: null };
+  const handicap = { home: null, away: null };
+  let latestUpdatedAt = "";
+  rows.forEach((odd) => {
+    const market = String(odd.market?.developer_name || odd.market?.name || odd.market_description || "").trim().toLowerCase();
+    const oddValue = normalizedOddValue(odd);
+    if (!oddValue) return;
+    if (market === "fulltime_result" || market === "fulltime result") {
+      const key = normalizeFulltimeOutcome(odd);
+      if (key && !fulltime[key]) fulltime[key] = oddValue;
+    } else if (market === "goal_line" || market === "goal line") {
+      const key = normalizeGoalLineOutcome(odd);
+      if (key && !goalLine[key]) goalLine[key] = oddValue;
+    } else if (market === "asian_handicap" || market === "asian handicap") {
+      const key = normalizeHandicapOutcome(odd);
+      if (key && !handicap[key]) handicap[key] = oddValue;
+    }
+    latestUpdatedAt = latestSportmonksTimestamp(latestUpdatedAt, odd.latest_bookmaker_update || odd.updated_at || odd.created_at || "");
+  });
+  const markets = [];
+  if (fulltime.home && fulltime.draw && fulltime.away) {
+    markets.push({ key: "fulltime", label: "Fulltime Result", outcomes: fulltime });
+  }
+  if (goalLine.over && goalLine.under) {
+    markets.push({ key: "total_goals", label: `Total ${goalLine.over.total || goalLine.under.total || ""}`.trim(), outcomes: goalLine });
+  }
+  if (handicap.home && handicap.away) {
+    markets.push({ key: "asian_handicap", label: "Asian Handicap", outcomes: handicap });
+  }
+  if (!markets.length) return null;
+  return {
+    bookmaker: "MelBet",
+    market: markets[0].label,
+    updated_at: latestUpdatedAt,
+    outcomes: markets[0].outcomes,
+    markets
+  };
+}
+__name(normalizeSportmonksOdds, "normalizeSportmonksOdds");
+function normalizeExternalMelbetOddsPayload(payload = {}, homeTeamName = "", awayTeamName = "") {
+  const byMatch = payload?.byMatch && typeof payload.byMatch === "object" && !Array.isArray(payload.byMatch) ? payload.byMatch : {};
+  const homeKey = normalizeExternalOddsTeamKey(homeTeamName);
+  const awayKey = normalizeExternalOddsTeamKey(awayTeamName);
+  if (!homeKey || !awayKey) return null;
+  let row = byMatch[`${homeKey}|${awayKey}`];
+  let reversed = false;
+  if (!row) {
+    row = byMatch[`${awayKey}|${homeKey}`];
+    reversed = Boolean(row);
+  }
+  if (!row || typeof row !== "object") return null;
+  const homeValue = normalizeExternalOddValue(row[reversed ? "away" : "home"]);
+  const drawValue = normalizeExternalOddValue(row.draw);
+  const awayValue = normalizeExternalOddValue(row[reversed ? "home" : "away"]);
+  if (!homeValue || !drawValue || !awayValue) return null;
+  const fulltime = {
+    home: { label: "Home", value: homeValue, probability: "", total: "", handicap: "" },
+    draw: { label: "Draw", value: drawValue, probability: "", total: "", handicap: "" },
+    away: { label: "Away", value: awayValue, probability: "", total: "", handicap: "" }
+  };
+  return {
+    bookmaker: String(payload.bookmaker || "MelBet").trim() || "MelBet",
+    market: "Fulltime Result",
+    updated_at: String(payload.updated || ""),
+    outcomes: fulltime,
+    markets: [{ key: "fulltime", label: "Fulltime Result", outcomes: fulltime }]
+  };
+}
+__name(normalizeExternalMelbetOddsPayload, "normalizeExternalMelbetOddsPayload");
+function normalizeTheRundownOddsForMatch(payload = {}, match = {}, env = {}) {
+  const events = Array.isArray(payload?.events) ? payload.events : [];
+  const homeKey = normalizeExternalOddsTeamKey(match?.home_team?.name_en || "");
+  const awayKey = normalizeExternalOddsTeamKey(match?.away_team?.name_en || "");
+  if (!homeKey || !awayKey) return null;
+  const event = events.find((item) => {
+    const teams = Array.isArray(item?.teams_normalized) && item.teams_normalized.length ? item.teams_normalized : Array.isArray(item?.teams) ? item.teams : [];
+    const eventHome = teams.find((team) => team?.is_home);
+    const eventAway = teams.find((team) => team?.is_away);
+    return normalizeExternalOddsTeamKey(eventHome?.name || "") === homeKey && normalizeExternalOddsTeamKey(eventAway?.name || "") === awayKey;
+  });
+  if (!event?.lines || typeof event.lines !== "object") return null;
+  const preferredAffiliateIds = theRundownPreferredAffiliateIds(env);
+  const lineEntries = Object.entries(event.lines);
+  const sortedLineEntries = [
+    ...preferredAffiliateIds.map((id) => lineEntries.find(([affiliateId]) => String(affiliateId) === String(id))).filter(Boolean),
+    ...lineEntries.filter(([affiliateId]) => !preferredAffiliateIds.includes(String(affiliateId)))
+  ];
+  for (const [, line] of sortedLineEntries) {
+    const moneyline = line?.moneyline;
+    if (!moneyline) continue;
+    const homeValue = normalizeAmericanOddValue(moneyline.moneyline_home);
+    const drawValue = normalizeAmericanOddValue(moneyline.moneyline_draw);
+    const awayValue = normalizeAmericanOddValue(moneyline.moneyline_away);
+    if (!homeValue || !drawValue || !awayValue) continue;
+    const fulltime = {
+      home: { label: "Home", value: homeValue, probability: "", total: "", handicap: "" },
+      draw: { label: "Draw", value: drawValue, probability: "", total: "", handicap: "" },
+      away: { label: "Away", value: awayValue, probability: "", total: "", handicap: "" }
+    };
+    const bookmaker = String(line.affiliate?.affiliate_name || "TheRundown").trim() || "TheRundown";
+    return {
+      bookmaker,
+      market: "Fulltime Result",
+      updated_at: String(moneyline.date_updated || ""),
+      outcomes: fulltime,
+      markets: [{ key: "fulltime", label: "Fulltime Result", outcomes: fulltime }]
+    };
+  }
+  return null;
+}
+__name(normalizeTheRundownOddsForMatch, "normalizeTheRundownOddsForMatch");
+function theRundownPreferredAffiliateIds(env = {}) {
+  const ids = String(env.THERUNDOWN_PREFERRED_AFFILIATES || "22,23,3,27").split(",").map((id) => id.trim()).filter(Boolean);
+  return ids.length ? ids : ["22", "23", "3", "27"];
+}
+__name(theRundownPreferredAffiliateIds, "theRundownPreferredAffiliateIds");
+function normalizeAmericanOddValue(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric === 0 || Math.abs(numeric) < 1) return "";
+  const decimal = numeric > 0 ? 1 + numeric / 100 : 1 + 100 / Math.abs(numeric);
+  return decimal.toFixed(2);
+}
+__name(normalizeAmericanOddValue, "normalizeAmericanOddValue");
+function normalizeExternalMelbetOddsForSportmonksFixture(payload = {}, fixture = {}) {
+  const participants = Array.isArray(fixture?.participants) ? fixture.participants : [];
+  const homeTeam = participants.find((team) => team?.meta?.location === "home") || participants[0] || {};
+  const awayTeam = participants.find((team) => team?.meta?.location === "away") || participants[1] || {};
+  return normalizeExternalMelbetOddsPayload(payload, homeTeam.name || homeTeam.name_en || "", awayTeam.name || awayTeam.name_en || "");
+}
+__name(normalizeExternalMelbetOddsForSportmonksFixture, "normalizeExternalMelbetOddsForSportmonksFixture");
+function normalizeExternalMelbetOddsForMatch(payload = {}, match = {}) {
+  return normalizeExternalMelbetOddsPayload(payload, match?.home_team?.name_en || "", match?.away_team?.name_en || "");
+}
+__name(normalizeExternalMelbetOddsForMatch, "normalizeExternalMelbetOddsForMatch");
+function normalizeExternalOddValue(value) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return "";
+  const numeric = Number(normalized);
+  if (!Number.isFinite(numeric) || numeric <= 0) return "";
+  return normalized;
+}
+__name(normalizeExternalOddValue, "normalizeExternalOddValue");
+function normalizeExternalOddsTeamKey(value = "") {
+  const key = String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").replace(/\b(w|women|u\d+)\b/g, " ").replace(/\s+/g, " ").trim();
+  return EXTERNAL_ODDS_TEAM_ALIASES[key] || key;
+}
+__name(normalizeExternalOddsTeamKey, "normalizeExternalOddsTeamKey");
+function normalizedOddValue(odd = {}) {
+  return {
+    label: String(odd.label || odd.name || "").trim(),
+    value: String(odd.value || odd.dp3 || "").trim(),
+    probability: String(odd.probability || "").trim(),
+    total: odd.total == null ? "" : String(odd.total).trim(),
+    handicap: odd.handicap == null ? "" : String(odd.handicap).trim()
+  };
+}
+__name(normalizedOddValue, "normalizedOddValue");
+function normalizeFulltimeOutcome(odd = {}) {
+  const value = String(odd.label || odd.name || "").trim().toLowerCase();
+  if (value === "home" || value === "1") return "home";
+  if (value === "draw" || value === "x") return "draw";
+  if (value === "away" || value === "2") return "away";
+  return "";
+}
+__name(normalizeFulltimeOutcome, "normalizeFulltimeOutcome");
+function normalizeGoalLineOutcome(odd = {}) {
+  const value = String(odd.label || odd.name || "").trim().toLowerCase();
+  if (value === "over") return "over";
+  if (value === "under") return "under";
+  return "";
+}
+__name(normalizeGoalLineOutcome, "normalizeGoalLineOutcome");
+function normalizeHandicapOutcome(odd = {}) {
+  return normalizeFulltimeOutcome(odd);
+}
+__name(normalizeHandicapOutcome, "normalizeHandicapOutcome");
+function latestSportmonksTimestamp(current = "", next = "") {
+  if (!current) return String(next || "");
+  if (!next) return current;
+  return Date.parse(next) > Date.parse(current) ? String(next) : current;
+}
+__name(latestSportmonksTimestamp, "latestSportmonksTimestamp");
+function sportmonksDataList(payload = {}) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload.data?.data)) return payload.data.data;
+  return [];
+}
+__name(sportmonksDataList, "sportmonksDataList");
+function normalizeSportmonksEventType(value = "") {
+  const type = String(value).toLowerCase().replace(/[_\s-]+/g, "");
+  if (type.includes("owngoal")) return "own_goal";
+  if (type.includes("goal")) return "goal";
+  if (type.includes("yellowred") || type.includes("redcard")) return "red_card";
+  if (type.includes("yellowcard")) return "yellow_card";
+  if (type.includes("substitution")) return "substitution";
+  return "";
+}
+__name(normalizeSportmonksEventType, "normalizeSportmonksEventType");
+function normalizeSportmonksStatKey(value = "") {
+  const key = String(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
+  if (key === "ballpossession" || key === "possession") return "possession";
+  if (key === "shotsongoal" || key === "shotsontarget") return "shots_on_goal";
+  if (key === "totalshots" || key === "shots") return "total_shots";
+  if (key === "cornerkicks" || key === "corners") return "corners";
+  if (key === "fouls") return "fouls";
+  if (key === "yellowcards") return "yellow_cards";
+  if (key === "redcards") return "red_cards";
+  return "";
+}
+__name(normalizeSportmonksStatKey, "normalizeSportmonksStatKey");
+function sportmonksStatValue(stat = {}) {
+  const raw = stat.data?.value ?? stat.value ?? stat.data;
+  if (typeof raw === "number") return raw;
+  const numeric = Number(String(raw || "").replace("%", ""));
+  return Number.isFinite(numeric) ? numeric : raw ?? null;
+}
+__name(sportmonksStatValue, "sportmonksStatValue");
+function emptyTeamStats() {
+  return {
+    possession: null,
+    shots_on_goal: null,
+    total_shots: null,
+    corners: null,
+    fouls: null,
+    yellow_cards: null,
+    red_cards: null
+  };
+}
+__name(emptyTeamStats, "emptyTeamStats");
+function emptyH2H() {
+  return {
+    home_wins: 0,
+    away_wins: 0,
+    draws: 0,
+    total: 0,
+    home_goals: 0,
+    away_goals: 0,
+    meetings: []
+  };
+}
+__name(emptyH2H, "emptyH2H");
+function sportmonksStatsTeam(team = {}) {
+  return {
+    id: team.id,
+    name: team.name || "TBD",
+    logo: team.image_path || ""
+  };
+}
+__name(sportmonksStatsTeam, "sportmonksStatsTeam");
+function normalizeSportmonksPosition(lineup = {}) {
+  const raw = lineup.position?.code || lineup.position?.name || lineup.position || "";
+  const value = String(raw).toUpperCase();
+  if (value.includes("GOAL") || value === "1") return "GK";
+  if (value.includes("DEF")) return "DEF";
+  if (value.includes("MID")) return "MID";
+  if (value.includes("ATT") || value.includes("FOR")) return "FWD";
+  return value || String(lineup.formation_position || "");
+}
+__name(normalizeSportmonksPosition, "normalizeSportmonksPosition");
+function normalizeSportmonksTeam(team = {}) {
+  return {
+    id: team.id,
+    external_id: team.id,
+    code: team.short_code || shortCode(team.name),
+    name_en: team.name || "TBD",
+    name_ru: team.name || "TBD",
+    flag_url: team.image_path || ""
+  };
+}
+__name(normalizeSportmonksTeam, "normalizeSportmonksTeam");
+function normalizeSportmonksDate(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (raw.includes("T")) return raw;
+  return `${raw.replace(" ", "T")}Z`;
+}
+__name(normalizeSportmonksDate, "normalizeSportmonksDate");
+function extractSportmonksScore(scores = []) {
+  const result = { home: 0, away: 0 };
+  if (!Array.isArray(scores)) return result;
+  const current = scores.filter((score) => String(score.description || score.type?.name || "").toLowerCase().includes("current"));
+  const selected = current.length ? current : scores;
+  selected.forEach((score) => {
+    const side = score.score?.participant;
+    const goals = Number(score.score?.goals);
+    if ((side === "home" || side === "away") && Number.isFinite(goals)) {
+      result[side] = goals;
+    }
+  });
+  return result;
+}
+__name(extractSportmonksScore, "extractSportmonksScore");
+function extractSportmonksScoreFromEvents(events = []) {
+  if (!Array.isArray(events)) return null;
+  const scoredEvents = events.map((event, index) => {
+    const match = String(event?.result || "").match(/(\d+)\s*[-:]\s*(\d+)/);
+    if (!match) return null;
+    return {
+      home: Number(match[1]),
+      away: Number(match[2]),
+      sort_order: Number.isFinite(Number(event?.sort_order)) ? Number(event.sort_order) : index
+    };
+  }).filter((score) => score && Number.isFinite(score.home) && Number.isFinite(score.away)).sort((left, right) => left.sort_order - right.sort_order);
+  return scoredEvents.length ? scoredEvents.at(-1) : null;
+}
+__name(extractSportmonksScoreFromEvents, "extractSportmonksScoreFromEvents");
+function extractSportmonksMinute(item = {}) {
+  const periods = Array.isArray(item.periods) ? item.periods : [];
+  const active = periods.find((period) => period.ticking) || periods[periods.length - 1];
+  const minute = Number(active?.minutes ?? active?.minute ?? item.minute);
+  return Number.isFinite(minute) ? minute : void 0;
+}
+__name(extractSportmonksMinute, "extractSportmonksMinute");
+function normalizeSportmonksStatus(state = {}) {
+  const raw = String(state.short_name || state.developer_name || state.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  if (["ht", "halftime", "break"].includes(raw)) return "half_time";
+  if (["ft", "aet", "pen", "finished", "ended", "fulltime", "afterextratime"].includes(raw)) return "finished";
+  if (["postponed", "cancelled", "canceled", "abandoned", "suspended"].includes(raw)) return "postponed";
+  if (["1st", "2nd", "et", "inplay", "live", "1h", "2h"].includes(raw)) return "live";
+  return "scheduled";
+}
+__name(normalizeSportmonksStatus, "normalizeSportmonksStatus");
+function normalizeFootballDataStatus(status = "") {
+  const raw = String(status || "").toUpperCase();
+  if (raw === "PAUSED" || raw === "HALFTIME") return "half_time";
+  if (raw === "IN_PLAY") return "live";
+  if (raw === "FINISHED") return "finished";
+  if (raw === "POSTPONED" || raw === "CANCELLED" || raw === "SUSPENDED") return "postponed";
+  return "scheduled";
+}
+__name(normalizeFootballDataStatus, "normalizeFootballDataStatus");
+function keepScheduledBeforeKickoff(status, scheduledAt) {
+  if (!isMatchInProgress(status)) return status;
+  const kickoff = Date.parse(scheduledAt || "");
+  if (!Number.isFinite(kickoff)) return status;
+  return Date.now() < kickoff ? "scheduled" : status;
+}
+__name(keepScheduledBeforeKickoff, "keepScheduledBeforeKickoff");
+function isMatchInProgress(status) {
+  return status === "live" || status === "half_time";
+}
+__name(isMatchInProgress, "isMatchInProgress");
+function filterSportmonksWorldCupMatches(matches = [], env = {}) {
+  const configuredIds = sportmonksConfiguredLeagueIds(env);
+  const filtered = matches.filter((match) => {
+    const leagueId = Number(match?.league?.id);
+    if (configuredIds.length && configuredIds.includes(leagueId)) return true;
+    const name = String(match?.league?.name || "").toLowerCase();
+    return name.includes("world cup");
+  });
+  return filtered.length ? filtered : matches;
+}
+__name(filterSportmonksWorldCupMatches, "filterSportmonksWorldCupMatches");
+function sportmonksConfiguredLeagueIds(env = {}) {
+  return String(env.SPORTMONKS_LEAGUE_IDS || "").split(",").map((item) => Number(item.trim())).filter((item) => Number.isFinite(item));
+}
+__name(sportmonksConfiguredLeagueIds, "sportmonksConfiguredLeagueIds");
+function normalizeTeam(team = {}) {
+  return {
+    id: team.id,
+    external_id: team.id,
+    code: team.code || shortCode(team.name),
+    name_en: team.name || "TBD",
+    name_ru: team.name || "TBD",
+    flag_url: team.logo || ""
+  };
+}
+__name(normalizeTeam, "normalizeTeam");
+function normalizeFootballDataTeam(team = {}) {
+  const name = team?.name || team?.shortName || "TBD";
+  return {
+    id: team?.id || void 0,
+    external_id: team?.id || void 0,
+    code: team?.tla || shortCode(name),
+    name_en: name,
+    name_ru: name,
+    flag_url: team?.crest || ""
+  };
+}
+__name(normalizeFootballDataTeam, "normalizeFootballDataTeam");
+function normalizeFootballDataStage(stage = "", fallback = "Football") {
+  const raw = String(stage || "").trim();
+  if (!raw) return fallback || "Football";
+  return raw.toLowerCase().split("_").filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+}
+__name(normalizeFootballDataStage, "normalizeFootballDataStage");
+function footballDataLeagueId(competition = {}) {
+  const code = String(competition?.code || "").toUpperCase();
+  const byCode = {
+    BSA: 71,
+    BL1: 78,
+    CL: 2,
+    CLI: 13,
+    DED: 88,
+    EC: 4,
+    FL1: 61,
+    PD: 140,
+    PL: 39,
+    PPL: 94,
+    SA: 135,
+    WC: 1
+  };
+  return byCode[code] || Number(competition?.id) || void 0;
+}
+__name(footballDataLeagueId, "footballDataLeagueId");
+function shortCode(name = "") {
+  return name.replace(/[^a-z]/gi, "").slice(0, 3).toUpperCase() || "TBD";
+}
+__name(shortCode, "shortCode");
+function normalizeStatus(short = "") {
+  if (HALF_TIME_STATUSES.has(short)) return "half_time";
+  if (LIVE_STATUSES.has(short)) return "live";
+  if (FINISHED_STATUSES.has(short)) return "finished";
+  if (POSTPONED_STATUSES.has(short)) return "postponed";
+  return "scheduled";
+}
+__name(normalizeStatus, "normalizeStatus");
+function resolveNewsLanguage(value) {
+  const lang = String(value || "").toLowerCase();
+  if (NEWS_SUPPORTED_LOCALES.has(lang)) return lang;
+  return "en";
+}
+__name(resolveNewsLanguage, "resolveNewsLanguage");
+function resolveSportmonksLocale(url) {
+  const value = url?.searchParams?.get("locale") || url?.searchParams?.get("lang") || "";
+  const locale = String(value).trim().toLowerCase();
+  return SPORTMONKS_SUPPORTED_LOCALES.has(locale) ? locale : "";
+}
+__name(resolveSportmonksLocale, "resolveSportmonksLocale");
+function resolveCacheTtl(url) {
+  const status = url.searchParams.get("status") || "";
+  if (url.pathname === "/api/streams/active") return 30;
+  if (url.pathname === "/api/news") return secondsUntilNextUtcDay();
+  if (status === "live" || status === "half_time") return 30;
+  if (url.pathname === "/api/matches" && url.searchParams.get("date") === (/* @__PURE__ */ new Date()).toISOString().slice(0, 10)) return 30;
+  if (/^\/api\/matches\/\d+\/(events|lineups)$/.test(url.pathname) && isLiveStatsRequest(url)) return 30;
+  if (/^\/api\/matches\/\d+\/(events|lineups|facts)$/.test(url.pathname)) return 1800;
+  if (/^\/api\/matches\/\d+\/odds$/.test(url.pathname)) return 300;
+  if (/^\/api\/matches\/\d+\/stats$/.test(url.pathname) && isLiveStatsRequest(url)) return 30;
+  if (/^\/api\/matches\/\d+\/stats$/.test(url.pathname)) return 1800;
+  if (/^\/api\/matches\/\d+\/prematch$/.test(url.pathname)) return secondsUntilNextUtcDay();
+  if (/^\/api\/matches\/\d+$/.test(url.pathname) && isLiveStatsRequest(url)) return 30;
+  if (/^\/api\/matches\/\d+$/.test(url.pathname)) return 1800;
+  return secondsUntilNextUtcDay();
+}
+__name(resolveCacheTtl, "resolveCacheTtl");
+function isLiveStatsRequest(url) {
+  const live = String(url.searchParams.get("live") || "").toLowerCase();
+  return live === "1" || live === "true";
+}
+__name(isLiveStatsRequest, "isLiveStatsRequest");
+function normalizeCacheUrl(url, provider = "", cacheVersion = "") {
+  const normalized = new URL(url);
+  if (provider.startsWith('football-data:') && /^\/api\/matches(?:\/\d+)?$/.test(url.pathname)) {
+    for (const key of [...normalized.searchParams.keys()]) {
+      if (!['date','live','admin'].includes(key)) normalized.searchParams.delete(key);
+    }
+  }
+  if (provider) normalized.searchParams.set("__provider", provider);
+  normalized.searchParams.set("__cache_namespace", API_CACHE_NAMESPACE);
+  if (cacheVersion) normalized.searchParams.set("__cache_version", cacheVersion);
+  normalized.searchParams.sort();
+  return normalized;
+}
+__name(normalizeCacheUrl, "normalizeCacheUrl");
+function normalizeSportmonksSubrequestCacheUrl(apiUrl, cacheVersion = "") {
+  const normalized = new URL(apiUrl);
+  normalized.searchParams.delete("api_token");
+  normalized.searchParams.set("__sportmonks_subrequest", "1");
+  normalized.searchParams.set("__cache_namespace", API_CACHE_NAMESPACE);
+  if (cacheVersion) normalized.searchParams.set("__cache_version", cacheVersion);
+  normalized.searchParams.sort();
+  return normalized;
+}
+__name(normalizeSportmonksSubrequestCacheUrl, "normalizeSportmonksSubrequestCacheUrl");
+function jsonResponse(body, status = 200, maxAge = 0) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: responseHeaders(maxAge)
+  });
+}
+__name(jsonResponse, "jsonResponse");
+function htmlResponse(body, status = 200, maxAge = 0) {
+  return new Response(body, {
+    status,
+    headers: {
+      ...responseHeaders(maxAge),
+      "Content-Type": "text/html; charset=utf-8",
+      "Content-Security-Policy": "default-src 'self' https://dami-tv.pro https://*.dami-tv.pro; script-src 'self' 'unsafe-inline' https://dami-tv.pro https://*.dami-tv.pro; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; media-src https: blob:; connect-src 'self' https://dami-tv.pro https://*.dami-tv.pro; frame-src https://dami-tv.pro https://*.dami-tv.pro; base-uri 'none'; form-action 'none'",
+      "Referrer-Policy": "no-referrer-when-downgrade"
+    }
+  });
+}
+__name(htmlResponse, "htmlResponse");
+function emptyResponse(status) {
+  return new Response(null, {
+    status,
+    headers: responseHeaders(0)
+  });
+}
+__name(emptyResponse, "emptyResponse");
+function responseHeaders(maxAge) {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": maxAge > 0 ? `public, max-age=${maxAge}` : "no-store"
+  };
+}
+__name(responseHeaders, "responseHeaders");
+function secondsUntilNextUtcDay() {
+  const now = /* @__PURE__ */ new Date();
+  const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+  const seconds = Math.floor((next - now.getTime()) / 1e3);
+  return Math.max(60, seconds);
+}
+__name(secondsUntilNextUtcDay, "secondsUntilNextUtcDay");
+export {
+  buildFootballApiUrl,
+  buildFootballDataApiUrl,
+  buildSportmonksApiUrl,
+  worker_default as default,
+  isTopLeagueMatch,
+  jsonResponse,
+  normalizeExternalMelbetOddsPayload,
+  normalizeFixture,
+  normalizeFootballDataMatch,
+  normalizePrematch,
+  normalizeRssNews,
+  normalizeSportmonksFixture,
+  normalizeSportmonksMatchDetails,
+  normalizeStatistics,
+  resolveCacheTtl,
+  routeRequest,
+  sortMatches
+};
+//# sourceMappingURL=worker.js.map

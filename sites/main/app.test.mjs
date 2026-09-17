@@ -413,6 +413,14 @@ test('renders same-day matches beyond the first six API results', async () => {
     home_team: { name_en: 'Club Brugge' },
     away_team: { name_en: 'Aston Villa' },
   };
+  const laLigaFallbackMatch = {
+    id: 1540844,
+    scheduled_at: `${today}T20:00:00+00:00`,
+    status: 'scheduled',
+    stage: 'League phase',
+    home_team: { name_en: 'CA Osasuna' },
+    away_team: { name_en: 'Sevilla FC' },
+  };
 
   const context = {
     URL,
@@ -452,7 +460,9 @@ test('renders same-day matches beyond the first six API results', async () => {
           json: () => Promise.resolve({}),
         });
       }
-      const matches = String(url).includes(`date=${today}`) ? [...fillerMatches, featuredMatch] : [];
+      const matches = String(url).includes(`date=${today}`)
+        ? [...fillerMatches, featuredMatch, laLigaFallbackMatch]
+        : [];
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ matches }),
@@ -466,6 +476,8 @@ test('renders same-day matches beyond the first six API results', async () => {
   assert.match(gridHtml, /Club Brugge vs Aston Villa/);
   assert.match(gridHtml, /https:\/\/crests\.football-data\.org\/851\.png/);
   assert.match(gridHtml, /https:\/\/crests\.football-data\.org\/58\.png/);
+  assert.match(gridHtml, /https:\/\/assets\.laliga\.com\/assets\/2019\/06\/07\/xsmall\/osasuna\.png/);
+  assert.match(gridHtml, /https:\/\/assets\.laliga\.com\/assets\/2019\/06\/07\/xsmall\/sevilla\.png/);
 });
 
 test('main stream buttons prefer videojs and hide iframe reserves', async () => {

@@ -25,6 +25,21 @@
     'lille osc': 'https://crests.football-data.org/521.png',
     'real betis': 'https://crests.football-data.org/90.png',
     'real betis balompie': 'https://crests.football-data.org/90.png',
+    'osasuna': 'https://assets.laliga.com/assets/2019/06/07/xsmall/osasuna.png',
+    'ca osasuna': 'https://assets.laliga.com/assets/2019/06/07/xsmall/osasuna.png',
+    'club atletico osasuna': 'https://assets.laliga.com/assets/2019/06/07/xsmall/osasuna.png',
+    'deportivo la coruna': 'https://assets.laliga.com/assets/2026/06/24/xsmall/6b88661529a2c06840c8bf6bddd90970.png',
+    'rc deportivo': 'https://assets.laliga.com/assets/2026/06/24/xsmall/6b88661529a2c06840c8bf6bddd90970.png',
+    'real club deportivo de la coruna': 'https://assets.laliga.com/assets/2026/06/24/xsmall/6b88661529a2c06840c8bf6bddd90970.png',
+    'sevilla': 'https://assets.laliga.com/assets/2019/06/07/xsmall/sevilla.png',
+    'sevilla fc': 'https://assets.laliga.com/assets/2019/06/07/xsmall/sevilla.png',
+    'racing santander': 'https://assets.laliga.com/assets/2019/06/07/xsmall/racing.png',
+    'r racing club': 'https://assets.laliga.com/assets/2019/06/07/xsmall/racing.png',
+    'real racing club': 'https://assets.laliga.com/assets/2019/06/07/xsmall/racing.png',
+    'levante': 'https://assets.laliga.com/assets/2019/06/07/xsmall/levante.png',
+    'levante ud': 'https://assets.laliga.com/assets/2019/06/07/xsmall/levante.png',
+    'athletic club': 'https://assets.laliga.com/assets/2019/06/07/xsmall/athletic.png',
+    'athletic club bilbao': 'https://assets.laliga.com/assets/2019/06/07/xsmall/athletic.png',
   });
   const scheduleLookaheadDays = 14;
   const scheduleFallbackBatchDays = 3;

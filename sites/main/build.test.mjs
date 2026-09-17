@@ -20,6 +20,7 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
     'admin.html',
     'app.js',
     'team-names.js',
+    'team-crest-assets.js',
     'news.js',
     'curated-news.js',
     'admin.js',
@@ -31,7 +32,6 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
     '_headers',
     '_redirects',
     'assets/world-cup-hero.png',
-    'assets/team-crests-webp/osasuna.20260917.webp',
     'assets/vendor/hlsjs/hls.min.js',
     'stream.json',
     'banners/strip_1180x120_mockup_original.png',
@@ -46,6 +46,9 @@ test('build creates a deployable dist directory for Cloudflare Pages', () => {
   assert.equal(existsSync(new URL('./dist/README.md', import.meta.url)), false);
   assert.equal(existsSync(new URL('./dist/app.test.mjs', import.meta.url)), false);
   assert.equal(existsSync(new URL('./dist/meta-pixel.js', import.meta.url)), false);
+
+  const crestManifest = JSON.parse(readFileSync(new URL('./team-crest-sources.json', import.meta.url), 'utf8'));
+  assert.equal(existsSync(new URL(`./dist/assets/team-crests-webp/uefa-52280.${crestManifest.version}.webp`, import.meta.url)), true);
 
   const wrangler = readFileSync(new URL('./wrangler.toml', import.meta.url), 'utf8');
   assert.match(wrangler, /pages_build_output_dir = "\.\/dist"/);

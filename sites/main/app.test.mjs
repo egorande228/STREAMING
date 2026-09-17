@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 
 const appSource = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
+const crestAssetsSource = readFileSync(new URL('./team-crest-assets.js', import.meta.url), 'utf8');
 const indexHtml = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
 const adminSource = readFileSync(new URL('./admin.js', import.meta.url), 'utf8');
 const apiVersion = appSource.match(/const apiVersion = '([^']+)'/)?.[1] || '';
@@ -33,18 +34,24 @@ test('news section renders only the localized Latest News heading', () => {
 
 test('homepage cache-busts match data and the app bundle after production updates', () => {
   assert.match(appSource, /const apiVersion = 'match-details-cache-status-20260910';/);
-  assert.match(indexHtml, /app\.js\?v=20260917-webp-crests/);
-  assert.match(indexHtml, /styles\.css\?v=20260917-webp-crests/);
+  assert.match(indexHtml, /team-crest-assets\.js\?v=20260917-all-webp-crests/);
+  assert.match(indexHtml, /app\.js\?v=20260917-all-webp-crests/);
+  assert.match(indexHtml, /styles\.css\?v=20260917-all-webp-crests/);
 });
 
-test('every mapped LaLiga crest has a real local WebP asset', () => {
+test('every mapped raster crest has a real local WebP asset', () => {
   const manifest = JSON.parse(readFileSync(new URL('./team-crest-sources.json', import.meta.url), 'utf8'));
-  const mappedIds = [...appSource.match(/const optimizedLaLigaCrestIds = new Set\(\[([\s\S]*?)\]\);/)?.[1].matchAll(/'([a-z0-9-]+)'/g) || []]
-    .map((match) => match[1]).sort();
-  assert.deepEqual(mappedIds, Object.keys(manifest.crests).sort());
-  for (const id of mappedIds) {
-    const file = new URL(`./assets/team-crests-webp/${id}.${manifest.version}.webp`, import.meta.url);
-    assert.equal(existsSync(file), true, `missing WebP crest: ${id}`);
+  const context = { window: {} };
+  vm.runInNewContext(crestAssetsSource, context);
+  const assets = context.window.KINGLIVE_TEAM_CRESTS;
+  assert.deepEqual(Object.keys(assets).sort(), Object.keys(manifest.crests).sort());
+  assert.ok(Object.keys(assets).some((key) => key.startsWith('laliga:')));
+  assert.ok(Object.keys(assets).some((key) => key.startsWith('uefa:')));
+  assert.ok(Object.keys(assets).some((key) => key.startsWith('football-data:')));
+  for (const [key, relativePath] of Object.entries(assets)) {
+    assert.match(relativePath, /^\.\/assets\/team-crests-webp\/[a-z0-9-]+\.[a-z0-9-]+\.webp$/);
+    const file = new URL(relativePath.replace(/^\.\//, './'), import.meta.url);
+    assert.equal(existsSync(file), true, `missing WebP crest: ${key}`);
     const header = readFileSync(file).subarray(0, 12);
     assert.equal(header.toString('ascii', 0, 4), 'RIFF');
     assert.equal(header.toString('ascii', 8, 12), 'WEBP');
@@ -417,7 +424,9 @@ test('renders same-day matches beyond the first six API results', async () => {
     scheduled_at: `${today}T12:0${index}:00+00:00`,
     status: 'scheduled',
     stage: 'Fixture',
-    home_team: { name_en: `Home ${index + 1}` },
+    home_team: index === 0
+      ? { name_en: `Home ${index + 1}`, flag_url: 'https://crests.football-data.org/851.png' }
+      : { name_en: `Home ${index + 1}` },
     away_team: { name_en: `Away ${index + 1}` },
   }));
   const featuredMatch = {
@@ -425,8 +434,8 @@ test('renders same-day matches beyond the first six API results', async () => {
     scheduled_at: `${today}T19:00:00+00:00`,
     status: 'scheduled',
     stage: 'Semi-finals',
-    home_team: { name_en: 'Club Brugge' },
-    away_team: { name_en: 'Aston Villa' },
+    home_team: { name_en: 'Arsenal', flag_url: 'https://img.uefa.com/imgml/TP/teams/logos/240x240/52280.png' },
+    away_team: { name_en: 'Barcelona', flag_url: 'https://img.uefa.com/imgml/TP/teams/logos/240x240/50080.png' },
   };
   const laLigaFallbackMatch = {
     id: 1540844,
@@ -445,6 +454,13 @@ test('renders same-day matches beyond the first six API results', async () => {
     Set,
     window: {
       location: { href: 'https://kinglive.test/' },
+      KINGLIVE_TEAM_CRESTS: {
+        'football-data:851': './assets/team-crests-webp/football-data-851.test.webp',
+        'laliga:osasuna': './assets/team-crests-webp/laliga-osasuna.test.webp',
+        'laliga:sevilla': './assets/team-crests-webp/laliga-sevilla.test.webp',
+        'uefa:52280': './assets/team-crests-webp/uefa-52280.test.webp',
+        'uefa:50080': './assets/team-crests-webp/uefa-50080.test.webp',
+      },
       KINGLIVE_MAIN_CONFIG: {
         apiBase: '',
         playerBase: 'https://player.kinglive.test',
@@ -488,13 +504,17 @@ test('renders same-day matches beyond the first six API results', async () => {
   vm.runInNewContext(appSource, context);
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.match(gridHtml, /Club Brugge vs Aston Villa/);
+  assert.match(gridHtml, /Arsenal vs Barcelona/);
   assert.match(gridHtml, /https:\/\/crests\.football-data\.org\/851\.png/);
-  assert.match(gridHtml, /https:\/\/crests\.football-data\.org\/58\.png/);
+  assert.match(gridHtml, /https:\/\/img\.uefa\.com\/imgml\/TP\/teams\/logos\/240x240\/52280\.png/);
+  assert.match(gridHtml, /https:\/\/img\.uefa\.com\/imgml\/TP\/teams\/logos\/240x240\/50080\.png/);
   assert.match(gridHtml, /https:\/\/assets\.laliga\.com\/assets\/2019\/06\/07\/xsmall\/osasuna\.png/);
   assert.match(gridHtml, /https:\/\/assets\.laliga\.com\/assets\/2019\/06\/07\/xsmall\/sevilla\.png/);
-  assert.match(gridHtml, /<source type="image\/webp" srcset="\.\/assets\/team-crests-webp\/osasuna\.20260917\.webp"/);
-  assert.match(gridHtml, /<source type="image\/webp" srcset="\.\/assets\/team-crests-webp\/sevilla\.20260917\.webp"/);
+  assert.match(gridHtml, /<source type="image\/webp" srcset="\.\/assets\/team-crests-webp\/football-data-851\.test\.webp"/);
+  assert.match(gridHtml, /<source type="image\/webp" srcset="\.\/assets\/team-crests-webp\/laliga-osasuna\.test\.webp"/);
+  assert.match(gridHtml, /<source type="image\/webp" srcset="\.\/assets\/team-crests-webp\/laliga-sevilla\.test\.webp"/);
+  assert.match(gridHtml, /<source type="image\/webp" srcset="\.\/assets\/team-crests-webp\/uefa-52280\.test\.webp"/);
+  assert.match(gridHtml, /<source type="image\/webp" srcset="\.\/assets\/team-crests-webp\/uefa-50080\.test\.webp"/);
 });
 
 test('main stream buttons prefer videojs and hide iframe reserves', async () => {

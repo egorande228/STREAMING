@@ -41,17 +41,6 @@
     'athletic club': 'https://assets.laliga.com/assets/2019/06/07/xsmall/athletic.png',
     'athletic club bilbao': 'https://assets.laliga.com/assets/2019/06/07/xsmall/athletic.png',
   });
-  const optimizedLaLigaCrestIds = new Set([
-    '27002754a98bf535807fe49a24cc63ea', 'athletic',
-    'cbc5c8cc8c3e8abd0e175c00ee53b723', 'barcelona',
-    '0a796827f9e758d7d750db805adde7c5', 'elche',
-    'dc59645c96bc2c9010341c16dd6d4bfa', 'levante',
-    'malaga', 'osasuna', '6b88661529a2c06840c8bf6bddd90970',
-    'e9177f6edd72c6360602adbca85e442f', 'racing',
-    '57d9950a8745ead226c04d37235c0786',
-    'e4a09419d3bd115b8f3dab73d480e146', 'real-madrid',
-    'real-sociedad', 'sevilla', 'valencia', 'villarreal',
-  ]);
   const scheduleLookaheadDays = 14;
   const scheduleFallbackBatchDays = 3;
   const scheduleFallbackMaxMatches = 5;
@@ -1402,11 +1391,14 @@
   }
 
   function optimizedTeamLogo(logo) {
-    const match = String(logo || '').match(/^https:\/\/assets\.laliga\.com\/assets\/\d{4}\/\d{2}\/\d{2}\/(?:medium|xsmall)\/([a-z0-9-]+)\.png(?:\?.*)?$/i);
-    const id = match?.[1]?.toLowerCase();
-    return id && optimizedLaLigaCrestIds.has(id)
-      ? `./assets/team-crests-webp/${id}.20260917.webp`
-      : '';
+    const value = String(logo || '');
+    const match = value.match(/^https:\/\/assets\.laliga\.com\/assets\/\d{4}\/\d{2}\/\d{2}\/(?:medium|xsmall)\/([a-z0-9-]+)\.png(?:\?.*)?$/i);
+    const uefa = value.match(/^https:\/\/img\.uefa\.com\/imgml\/TP\/teams\/logos\/\d+x\d+\/(\d+)\.png(?:\?.*)?$/i);
+    const footballData = value.match(/^https:\/\/crests\.football-data\.org\/([a-z0-9-]+)\.(?:png|jpe?g)(?:\?.*)?$/i);
+    const key = match ? `laliga:${match[1].toLowerCase()}`
+      : uefa ? `uefa:${uefa[1]}`
+        : footballData ? `football-data:${footballData[1].toLowerCase()}` : '';
+    return key ? window.KINGLIVE_TEAM_CRESTS?.[key] || '' : '';
   }
 
   function renderTeamLogo(team, alt) {

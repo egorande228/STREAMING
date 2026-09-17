@@ -4,6 +4,7 @@
   "scripts": {
     "build": "node build.mjs",
     "optimize:crests": "node optimize-team-crests.mjs",
+    "sync:crests": "node sync-team-crests.mjs && node optimize-team-crests.mjs",
     "test": "node --test app.test.mjs schedule-regressions.test.mjs team-names.test.mjs news.test.mjs curated-news.test.mjs locale.test.mjs build.test.mjs layout.test.mjs"
   },
   "devDependencies": {

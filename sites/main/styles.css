@@ -597,7 +597,7 @@ html[dir="rtl"] .locale-menu {
 .schedule-controls {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   margin-bottom: 10px;
 }
 
@@ -670,6 +670,7 @@ html[dir="rtl"] .locale-menu {
 
 .schedule-controls .match-day-tabs {
   width: min(100%, 360px);
+  margin-inline-start: 0;
 }
 
 .match-day-tab {
@@ -1183,6 +1184,15 @@ html[dir="rtl"] .match-card .match-meta {
   border-color: rgba(190, 190, 190, 0.36);
   background: rgba(160, 160, 160, 0.12);
   color: var(--status-postponed);
+}
+
+.match-card .match-status {
+  min-height: 30px;
+  border-color: currentColor;
+  background: color-mix(in srgb, currentColor 10%, var(--surface));
+  font-size: 13px;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
 }
 
 .ad-rail {
@@ -2905,7 +2915,7 @@ html[dir="rtl"] .social-dock {
   }
 
   .match-center .match-status {
-    font-size: 9px;
+    font-size: 12px;
     letter-spacing: 0;
     padding-inline: 6px;
   }

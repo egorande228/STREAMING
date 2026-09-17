@@ -337,7 +337,7 @@ async function measureHomepageFirstScreen() {
         home_team: { name_en: 'Crystal Palace' },
         away_team: { name_en: 'Manchester City' },
       },
-      ...['finished', 'live', 'half_time'].map((status, index) => ({
+      ...['finished', 'live', 'half_time', 'postponed', 'cancelled'].map((status, index) => ({
         id: 9002 + index,
         scheduled_at: kickoff.toISOString(),
         status,
@@ -382,7 +382,52 @@ async function measureHomepageFirstScreen() {
         const statusRect = card?.querySelector('.match-status')?.getBoundingClientRect();
         const metaRect = card?.querySelector('.match-meta')?.getBoundingClientRect();
         const fontSize = (selector) => Number.parseFloat(getComputedStyle(card.querySelector(selector)).fontSize);
+        const root = document.documentElement;
+        const originalTheme = root.getAttribute('data-theme');
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const paint = canvas.getContext('2d');
+        const rgb = (color) => {
+          paint.clearRect(0, 0, 1, 1);
+          paint.fillStyle = color;
+          paint.fillRect(0, 0, 1, 1);
+          return Array.from(paint.getImageData(0, 0, 1, 1).data).slice(0, 3);
+        };
+        const popupBadge = document.createElement('span');
+        popupBadge.className = 'detail-score-status match-status live';
+        popupBadge.textContent = 'LIVE';
+        document.body.append(popupBadge);
+        const statusThemes = ['dark', 'light'].map(theme => {
+          root.setAttribute('data-theme', theme);
+          return {
+            theme,
+            popupFontSize: Number.parseFloat(getComputedStyle(popupBadge).fontSize),
+            popupMinHeight: Number.parseFloat(getComputedStyle(popupBadge).minHeight),
+            badges: Array.from(document.querySelectorAll('.match-card .match-status')).map(badge => {
+              const style = getComputedStyle(badge);
+              const rect = badge.getBoundingClientRect();
+              const center = badge.closest('.match-center').getBoundingClientRect();
+              return {
+                status: badge.className,
+                fontSize: Number.parseFloat(style.fontSize),
+                height: rect.height,
+                color: rgb(style.color),
+                background: rgb(style.backgroundColor),
+                border: rgb(style.borderTopColor),
+                contained: rect.left >= center.left - 1 && rect.right <= center.right + 1,
+                clipped: badge.scrollWidth > badge.clientWidth || badge.scrollHeight > badge.clientHeight,
+              };
+            }),
+          };
+        });
+        popupBadge.remove();
+        if (originalTheme === null) root.removeAttribute('data-theme');
+        else root.setAttribute('data-theme', originalTheme);
+        const titleRect = document.querySelector('#schedule-title').getBoundingClientRect();
+        const startEdge = getComputedStyle(root).direction === 'rtl' ? 'right' : 'left';
         document.querySelector('#first-screen-result').textContent = JSON.stringify({
+          statusThemes,
+          tabsStartOffset: Math.abs(tabsRect[startEdge] - titleRect[startEdge]),
           scoredCards: Array.from(document.querySelectorAll('.match-card')).filter(item => item.querySelector('.match-score')).map(item => {
             const score = item.querySelector('.match-score');
             const center = item.querySelector('.match-center');
@@ -679,6 +724,33 @@ test('desktop kickoff, timezone and league remain readable in English and Arabic
 
 test('desktop typography changes preserve compact mobile match text', { skip: !chromePath }, () => {
   assert.deepEqual(homepageLayout.mobile.matchFontSizes, { time: 12, zone: 10, league: 11 });
+});
+
+test('desktop day tabs align with the heading start in English and Arabic', { skip: !chromePath }, () => {
+  for (const view of [homepageLayout, homepageLayout.arabic]) {
+    assert.ok(view.tabsStartOffset <= 1, `tabs start ${view.tabsStartOffset}px away from the heading`);
+    assert.equal(view.tabsBelowHeading, true);
+  }
+  assert.equal(homepageLayout.mobile.tabsMatchCardWidth, true, 'mobile tabs should keep their full width');
+});
+
+test('card statuses are readable in both themes without enlarging popup badges', { skip: !chromePath }, () => {
+  for (const [view, minFontSize] of [[homepageLayout, 13], [homepageLayout.arabic, 13], [homepageLayout.mobile, 12]]) {
+    for (const { theme, badges, popupFontSize, popupMinHeight } of view.statusThemes) {
+      assert.equal(badges.length, 6, 'cover every match status');
+      assert.equal(popupFontSize, 11, 'popup status size must remain unchanged');
+      assert.equal(popupMinHeight, 28, 'popup badge height must remain unchanged');
+      for (const badge of badges) {
+        const label = `${theme}/${badge.status}`;
+        assert.ok(badge.fontSize >= minFontSize, `${label}: status text is only ${badge.fontSize}px`);
+        assert.ok(badge.height >= 30, `${label}: badge is too small`);
+        assert.ok(contrastRatio(badge.color, badge.background) >= 4.5, `${label}: text contrast is too low`);
+        assert.ok(contrastRatio(badge.border, badge.background) >= 3, `${label}: badge outline is too faint`);
+        assert.equal(badge.contained, true, `${label}: badge overlaps a team`);
+        assert.equal(badge.clipped, false, `${label}: status is clipped`);
+      }
+    }
+  }
 });
 
 test('score stays large and contained without kickoff on live, half-time or finished cards', { skip: !chromePath }, () => {

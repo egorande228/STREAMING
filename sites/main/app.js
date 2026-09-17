@@ -71,6 +71,7 @@
       teamStatistics: 'Team statistics',
       matchFacts: 'Match facts',
       startingLineups: 'Starting lineups',
+      substitutes: 'Substitutes',
       melbetOdds: 'MelBet odds',
       homeWin: 'Home',
       awayWin: 'Away',
@@ -158,6 +159,7 @@
       teamStatistics: 'Estadísticas del equipo',
       matchFacts: 'Datos del partido',
       startingLineups: 'Alineaciones iniciales',
+      substitutes: 'Suplentes',
       melbetOdds: 'Cuotas MelBet',
       homeWin: 'Local',
       awayWin: 'Visitante',
@@ -245,6 +247,7 @@
       teamStatistics: 'Statistiques d’équipe',
       matchFacts: 'Faits du match',
       startingLineups: 'Compositions de départ',
+      substitutes: 'Remplaçants',
       melbetOdds: 'Cotes MelBet',
       homeWin: 'Domicile',
       awayWin: 'Extérieur',
@@ -332,6 +335,7 @@
       teamStatistics: 'إحصاءات الفريقين',
       matchFacts: 'حقائق المباراة',
       startingLineups: 'التشكيلات الأساسية',
+      substitutes: 'البدلاء',
       melbetOdds: 'احتمالات MelBet',
       homeWin: 'المضيف',
       awayWin: 'الضيف',
@@ -1626,6 +1630,7 @@
       ['fouls', t('fouls')],
       ['yellow_cards', t('yellowCards')],
       ['red_cards', t('redCards')],
+      ['expected_goals', 'xG'],
     ]
       .map(([key, label]) => {
         const homeValue = displayStatValue(key, home[key]);
@@ -1693,8 +1698,22 @@
     `;
   }
 
+  function renderSubstituteList(items) {
+    return `
+      <ol class="substitute-list">
+        ${items.map((item) => {
+          const name = cleanText(item.player_name, t('tbd'));
+          const number = item.number == null || item.number === '' ? '' : `<b>${escapeHtml(item.number)}</b>`;
+          return `<li>${number}<span>${escapeHtml(name)}</span></li>`;
+        }).join('')}
+      </ol>
+    `;
+  }
+
   function renderLineups(stats) {
-    const starters = Array.isArray(stats?.lineups) ? stats.lineups.filter((item) => item?.is_starter !== false) : [];
+    const lineups = Array.isArray(stats?.lineups) ? stats.lineups : [];
+    const starters = lineups.filter((item) => item?.is_starter !== false);
+    const substitutes = lineups.filter((item) => item?.is_starter === false);
     if (!starters.length) return '';
     const home = starters.filter((item) => item.team === 'home');
     const away = starters.filter((item) => item.team === 'away');
@@ -1709,6 +1728,15 @@
           ${renderFormationPitch(home, homeTitle)}
           ${renderFormationPitch(away, awayTitle)}
         </div>
+        ${substitutes.length ? `
+          <section class="substitute-section">
+            <strong class="substitute-title">${escapeHtml(t('substitutes'))}</strong>
+            <div class="substitute-grid">
+              <div>${renderSubstituteList(substitutes.filter((item) => item.team === 'home'))}</div>
+              <div>${renderSubstituteList(substitutes.filter((item) => item.team === 'away'))}</div>
+            </div>
+          </section>
+        ` : ''}
       `,
       'lineup-accordion',
     );

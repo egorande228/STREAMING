@@ -2042,8 +2042,8 @@ test('opens match details with stats and only shows player button when stream ex
                 ],
               },
               team_stats: [
-                { team: { name: 'Arsenal' }, stats: { possession: 61, shots_on_goal: 5, total_shots: 11, corners: 6 } },
-                { team: { name: 'Atletico Madrid' }, stats: { possession: 39, shots_on_goal: 3, total_shots: 7, corners: 2 } },
+                { team: { name: 'Arsenal' }, stats: { possession: 61, shots_on_goal: 5, total_shots: 11, corners: 6, expected_goals: 1.84 } },
+                { team: { name: 'Atletico Madrid' }, stats: { possession: 39, shots_on_goal: 3, total_shots: 7, corners: 2, expected_goals: 0.92 } },
               ],
               lineups: [
                 { id: 1, team: 'home', player_name: 'David Raya', number: 22, position: '1', is_starter: true, image_url: 'https://cdn.test/raya.png' },
@@ -2163,6 +2163,7 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /Team statistics/);
   assert.match(modalHtml, /<details class="detail-accordion stats-accordion" open>/);
   assert.match(modalHtml, /Shots on goal 5 - 3/);
+  assert.match(modalHtml, /xG 1\.84 - 0\.92/);
   assert.match(modalHtml, /Starting lineups/);
   assert.match(modalHtml, /<details class="detail-accordion lineup-accordion">/);
   assert.doesNotMatch(modalHtml, /<details class="detail-accordion lineup-accordion" open>/);
@@ -2177,7 +2178,8 @@ test('opens match details with stats and only shows player button when stream ex
   assert.match(modalHtml, /<span>Bukayo Saka<\/span>/);
   assert.doesNotMatch(modalHtml, /22 · 1/);
   assert.match(modalHtml, /Jan Oblak/);
-  assert.doesNotMatch(modalHtml, /Gabriel Jesus/);
+  assert.match(modalHtml, /Substitutes/);
+  assert.match(modalHtml, /Gabriel Jesus/);
   assert.match(modalHtml, /Match facts/);
   assert.match(modalHtml, /<details class="detail-accordion facts-accordion">/);
   assert.doesNotMatch(modalHtml, /<details class="detail-accordion facts-accordion" open>/);

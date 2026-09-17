@@ -1983,6 +1983,64 @@ html[dir="rtl"] .social-dock {
   white-space: nowrap;
 }
 
+.substitute-section {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(244, 239, 226, 0.1);
+}
+
+.substitute-title {
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.substitute-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.substitute-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.substitute-list li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(244, 239, 226, 0.08);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 7px 9px;
+}
+
+.substitute-list b {
+  flex: 0 0 24px;
+  color: var(--gold);
+  font-size: 11px;
+  text-align: center;
+}
+
+.substitute-list span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .formation-pitch {
   position: relative;
   justify-self: center;

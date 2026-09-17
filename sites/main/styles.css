@@ -991,6 +991,10 @@ html[dir="rtl"] .match-card .match-meta {
   object-fit: contain;
 }
 
+.team-logo-picture {
+  display: contents;
+}
+
 .team-logo.empty {
   border: 1px solid var(--line);
   border-radius: 50%;

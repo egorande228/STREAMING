@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import vm from 'node:vm';
 
@@ -33,7 +33,22 @@ test('news section renders only the localized Latest News heading', () => {
 
 test('homepage cache-busts match data and the app bundle after production updates', () => {
   assert.match(appSource, /const apiVersion = 'match-details-cache-status-20260910';/);
-  assert.match(indexHtml, /app\.js\?v=20260916-scored-no-kickoff/);
+  assert.match(indexHtml, /app\.js\?v=20260917-webp-crests/);
+  assert.match(indexHtml, /styles\.css\?v=20260917-webp-crests/);
+});
+
+test('every mapped LaLiga crest has a real local WebP asset', () => {
+  const manifest = JSON.parse(readFileSync(new URL('./team-crest-sources.json', import.meta.url), 'utf8'));
+  const mappedIds = [...appSource.match(/const optimizedLaLigaCrestIds = new Set\(\[([\s\S]*?)\]\);/)?.[1].matchAll(/'([a-z0-9-]+)'/g) || []]
+    .map((match) => match[1]).sort();
+  assert.deepEqual(mappedIds, Object.keys(manifest.crests).sort());
+  for (const id of mappedIds) {
+    const file = new URL(`./assets/team-crests-webp/${id}.${manifest.version}.webp`, import.meta.url);
+    assert.equal(existsSync(file), true, `missing WebP crest: ${id}`);
+    const header = readFileSync(file).subarray(0, 12);
+    assert.equal(header.toString('ascii', 0, 4), 'RIFF');
+    assert.equal(header.toString('ascii', 8, 12), 'WEBP');
+  }
 });
 
 test('initial schedule load uses three nearby days before a batched future fallback', () => {
@@ -478,6 +493,8 @@ test('renders same-day matches beyond the first six API results', async () => {
   assert.match(gridHtml, /https:\/\/crests\.football-data\.org\/58\.png/);
   assert.match(gridHtml, /https:\/\/assets\.laliga\.com\/assets\/2019\/06\/07\/xsmall\/osasuna\.png/);
   assert.match(gridHtml, /https:\/\/assets\.laliga\.com\/assets\/2019\/06\/07\/xsmall\/sevilla\.png/);
+  assert.match(gridHtml, /<source type="image\/webp" srcset="\.\/assets\/team-crests-webp\/osasuna\.20260917\.webp"/);
+  assert.match(gridHtml, /<source type="image\/webp" srcset="\.\/assets\/team-crests-webp\/sevilla\.20260917\.webp"/);
 });
 
 test('main stream buttons prefer videojs and hide iframe reserves', async () => {

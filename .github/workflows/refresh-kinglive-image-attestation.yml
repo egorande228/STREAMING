@@ -1,0 +1,53 @@
+name: Refresh KingLive image attestation
+
+on:
+  schedule:
+    - cron: '17 */2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kinglive-image-attestation
+  cancel-in-progress: false
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify Docker Hub and publish signed attestation
+        shell: bash
+        env:
+          CF_API_TOKEN: ${{ secrets.KINGLIVE_CF_API_TOKEN }}
+          SIGNING_KEY: ${{ secrets.KINGLIVE_IMAGE_ATTESTATION_PRIVATE_KEY }}
+          CF_ACCOUNT_ID: 7616dece8b5aecd644f7f8e7a0b0522e
+          D1_DATABASE_ID: fc986c35-78d7-4bc0-b94f-020a12b722fc
+          IMAGE: vastai/base-image:stock-ubuntu22.04-py313-2026-09-07
+          DIGEST: vastai/base-image@sha256:892f34cf4d575bc618d8094b8fb1d7434471440d92c8ccf9a650c8cad09a8e51
+        run: |
+          node <<'NODE'
+          const {createSign}=require('node:crypto');
+          const image=process.env.IMAGE,digest=process.env.DIGEST;
+          if(!process.env.CF_API_TOKEN||!process.env.SIGNING_KEY)throw Error('required_secret_missing');
+          const tag=image.slice('vastai/base-image:'.length),expected=digest.slice('vastai/base-image@'.length);
+          const response=await fetch('https://hub.docker.com/v2/namespaces/vastai/repositories/base-image/tags/'+encodeURIComponent(tag),{headers:{Accept:'application/json'},signal:AbortSignal.timeout(15000)});
+          if(!response.ok)throw Error('docker_hub_http_'+response.status);
+          const body=await response.json();
+          if(body?.name!==tag||body?.digest!==expected||body?.tag_status!=='active'||!Array.isArray(body.images)||
+             !body.images.some(item=>item?.architecture==='amd64'&&item?.os==='linux'&&item?.status==='active'))throw Error('docker_hub_digest_mismatch');
+          const checkedAt=Date.now(),expiresAt=checkedAt+6*60*60*1000;
+          const payload=`kinglive-bootstrap-image-attestation-v1\n${image}\n${digest}\n${checkedAt}\n${expiresAt}`;
+          const signer=createSign('SHA256');signer.update(payload);signer.end();
+          const signature=signer.sign({key:process.env.SIGNING_KEY,dsaEncoding:'ieee-p1363'}).toString('base64');
+          const sql=`INSERT INTO bootstrap_image_attestations(id,schema,image,digest,checked_at,expires_at,signature,updated_at)
+            VALUES(1,1,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET schema=excluded.schema,image=excluded.image,digest=excluded.digest,
+            checked_at=excluded.checked_at,expires_at=excluded.expires_at,signature=excluded.signature,updated_at=excluded.updated_at`;
+          const api=`https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/d1/database/${process.env.D1_DATABASE_ID}/query`;
+          const written=await fetch(api,{method:'POST',headers:{Authorization:`Bearer ${process.env.CF_API_TOKEN}`,'Content-Type':'application/json'},
+            body:JSON.stringify({sql,params:[image,digest,checkedAt,expiresAt,signature,checkedAt]}),signal:AbortSignal.timeout(20000)});
+          const result=await written.json();
+          if(!written.ok||!result.success||result.result?.some(part=>part.success!==true))throw Error('d1_write_unconfirmed');
+          console.log(JSON.stringify({attested:true,image,digest,checkedAt,expiresAt}));
+          NODE

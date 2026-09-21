@@ -27,8 +27,8 @@ jobs:
           IMAGE: vastai/base-image:stock-ubuntu22.04-py313-2026-09-07
           DIGEST: vastai/base-image@sha256:892f34cf4d575bc618d8094b8fb1d7434471440d92c8ccf9a650c8cad09a8e51
         run: |
-          node <<'NODE'
-          const {createSign}=require('node:crypto');
+          node --input-type=module <<'NODE'
+          import {createSign} from 'node:crypto';
           const image=process.env.IMAGE,digest=process.env.DIGEST;
           if(!process.env.CF_API_TOKEN||!process.env.SIGNING_KEY)throw Error('required_secret_missing');
           const tag=image.slice('vastai/base-image:'.length),expected=digest.slice('vastai/base-image@'.length);

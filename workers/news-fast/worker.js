@@ -1,11 +1,6 @@
 import { normalizeRssNews } from '../football-api/worker.js';
 
-const FEEDS = {
-  en: { url: 'https://feeds.bbci.co.uk/sport/football/rss.xml', source: 'BBC Sport Football', itemSource: 'BBC Sport' },
-  fr: { url: 'https://news.google.com/rss/search?q=football&hl=fr&gl=FR&ceid=FR:fr', source: 'Google News Football', itemSource: 'Google News' },
-  es: { url: 'https://news.google.com/rss/search?q=futbol&hl=es&gl=ES&ceid=ES:es', source: 'Google News Football', itemSource: 'Google News' },
-  ar: { url: 'https://news.google.com/rss/search?q=%D9%83%D8%B1%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%85&hl=ar&gl=AE&ceid=AE:ar', source: 'Google News Arabic Football', itemSource: 'Google News' },
-};
+const FEED = { url: 'https://feeds.bbci.co.uk/sport/football/rss.xml', source: 'BBC Sport Football', itemSource: 'BBC Sport' };
 
 const NEWS_TTL_SECONDS = 900;
 const MAX_FEED_BYTES = 512 * 1024;
@@ -38,9 +33,10 @@ export default {
   async fetch(request, _env, ctx) {
     const url = new URL(request.url);
     if (request.method !== 'GET' || url.pathname !== '/api/news') return json({ error: 'not_found' }, 404);
-    const lang = FEEDS[url.searchParams.get('lang')] ? url.searchParams.get('lang') : 'en';
+    const lang = url.searchParams.get('lang') || 'en';
+    if (lang !== 'en') return json({ error: 'unsupported_locale' }, 400);
     const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 6, 1), 12);
-    const feed = FEEDS[lang];
+    const feed = FEED;
     const cache = globalThis.caches?.default;
     const cacheKey = new Request(`${url.origin}/api/news?lang=${lang}&limit=${limit}`);
     const cached = await cache?.match(cacheKey);

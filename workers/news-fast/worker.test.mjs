@@ -31,22 +31,11 @@ test('English news uses direct BBC feed and returns existing card shape', async 
   }
 });
 
-test('locales use a football-specific direct feed', async () => {
-  const original = globalThis.fetch;
-  const urls = [];
-  globalThis.fetch = async (url) => {
-    urls.push(String(url));
-    return new Response(rss, { status: 200 });
-  };
-  try {
-    for (const lang of ['ar', 'fr', 'es']) {
-      const response = await worker.fetch(new Request(`https://news.test/api/news?lang=${lang}`), {}, {});
-      assert.equal(response.status, 200);
-      assert.equal((await response.json()).lang, lang);
-    }
-    assert.equal(urls.every((url) => url.startsWith('https://news.google.com/rss/search?')), true);
-  } finally {
-    globalThis.fetch = original;
+test('other languages stay on the existing API rather than this English-only endpoint', async () => {
+  for (const lang of ['ar', 'fr', 'es']) {
+    const response = await worker.fetch(new Request(`https://news.test/api/news?lang=${lang}`), {}, {});
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error, 'unsupported_locale');
   }
 });
 

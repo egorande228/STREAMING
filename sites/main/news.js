@@ -500,6 +500,7 @@
     const newsUrl = localizedNewsUrl();
     const scope = `news:${uiLocale}:${newsUrl}`;
     const cachedStory = readNewsStoryCache(requestedUrl);
+    if (cachedStory) renderStory(cachedStory);
     try {
       let data = readDailyCache(scope);
       if (!data) {

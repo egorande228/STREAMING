@@ -95,6 +95,7 @@ test('renders a selected RSS news item on an internal story page', async () => {
 test('renders a selected story from client cache when it expired from the feed', async () => {
   let articleHtml = '';
   let title = '';
+  let resolveFetch;
   const requestedUrl = 'https://www.bbc.com/sport/football/articles/expired';
   const cachedStory = {
     id: 'expired-story-id',
@@ -155,14 +156,19 @@ test('renders a selected story from client cache when it expired from the feed',
     },
     fetch(url) {
       assert.equal(String(url), 'https://kinglive-football-api.test/api/news?limit=12&lang=en');
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ news: [] }),
+      return new Promise((resolve) => {
+        resolveFetch = resolve;
       });
     },
   };
 
   vm.runInNewContext(newsSource, context);
+  assert.match(articleHtml, /Cached football headline/);
+  assert.match(articleHtml, /Cached paragraph one\./);
+  resolveFetch({
+    ok: true,
+    json: () => Promise.resolve({ news: [] }),
+  });
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.match(title, /Cached football headline/);

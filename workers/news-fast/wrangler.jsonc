@@ -1,0 +1,7 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "kinglive-news-fast",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-22",
+  "observability": { "enabled": true }
+}

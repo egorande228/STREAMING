@@ -676,8 +676,9 @@
     };
   }
 
-  async function fetchInitialScheduleMatches(today, options = {}) {
+  async function fetchInitialScheduleMatches(today, options = {}, onInitial = () => {}) {
     const initial = await fetchMatchDayMatches(today, options);
+    onInitial(initial);
     if (!initial.complete) return initial;
     const tomorrow = addUtcDays(today, 1);
     const hasImmediateMatches = initial.matches.some((match) => {
@@ -2477,7 +2478,14 @@
     }
 
     try {
-      const schedule = await fetchInitialScheduleMatches(today, options);
+      const schedule = await fetchInitialScheduleMatches(today, options, (initial) => {
+        if (loadId !== matchDayLoadId) return;
+        // The future fallback can take much longer than the selected day's data.
+        // Finish the visible day first; any later fixture is added when found.
+        scheduleState = initial.complete ? 'ready' : 'error';
+        currentScheduleMatches = mergeManualMatches(initial.matches);
+        renderMatches(matchesForMatchDayView(currentScheduleMatches, matchDateForOffset()));
+      });
       if (loadId !== matchDayLoadId) return;
       scheduleState = schedule.complete ? 'ready' : 'error';
       fetchActiveStreamMatchIds({ force: options.force }).then((activeIds) => {

@@ -35,7 +35,7 @@ test('news section renders only the localized Latest News heading', () => {
 test('homepage cache-busts match data and the app bundle after production updates', () => {
   assert.match(appSource, /const apiVersion = 'match-details-cache-status-20260910';/);
   assert.match(indexHtml, /team-crest-assets\.js\?v=20260917-all-webp-crests/);
-  assert.match(indexHtml, /app\.js\?v=20260917-all-webp-crests/);
+  assert.match(indexHtml, /app\.js\?v=20260922-fast-schedule/);
   assert.match(indexHtml, /styles\.css\?v=20260918-status-tabs-webp/);
 });
 
@@ -59,13 +59,75 @@ test('every mapped raster crest has a real local WebP asset', () => {
 });
 
 test('initial schedule load uses three nearby days before a batched future fallback', () => {
-  assert.match(appSource, /const schedule = await fetchInitialScheduleMatches\(today, options\);/);
+  assert.match(appSource, /const schedule = await fetchInitialScheduleMatches\(today, options, \(initial\) => \{/);
   assert.match(appSource, /const initial = await fetchMatchDayMatches\(today, options\);/);
+  assert.match(appSource, /onInitial\(initial\);/);
   assert.match(appSource, /const scheduleFallbackBatchDays = 3;/);
   assert.match(appSource, /if \(hasImmediateMatches\) return initial;/);
   assert.match(appSource, /matches\.slice\(0, scheduleFallbackMaxMatches\)/);
   assert.match(appSource, /if \(!Array\.isArray\(matches\) \|\| !matches\.length\) return 45_000;/);
   assert.doesNotMatch(appSource, /const schedule = await fetchScheduleMatches\(today, options\);/);
+});
+
+test('empty selected day renders before a slow future schedule fallback finishes', async () => {
+  let gridHtml = '';
+  let releaseFuture;
+  const today = localDateKey();
+  const futureDate = addUtcDays(today, 2);
+  const futureResponse = new Promise((resolve) => {
+    releaseFuture = () => resolve({
+      ok: true,
+      json: () => Promise.resolve({ matches: [{
+        id: 19609128,
+        scheduled_at: `${futureDate}T19:00:00+00:00`,
+        status: 'scheduled',
+        home_team: { name_en: 'Mexico' },
+        away_team: { name_en: 'South Africa' },
+      }] }),
+    });
+  });
+  const modalRoot = { hidden: true, innerHTML: '', addEventListener() {} };
+  const context = {
+    URL, URLSearchParams, Intl, Date, Set,
+    window: { location: { href: 'https://kinglive.test/' }, KINGLIVE_MAIN_CONFIG: {
+      apiBase: 'https://kinglive-football-api.test', defaultLocale: 'en', adSlots: {},
+    } },
+    document: {
+      body: { appendChild() {} },
+      createElement() { return modalRoot; },
+      addEventListener() {},
+      getElementById(id) {
+        return id === 'match-grid' ? {
+          get innerHTML() { return gridHtml; },
+          set innerHTML(value) { gridHtml = value; },
+          addEventListener() {},
+        } : null;
+      },
+      querySelectorAll(selector) {
+        if (selector === '[data-match-day]') return [
+          createMatchDayButton(-1), createMatchDayButton(0, true), createMatchDayButton(1),
+        ];
+        return [];
+      },
+    },
+    fetch(url) {
+      const request = String(url);
+      if (request.includes(`date=${futureDate}`)) return futureResponse;
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ matches: [] }) });
+    },
+  };
+
+  vm.runInNewContext(appSource, context);
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(gridHtml, /No matches today/);
+  assert.doesNotMatch(gridHtml, /Next match/);
+
+  releaseFuture();
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(gridHtml, /No matches today/);
+  assert.match(gridHtml, /Next match/);
 });
 
 function localDateKey(date = new Date()) {

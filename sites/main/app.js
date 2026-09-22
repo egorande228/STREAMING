@@ -728,7 +728,8 @@
 
   function localizedNewsUrl() {
     try {
-      const url = new URL(String(newsApiUrl), window.location.href);
+      const selectedNewsUrl = uiLocale === 'en' && config.fastNewsApiUrl ? config.fastNewsApiUrl : newsApiUrl;
+      const url = new URL(String(selectedNewsUrl), window.location.href);
       url.searchParams.set('lang', uiLocale);
       return url.toString();
     } catch {

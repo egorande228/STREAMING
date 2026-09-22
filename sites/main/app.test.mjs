@@ -35,7 +35,7 @@ test('news section renders only the localized Latest News heading', () => {
 test('homepage cache-busts match data and the app bundle after production updates', () => {
   assert.match(appSource, /const apiVersion = 'match-details-cache-status-20260910';/);
   assert.match(indexHtml, /team-crest-assets\.js\?v=20260917-all-webp-crests/);
-  assert.match(indexHtml, /app\.js\?v=20260922-fast-schedule/);
+  assert.match(indexHtml, /app\.js\?v=20260922-fast-news/);
   assert.match(indexHtml, /styles\.css\?v=20260918-status-tabs-webp/);
 });
 
@@ -1719,7 +1719,7 @@ test('renders live match score in the match list', async () => {
   assert.doesNotMatch(scheduledCard, /match-score/, 'an unplayed match should show kickoff, not a 0:0 score');
 });
 
-test('renders football news from the backend news endpoint', async () => {
+test('renders English football news from the fast endpoint', async () => {
   let newsHtml = '';
   const newsGrid = {
     get innerHTML() {
@@ -1749,6 +1749,7 @@ test('renders football news from the backend news endpoint', async () => {
         apiBase: 'https://kinglive-football-api.test',
         playerBase: 'https://player.kinglive.test',
         newsApiUrl: 'https://kinglive-football-api.test/api/news?limit=1',
+        fastNewsApiUrl: 'https://kinglive-news-fast.test/api/news?limit=1',
         defaultLocale: 'en',
         adSlots: {},
       },
@@ -1770,7 +1771,7 @@ test('renders football news from the backend news endpoint', async () => {
       },
     },
     fetch(url) {
-      assert.equal(String(url), 'https://kinglive-football-api.test/api/news?limit=1&lang=en');
+      assert.equal(String(url), 'https://kinglive-news-fast.test/api/news?limit=1&lang=en');
       return Promise.resolve({
         ok: true,
         json: () =>

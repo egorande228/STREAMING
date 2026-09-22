@@ -11,6 +11,7 @@ window.KINGLIVE_MAIN_CONFIG = {
   playerBase,
   streamConfigUrl: './stream.json',
   newsApiUrl: `${unifiedApiBase}/api/news?limit=6&v=20260518-main-unified`,
+  fastNewsApiUrl: 'https://kinglive-news-fast.figurator228.workers.dev/api/news?limit=6&v=20260922',
   sponsorUrl: 'https://qweqr.sbs/jJQN6M',
   defaultLocale: 'en',
   adSlots: {},
